@@ -22,6 +22,73 @@
                     </a>
                 <?php endforeach; ?>
             </div>
+
+            <?php
+            $guideCounts = [];
+            foreach (array_merge($info_box ?? [], $ujian_box ?? []) as $guideInfo) {
+                $guideCounts[strtolower(trim($guideInfo->title))] = (int) $guideInfo->total;
+            }
+            $guideHas = static function ($keys) use ($guideCounts) {
+                foreach ((array) $keys as $key) {
+                    if (($guideCounts[strtolower($key)] ?? 0) < 1) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+            $guideSteps = [
+                ['key' => 'periode', 'title' => 'Profil dan periode aktif', 'text' => 'Pastikan identitas sekolah, tahun pelajaran, dan semester sudah dipilih.', 'url' => 'settings', 'status' => !empty($tp_active) && !empty($smt_active) ? 'done' : 'check'],
+                ['key' => 'master', 'title' => 'Data mapel, guru, siswa, dan rombel', 'text' => 'Data ini menjadi dasar penentuan peserta dan bank soal.', 'url' => 'datasiswa', 'status' => $guideHas(['siswa', 'rombel', 'guru', 'mapel']) ? 'done' : 'check'],
+                ['key' => 'struktur', 'title' => 'Jenis ujian, sesi, dan ruang', 'text' => 'Siapkan struktur pelaksanaan sebelum menempatkan peserta.', 'url' => 'cbtruang', 'status' => $guideHas(['ruang ujian', 'sesi']) ? 'done' : 'check'],
+                ['key' => 'bank', 'title' => 'Bank soal', 'text' => 'Buat atau periksa soal, kunci, bobot, dan pengacakan.', 'url' => 'cbtbanksoal', 'status' => $guideHas('bank soal') ? 'done' : 'check'],
+                ['key' => 'jadwal', 'title' => 'Jadwal ujian', 'text' => 'Pilih bank soal, waktu, token, dan kebijakan SEB sesuai kebutuhan.', 'url' => 'cbtjadwal', 'status' => $guideHas('jadwal') ? 'done' : 'check'],
+                ['key' => 'peserta', 'title' => 'Peserta, nomor, pengawas, dan token', 'text' => 'Periksa penempatan siswa dan siapkan informasi yang dibagikan di ruang.', 'url' => 'cbtalokasi', 'status' => 'manual'],
+                ['key' => 'cek', 'title' => 'Pemeriksaan akhir dan simulasi', 'text' => 'Uji satu akun siswa, pantau aktivitas, dan cetak dokumen yang diperlukan.', 'url' => 'examactivity', 'status' => 'manual'],
+            ];
+            ?>
+            <section class="admin-first-guide" id="admin-first-exam-guide" aria-labelledby="admin-first-guide-title">
+                <div class="admin-first-guide-header">
+                    <div>
+                        <span class="dashboard-kicker">Pendamping admin baru</span>
+                        <h2 id="admin-first-guide-title">Buat ujian pertama dari nol</h2>
+                        <p>Ikuti langkah berurutan. Tombol hanya membuka halaman yang sudah ada.</p>
+                    </div>
+                    <div class="admin-first-guide-actions">
+                        <button type="button" class="btn btn-default btn-sm" id="admin-guide-toggle" aria-expanded="true">Ciutkan</button>
+                        <button type="button" class="btn btn-link btn-sm" id="admin-guide-dismiss">Sembunyikan</button>
+                    </div>
+                </div>
+                <div class="admin-first-guide-body">
+                    <div class="admin-first-guide-progress" aria-live="polite">
+                        <div class="d-flex justify-content-between mb-1"><span id="admin-guide-progress-label">Memeriksa langkah...</span><span id="admin-guide-progress-percent">0%</span></div>
+                        <div class="progress" aria-hidden="true"><div id="admin-guide-progress-bar" class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="width:0%"></div></div>
+                    </div>
+                    <div class="admin-first-guide-steps">
+                        <?php foreach ($guideSteps as $index => $step) : ?>
+                            <article class="admin-guide-step is-<?= $step['status'] ?>" data-guide-step="<?= html_escape($step['key']) ?>" data-guide-status="<?= html_escape($step['status']) ?>">
+                                <div class="admin-guide-step-number" aria-hidden="true"><?= $index + 1 ?></div>
+                                <div class="admin-guide-step-content">
+                                    <div class="admin-guide-step-title-row">
+                                        <h3><?= html_escape($step['title']) ?></h3>
+                                        <span class="admin-guide-step-status" data-guide-status-label><?= $step['status'] === 'done' ? 'Selesai' : ($step['status'] === 'manual' ? 'Periksa' : 'Perlu perhatian') ?></span>
+                                    </div>
+                                    <p><?= html_escape($step['text']) ?></p>
+                                    <div class="admin-guide-step-footer">
+                                        <a class="btn btn-primary btn-sm" href="<?= base_url($step['url']) ?>">Buka <?= html_escape($step['title']) ?> <i class="fas fa-arrow-right ml-1" aria-hidden="true"></i></a>
+                                        <?php if ($step['status'] === 'manual') : ?>
+                                            <label class="admin-guide-check-label"><input type="checkbox" class="admin-guide-manual-check" data-guide-check="<?= html_escape($step['key']) ?>"> Saya sudah memeriksa</label>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="admin-first-guide-next">
+                        <span><i class="fas fa-lightbulb mr-1" aria-hidden="true"></i>Mulai dari langkah yang belum selesai.</span>
+                        <a id="admin-guide-next" class="btn btn-success btn-sm" href="<?= base_url('settings') ?>">Lanjutkan langkah berikutnya <i class="fas fa-arrow-right ml-1" aria-hidden="true"></i></a>
+                    </div>
+                </div>
+            </section>
         </div>
     </section>
     <!-- Main content -->
@@ -242,3 +309,4 @@
 </script>
 <script src="<?= base_url() ?>/assets/app/js/jquery.rowspanizer.js"></script>
 <script src="<?= base_url() ?>/assets/app/js/dashboard.js"></script>
+<script src="<?= base_url() ?>/assets/app/js/admin-first-exam-guide.js"></script>

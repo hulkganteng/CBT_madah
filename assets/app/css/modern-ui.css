@@ -229,6 +229,34 @@ input:-webkit-autofill:focus {
 .dashboard-stat-link { color: var(--ui-accent); font-size: .67rem; }
 .dashboard-stat-link i { margin-left: 4px; font-size: .6rem; }
 .dashboard-content { padding-top: 24px !important; }
+.admin-first-guide { margin-top: 22px; border: 1px solid var(--ui-border); border-radius: var(--ui-radius); background: #fff; box-shadow: var(--ui-shadow); }
+.admin-first-guide-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 18px 20px 14px; border-bottom: 1px solid var(--ui-border); }
+.admin-first-guide-header h2 { margin: 0; color: var(--ui-text); font-size: 1.15rem; font-weight: 600; }
+.admin-first-guide-header p { margin: 5px 0 0; color: var(--ui-muted); font-size: .76rem; }
+.admin-first-guide-actions { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.admin-first-guide-actions .btn-link { color: var(--ui-muted); }
+.admin-first-guide-body { padding: 16px 20px 18px; }
+.admin-first-guide.is-collapsed .admin-first-guide-body { display: none; }
+.admin-first-guide-progress { margin-bottom: 14px; color: var(--ui-muted); font-size: .72rem; }
+.admin-first-guide-progress .progress { height: 7px; overflow: hidden; border-radius: 99px; background: #e9efeb; }
+.admin-first-guide-progress .progress-bar { border-radius: inherit; background: var(--ui-accent); transition: width .2s ease; }
+.admin-first-guide-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.admin-guide-step { display: flex; gap: 12px; min-width: 0; padding: 13px; border: 1px solid var(--ui-border); border-radius: 7px; background: #fbfcfb; }
+.admin-guide-step.is-done { border-color: rgba(8,127,91,.25); background: #f4faf7; }
+.admin-guide-step-number { display: flex; flex: 0 0 28px; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #e9efeb; color: var(--ui-muted); font-size: .75rem; font-weight: 700; }
+.admin-guide-step.is-done .admin-guide-step-number { background: var(--ui-accent); color: #fff; }
+.admin-guide-step-content { min-width: 0; flex: 1; }
+.admin-guide-step-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.admin-guide-step h3 { margin: 0; color: var(--ui-text); font-size: .82rem; font-weight: 600; line-height: 1.35; }
+.admin-guide-step p { min-height: 34px; margin: 5px 0 10px; color: var(--ui-muted); font-size: .72rem; line-height: 1.45; }
+.admin-guide-step-status { flex: 0 0 auto; padding: 3px 6px; border-radius: 4px; background: #fff4d6; color: #795d10; font-size: .62rem; font-weight: 600; }
+.admin-guide-step.is-done .admin-guide-step-status { background: var(--ui-accent-soft); color: var(--ui-accent); }
+.admin-guide-step-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.admin-guide-step-footer .btn { font-size: .68rem; }
+.admin-guide-check-label { margin: 0; color: var(--ui-muted); font-size: .68rem; cursor: pointer; }
+.admin-guide-check-label input { margin-right: 4px; accent-color: var(--ui-accent); }
+.admin-first-guide-next { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--ui-border); color: var(--ui-muted); font-size: .72rem; }
+.admin-first-guide-next .btn { flex: 0 0 auto; }
 .dashboard-content .card-primary, .dashboard-content .card-success, .dashboard-content .card-danger, .dashboard-content .card-light { border-top: 1px solid var(--ui-border); }
 .dashboard-content h6 { color: var(--ui-text); font-size: .78rem; font-weight: 600; }
 
@@ -303,6 +331,9 @@ input:-webkit-autofill:focus {
     .dashboard-stat strong { font-size: 1.25rem; }
     .dashboard-content { padding-top: 18px !important; }
     .card-body { padding: 14px; }
+    .admin-first-guide-header, .admin-first-guide-body { padding-left: 14px; padding-right: 14px; }
+    .admin-first-guide-steps { grid-template-columns: 1fr; }
+    .admin-first-guide-next { align-items: flex-start; flex-direction: column; }
     .table-responsive { border: 0; }
     .auth-brand-panel { min-height: 190px; padding: 22px 20px; }
     .auth-brand img { width: 52px; height: 52px; }
