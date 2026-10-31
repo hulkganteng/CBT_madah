@@ -1,130 +1,83 @@
-# GarudaCBT
-## Last version: 1.5.2
+# CBT Madah
 
-## Dokumentasi
+CBT Madah adalah aplikasi Computer Based Test berbasis **GarudaCBT 1.5.2** yang disesuaikan untuk pelaksanaan ujian sekolah. Aplikasi ini membantu operator, guru, proktor, dan siswa mengelola ujian dari bank soal sampai penilaian.
 
-Panduan lengkap instalasi dan penggunaan tersedia di [docs/panduan/index.md](docs/panduan/index.md). Dokumentasi mencakup administrator, guru, proktor, siswa, laboratorium hybrid (Online + LAN), Safe Exam Browser, keamanan ujian, backup, pembaruan, dan troubleshooting.
+## Fitur utama
 
-Skrip pembuat dua shortcut ujian di desktop PC client ada di [installer/client/Buat-Shortcut-CBT.ps1](installer/client/Buat-Shortcut-CBT.ps1).
+- Data master sekolah: tahun pelajaran, mapel, kelas, guru, dan siswa.
+- Bank soal dengan tipe PG, PG Kompleks, dan Benar/Salah.
+- Pembuatan jenis ujian, sesi, ruang, token, jadwal, alokasi peserta, dan pengawas.
+- Randomisasi soal dan opsi yang dipersistenkan per siswa dan jadwal melalui `cbt_soal_siswa`.
+- Penyimpanan jawaban berdasarkan identitas soal, sehingga refresh, reconnect, relogin, dan resume tidak mengubah urutan ujian.
+- Autosave jawaban, penanda ragu-ragu, timer, auto-submit, dan pengumpulan manual.
+- Monitoring proktor: aktivitas peserta, pelanggaran tab, keluarkan peserta, izinkan masuk kembali, dan perpanjangan waktu.
+- Penilaian, rekap nilai, analisis soal, serta ekspor hasil.
+- Akses Online dan LAN pada basis data yang sama.
+- Integrasi Safe Exam Browser (SEB) dengan konfigurasi global aplikasi.
+- Endpoint dan validasi server-side untuk menjaga integritas sesi, jadwal, jawaban, dan akses peran.
 
--------------
-### CHANGELOG:
+## Peran pengguna
 
-#### Added
-- Soal gambar menjodohkan
-- Soal gambar tanpa text
-- Search/paging rekap nilai
-- Search kelas/rombel
-- Search status ujian
-- NIS list siswa di menu edit kelas
-- Detect new tab ketika siswa sedang ujian
+- **Administrator** — mengatur data sekolah, pengguna, ujian, konfigurasi, dan database.
+- **Guru** — membuat bank soal dan mengelola ujian sesuai kewenangan.
+- **Proktor/Pengawas** — memantau pelaksanaan dan menangani peserta.
+- **Siswa** — mengikuti ujian, menyimpan jawaban, menandai ragu-ragu, dan mengumpulkan ujian.
 
-#### Fixed
-- Rekap nilai 0
-- Detail soal
-- Typo
-- Edit soal gambar hang
-- Gambar soal di menu koreksi
-- Hapus jadwal ujian
-- Hapus siswa dari rombel
-- Download soal ujian KP
-- Edit soal ketika ujian berlangsung
-- Mapel SD/MI
-- Cetak rapor PTS beda predikat
-- Kehadiran rapor di DKN
-- Rapor prestasi berbeda dengan arsip
-- Rapor kesehatan
-- Ttd kepsek rapor akhir
-- Mapel rapor berbeda dengan arsip
+## Teknologi
 
-- Struktur organisasi #admin
-- Reset waktu ujian siswa #pengawas
-- Search daftar siswa ada siswa lain kelas #wali kelas
-- Tugas/Materi guru membaca kelas lain #guru
-- Semua guru dianggap pengawas #pengawas
-- Soal menjodohkan dianggap terjawab #siswa
+- PHP dan CodeIgniter 3.1.13
+- MySQL/MariaDB
+- Bootstrap, AdminLTE, dan jQuery
+- XAMPP atau Laragon untuk lingkungan lokal
+- Safe Exam Browser untuk mode ujian yang diwajibkan sekolah
 
-___________
+## Instalasi lokal
 
-## NOTE:
-Aplikasi ini tidak diperjual belikan alias gratis 100% dengan lisensi MIT yang artinya bebas untuk memodifikasi dengan syarat tetap mencantumkan sumber asal.
+1. Siapkan PHP, MySQL/MariaDB, dan web server.
+2. Salin proyek ke `htdocs` (XAMPP) atau `www` (Laragon).
+3. Buat database dan import skema awal dari `assets/app/db/master.sql` bila diperlukan.
+4. Atur koneksi database di `application/config/database.php`.
+5. Atur URL aplikasi di `application/config/config.php`.
+6. Jalankan migrasi atau menu pembaruan database sesuai versi aplikasi.
+7. Login sebagai administrator, lengkapi data sekolah, lalu buat bank soal dan jadwal.
 
-Kami selaku pengembang aplikasi ini tidak bertanggung-jawab:
-- jika ada yang mengharuskan membayar untuk mendapatkan aplikasi ini,
-- adanya masalah dari aplikasi yang sudah dimodif atau dirubah fiturnya oleh pihak lain.
-______________
-- [HOME](https://garudacbt.github.io/cbt)
-- [TUTORIAL INSTALL](https://github.com/garudacbt/cbt/wiki)
+Panduan operasional tersedia di [docs/panduan/index.md](docs/panduan/index.md). Catatan teknis dan batasan pengujian tersedia di [Pengembangan.md](Pengembangan.md).
 
-____
-## Download
-Harap download aplikasi dari tombol [<> Code] -> Download zip
+## Alur ujian siswa
 
------
-## VIRTUAL BOX (VHD):
-https://github.com/origrata/garudacbt-vdi
+1. Operator membuat bank soal dan jadwal.
+2. Siswa login dan membuka jadwal yang aktif.
+3. Sistem membuat mapping soal dan opsi sekali untuk kombinasi siswa, jadwal, dan bank.
+4. Mapping digunakan kembali saat refresh, reconnect, relogin, resume, dan perpindahan Online/LAN.
+5. Jawaban disimpan melalui endpoint existing dan dinilai berdasarkan ID soal serta nilai opsi yang stabil.
+6. Ujian dapat dikumpulkan manual atau otomatis ketika waktu berakhir.
 
-----
-## Install
-* Download Aplikasi dari menu **Code => Download ZIP**
-* Extract di folder **htdocs** jika menggunakan XAMPP, atau folder **www** jika mengonakan Laragon
-* Lengkapnya sialhkan ke [TUTORIAL INSTALL](https://github.com/garudacbt/cbt/wiki)
-----
-## Update
-* Download Aplikasi dari menu **Code => Download ZIP**
-* Extract dan replace semua code di folder aplikasi
-* sesuaikan nama database yang digunakan
-* backup database untuk berjaga-jaga
-* jalankan menu **update** di menu DATABASE => UPDATE
-______
-### MENU FITUR
-> Versi ini adalah **CBT murni**. Modul Rapor, Buku Induk, dan e-Learning di luar lingkup: menu dihapus dan rutenya diblok server-side.
+## Safe Exam Browser
 
-1. DATA MASTER
-    * Beranda
-    * Data Umum
-        * Tahun Pelajaran
-        * Jurusan
-        * Mata Pelajaran (dengan Kelompok Ujian Eksata / Non-eksata)
-        * Ekstrakurikuler
-        * Siswa
-        * Kelas / Rombel
-        * Guru
-    * Data Ujian
-        * Jenis Ujian
-        * Sesi
-        * Ruang
-        * Atur Ruang dan Sesi
-        * Atur Nomor Peserta
-        * Bank Soal
-        * Jadwal
-        * Alokasi Waktu
-        * Token
-        * Pengawas
-    * Pengumuman
+Konfigurasi SEB menggunakan satu Start URL aplikasi. Config Key disimpan pada konfigurasi server lokal atau environment server dan tidak disertakan dalam repository. Gunakan [tools/buat-seb.php](tools/buat-seb.php) untuk membuat berkas `.seb` setelah konfigurasi deployment selesai.
 
-2. PELAKSANAAN
-    * Pelaksanaan Ujian
-        * Cetak
-        * Aktivitas Siswa (pemantauan real-time, keluarkan, izinkan masuk kembali, perpanjang waktu)
-        * Hasil Ujian
-        * Analisis Soal
-        * Rekap Nilai Ujian
+Jangan memasukkan file `.seb`, `application/config/.seb_global.php`, `application/config/.encryption_key`, dump database, atau data peserta ke repository publik.
 
-3. PENGATURAN
-    * Profile Sekolah
-    * User Management
-        * Administrator
-        * Guru
-        * Siswa
-    * Database
-        * Backup
-        * Pemulihan Database
-        * Update
+## Pemeriksaan keamanan dan pengembangan
 
-4. LOGOUT
-______
-______
+Regression security dapat dijalankan dengan:
+
+```bash
+php tools/test-security-regressions.php
+```
+
+Lint PHP pada file yang diubah dengan:
+
+```bash
+php -l path/to/file.php
+```
+
+Sebelum produksi, lakukan uji end-to-end database, refresh/resume, reconnect Online-LAN, concurrent start, autosave, penilaian, dan submit pada server nyata. Detail status implementasi ada di [Pengembangan.md](Pengembangan.md).
+
+## Lisensi
+
+CBT Madah mempertahankan lisensi MIT dari GarudaCBT. Lisensi lengkap ada di [LICENCE.md](LICENCE.md) dan [license.txt](license.txt). Hak cipta dan pemberitahuan lisensi wajib dipertahankan pada salinan atau bagian substansial perangkat lunak.
+
 MIT License
 
 Copyright (c) 2020 GarudaCBT
