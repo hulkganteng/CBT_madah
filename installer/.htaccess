@@ -1,0 +1,6 @@
+# PRD Bab 7.1: folder installer ditutup setelah instalasi selesai.
+# Installer lama menulis ulang application/config/database.php tanpa otentikasi,
+# sehingga siapa pun yang membuka /installer/ dapat mengarahkan aplikasi ke
+# database lain. Untuk instalasi baru, hapus berkas ini sementara lalu pasang
+# kembali setelah selesai.
+Require all denied

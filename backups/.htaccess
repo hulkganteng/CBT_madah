@@ -1,0 +1,10 @@
+# Backup mengandung seluruh data aplikasi. Akses hanya melalui controller
+# yang mewajibkan autentikasi administrator, bukan melalui URL berkas langsung.
+Options -Indexes
+
+<IfModule authz_core_module>
+    Require all denied
+</IfModule>
+<IfModule !authz_core_module>
+    Deny from all
+</IfModule>

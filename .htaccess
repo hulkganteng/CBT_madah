@@ -1,0 +1,19 @@
+RewriteEngine On
+
+# Jangan tampilkan daftar isi folder ketika berkas index tidak tersedia.
+Options -Indexes
+
+# Arsip sumber hanya untuk pemeliharaan lokal dan tidak boleh diunduh lewat HTTP.
+<Files "garudacbt.zip">
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
+    <IfModule !authz_core_module>
+        Deny from all
+    </IfModule>
+</Files>
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php/$1 [L]
+php_value max_input_vars 10000

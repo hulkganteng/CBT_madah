@@ -1,0 +1,13 @@
+vendor/
+uploads/
+backups/
+graphify-out/
+system/
+installer/
+assets/adminlte/
+assets/plugins/
+assets/fonts/
+*.zip
+*.png
+*.jpg
+*.jpeg

@@ -1,0 +1,35 @@
+{
+  "description": "The CodeIgniter framework",
+  "name": "codeigniter/framework",
+  "type": "project",
+  "homepage": "https://codeigniter.com",
+  "license": "MIT",
+  "support": {
+    "forum": "http://forum.codeigniter.com/",
+    "wiki": "https://github.com/bcit-ci/CodeIgniter/wiki",
+    "slack": "https://codeigniterchat.slack.com",
+    "source": "https://github.com/bcit-ci/CodeIgniter"
+  },
+  "require": {
+    "php": ">=8.2 <8.4",
+    "ext-dom": "*",
+	"ext-mysqli": "*",
+	"ext-fileinfo": "*",
+	"ext-zip": "*",
+    "phpoffice/phpspreadsheet": "^5.10",
+    "phpoffice/phpword": "^1.2",
+    "alhimik1986/php-excel-templator": "^1.0",
+    "ext-json": "*",
+    "dompdf/dompdf": "^3.1.6",
+    "ext-gd": "*",
+    "ext-iconv": "*",
+    "ext-calendar": "*"
+  },
+  "suggest": {
+    "paragonie/random_compat": "Provides better randomness in PHP 5.x"
+  },
+  "require-dev": {
+    "mikey179/vfsstream": "^1.6.12",
+    "phpunit/phpunit": "^11.5"
+  }
+}
