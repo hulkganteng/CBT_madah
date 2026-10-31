@@ -53,17 +53,19 @@ $logo = isset($setting) && $setting->logo_kanan != null ? base_url() . $setting-
             <p>Masuk untuk mengerjakan ujian berbasis komputer</p>
         </div>
 
-        <div id="infoMessage" class="login-siswa-msg"><?= $message ?></div>
+        <div id="infoMessage" class="login-siswa-msg" role="alert" aria-live="polite"><?= $message ?></div>
 
         <?= form_open('auth/cek_login', array('id' => 'login-siswa')) ?>
         <input type="hidden" name="portal" value="siswa">
         <div class="form-group">
             <label for="identity">Username peserta</label>
-            <?= form_input($identity, '', 'required autocomplete="off" autocapitalize="none"') ?>
+            <?= form_input($identity, '', 'required autocomplete="username" autocapitalize="none"') ?>
+            <small class="form-text text-muted">Gunakan username yang diberikan oleh sekolah.</small>
         </div>
         <div class="form-group">
             <label for="password">Kata sandi</label>
-            <?= form_input($password, '', 'required') ?>
+            <?= form_input($password, '', 'required autocomplete="current-password"') ?>
+            <small class="form-text text-muted">Pastikan kata sandi sudah benar sebelum masuk.</small>
         </div>
         <?= form_submit('submit', 'MASUK', array('id' => 'submit', 'class' => 'btn btn-masuk')) ?>
         <?= form_close() ?>

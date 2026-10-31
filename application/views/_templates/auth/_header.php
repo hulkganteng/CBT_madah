@@ -12,10 +12,10 @@
     <link rel="stylesheet" href="<?= base_url() ?>/assets/plugins/fontawesome-free/css/all.min.css">
     <link rel="stylesheet" href="<?= base_url() ?>/assets/plugins/Ionicons/css/ionicons.min.css">
     <link rel="stylesheet" href="<?= base_url() ?>/assets/plugins/icheck-bootstrap/icheck-bootstrap.min.css">
-    <link rel="stylesheet" href="<?= base_url() ?>/assets/adminlte/dist/css/adminlte.min.css">
+    <link rel="stylesheet" href="<?= base_url() ?>/assets/adminlte/dist/css/adminlte.min.css?v=20261031-3">
     <link rel="stylesheet" href="<?= base_url() ?>/assets/app/css/mystyle.css">
     <link rel="stylesheet" href="<?= base_url() ?>/assets/adminlte/dist/css/poppins.css">
-    <link rel="stylesheet" href="<?= base_url() ?>/assets/app/css/modern-ui.css?v=20260812-2">
+    <link rel="stylesheet" href="<?= base_url() ?>/assets/app/css/modern-ui.css?v=20261031-3">
 
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
