@@ -12,7 +12,7 @@
     <link rel="shortcut icon" href="<?= $logo_app ?>" type="image/x-icon">
 
     <!-- Required CSS -->
-    <!-- v3 -->
+    <!-- Bootstrap 4.6.2 / AdminLTE 3.2 -->
     <link rel="stylesheet" href="<?= base_url() ?>/assets/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
     <link rel="stylesheet"
           href="<?= base_url() ?>/assets/plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
@@ -70,7 +70,7 @@
     <link rel="stylesheet" href="<?= base_url() ?>/assets/app/css/show.toast.css">
 
     <!-- Theme style -->
-    <link rel="stylesheet" href="<?= base_url() ?>/assets/adminlte/dist/css/adminlte.min.css">
+    <link rel="stylesheet" href="<?= base_url() ?>/assets/adminlte/dist/css/adminlte.min.css?v=20261031-3">
 
     <!-- textarea editor -->
     <!-- summernote -->
@@ -82,7 +82,7 @@
     <link rel="stylesheet" href="<?= base_url() ?>/assets/plugins/DualSelectList/css/bala.DualSelectList.css">
     <link rel="stylesheet" href="<?= base_url() ?>/assets/app/css/weekCalendar.css">
 
-    <link rel="stylesheet" href="<?= base_url() ?>/assets/plugins/bootstrap-icon/bootstrap-icons.css">
+    <link rel="stylesheet" href="<?= base_url() ?>/assets/plugins/bootstrap-icon/bootstrap-icons.css?v=20261031-3">
 
     <link href="<?= base_url() ?>/assets/plugins/ios-switch/component-custom-switch.min.css" rel="stylesheet">
 	<!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->

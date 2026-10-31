@@ -15,7 +15,7 @@
 </div>
 
 <!-- Required JS -->
-<!-- v3 -->
+<!-- Bootstrap 4.6.2 / AdminLTE 3.2 -->
 <!-- Resolve conflict in jQuery UI tooltip with Bootstrap tooltip -->
 <script>
     $.widget.bridge('uibutton', $.ui.button)
@@ -39,8 +39,8 @@
 <!-- Sparkline -->
 <script src="<?= base_url() ?>/assets/plugins/sparklines/sparkline.js"></script>
 
-<!-- Bootstrap 4 -->
-<script src="<?= base_url() ?>/assets/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<!-- Bootstrap 4.6.2 -->
+<script src="<?= base_url() ?>/assets/plugins/bootstrap/js/bootstrap.bundle.min.js?v=20261031-3"></script>
 <!-- ChartJS -->
 <script src="<?= base_url() ?>/assets/plugins/chart.js/Chart.min.js"></script>
 <script src="<?= base_url() ?>/assets/plugins/chart.js/chartjs-plugin-labels.min.js"></script>
@@ -81,12 +81,12 @@
 <script src="<?= base_url() ?>/assets/plugins/bs-custom-file-input/bs-custom-file-input.min.js"></script>
 
 <!-- AdminLTE App -->
-<script src="<?= base_url() ?>/assets/adminlte/dist/js/adminlte.js"></script>
+<script src="<?= base_url() ?>/assets/adminlte/dist/js/adminlte.js?v=20261031-3"></script>
 <!-- AdminLTE dashboard demo (This is only for demo purposes) -->
 <script src="<?= base_url() ?>/assets/adminlte/dist/js/pages/dashboard.js"></script>
 <!-- AdminLTE for demo purposes -->
 <script src="<?= base_url() ?>/assets/adminlte/dist/js/demo.js"></script>
-<!-- /v3 -->
+<!-- /AdminLTE 3.2 -->
 <!-- datetimepicker -->
 <script src="<?= base_url() ?>/assets/plugins/jquery-datetimepicker/jquery.datetimepicker.full.js"></script>
 <!-- TimeAgo -->
