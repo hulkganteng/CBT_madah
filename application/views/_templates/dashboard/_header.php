@@ -104,7 +104,7 @@
     <link rel="stylesheet" href="<?= base_url() ?>/assets/plugins/contextmenu/jquery.contextmenu.css">
     <link rel="stylesheet" type="text/css" href="<?= base_url() ?>/assets/plugins/fields-linker/fieldsLinker.css">
     <link rel="stylesheet" type="text/css" href="<?= base_url() ?>/assets/plugins/pignose/css/pignose.calendar.css">
-    <link rel="stylesheet" href="<?= base_url() ?>/assets/app/css/modern-ui.css?v=20260812-2">
+    <link rel="stylesheet" href="<?= base_url() ?>/assets/app/css/modern-ui.css?v=20261031-1">
 
     <style>
         page {
