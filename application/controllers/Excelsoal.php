@@ -19,7 +19,8 @@ class Excelsoal extends CI_Controller
             show_error('Hanya Administrator dan guru yang dapat mengakses fitur ini.', 403, 'Akses Terlarang');
         }
         $this->load->database();
-        $this->load->library('excel_question_importer');
+        $this->load->library('excel_question_draft_importer');
+        $this->load->library('question_import');
     }
 
     public function template()
@@ -36,38 +37,31 @@ class Excelsoal extends CI_Controller
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('SOAL');
-        $headers = array('NO', 'JENIS', 'SOAL', 'OPSI_A', 'OPSI_B', 'OPSI_C', 'OPSI_D', 'OPSI_E', 'KUNCI', 'KESULITAN', 'TAMPILKAN');
+        $headers = array('NO', 'JENIS', 'PERTANYAAN', 'A', 'B', 'C', 'D', 'JAWABAN', 'PEMBAHASAN');
         $sheet->fromArray($headers, null, 'A1');
+        $sheet->fromArray(array(
+            array('CONTOH', 'Pilihan Ganda', 'Ibukota Indonesia adalah ...', 'Jakarta', 'Bandung', 'Surabaya', 'Semarang', 'A', ''),
+            array('CONTOH', 'Pilihan Ganda Kompleks', 'Pilih bilangan genap.', '2', '3', '4', '5', 'A,C', ''),
+            array('CONTOH', 'Benar/Salah', 'Air membeku pada suhu 0 derajat Celsius.', '', '', '', '', 'Benar', ''),
+        ), null, 'A2');
 
-        $rows = $this->templateRows($bank);
-        if ($rows) {
-            $sheet->fromArray($rows, null, 'A2');
-        } elseif (!$bank) {
-            $sheet->fromArray(array(
-                array(1, 1, 'Ibukota Indonesia adalah ...', 'Jakarta', 'Bandung', 'Surabaya', 'Medan', '', 'A', 1, 1),
-                array(2, 2, 'Pilih bilangan genap.', '2', '3', '4', '5', '', 'A,C', 1, 1),
-                array(3, 6, 'Ibukota Indonesia adalah Bandung.', '', '', '', '', '', 'S', 1, 1),
-                array(4, 6, 'Air membeku pada suhu 0 derajat Celsius.', '', '', '', '', '', 'B', 1, 1)
-            ), null, 'A2');
-        }
-
-        $sheet->getStyle('A1:K1')->getFont()->setBold(true);
-        $sheet->getStyle('A1:K1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9EAF7');
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:I1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9EAF7');
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:K' . max(5, count($rows) + 1));
-        foreach (range('A', 'K') as $column) {
+        $sheet->setAutoFilter('A1:I4');
+        foreach (range('A', 'I') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
         $guide = $spreadsheet->createSheet();
         $guide->setTitle('PETUNJUK');
         $guide->fromArray(array(
-            array('JENIS', 'KETERANGAN', 'FORMAT KUNCI'),
-            array(1, 'Pilihan ganda satu jawaban', 'A'),
-            array(2, 'Pilihan ganda kompleks', 'A,C'),
-            array(6, 'Benar / Salah per pernyataan. Opsi tidak diisi.', 'B atau S'),
-            array('', 'KESULITAN: 1 mudah, 2 sedang, 3 sulit.', ''),
-            array('', 'TAMPILKAN: 1/Ya untuk ditampilkan, 0/Tidak untuk cadangan.', ''),
+            array('JENIS SOAL', 'CARA MENGISI JAWABAN', 'CONTOH'),
+            array('Pilihan Ganda', 'Isi satu huruf pilihan yang benar.', 'A'),
+            array('Pilihan Ganda Kompleks', 'Pisahkan beberapa jawaban dengan koma.', 'A,C'),
+            array('Benar/Salah', 'Isi Benar atau Salah.', 'Benar'),
+            array('', 'Baris bertanda CONTOH tidak akan diimport.', ''),
+            array('', 'Kolom Pembahasan boleh dikosongkan.', ''),
             array('', 'Jangan mengubah nama kolom pada sheet SOAL.', '')
         ), null, 'A1');
         if ($bank) {
@@ -90,31 +84,6 @@ class Excelsoal extends CI_Controller
         $spreadsheet->disconnectWorksheets();
     }
 
-    /**
-     * Baris kosong yang sudah diberi NO/JENIS sesuai kuota bank buatan admin.
-     * Guru tinggal mengisi SOAL, OPSI, dan KUNCI.
-     */
-    private function templateRows($bank)
-    {
-        if (!$bank) {
-            return array();
-        }
-        $quota = array(
-            array('jenis' => 1, 'total' => (int) $bank->tampil_pg),
-            array('jenis' => 2, 'total' => (int) $bank->tampil_kompleks),
-            array('jenis' => 6, 'total' => (int) ($bank->tampil_bs ?? 0)),
-        );
-        $rows = array();
-        $number = 0;
-        foreach ($quota as $item) {
-            for ($i = 0; $i < $item['total'] && $number < 2000; $i++) {
-                $number++;
-                $rows[] = array($number, $item['jenis'], '', '', '', '', '', '', '', 1, 1);
-            }
-        }
-        return $rows;
-    }
-
     private function templateBankInfo($bank)
     {
         $mapel = $this->db->select('nama_mapel')->where('id_mapel', $bank->bank_mapel_id)->get('master_mapel')->row();
@@ -124,98 +93,276 @@ class Excelsoal extends CI_Controller
             array('MAPEL', $mapel ? $mapel->nama_mapel : '-', ''),
             array('GURU', $guru ? $guru->nama_guru : '-', ''),
             array('LEVEL', $bank->bank_level, ''),
-            array('KUOTA PG', (int) $bank->tampil_pg, 'baris JENIS 1'),
-            array('KUOTA PG KOMPLEKS', (int) $bank->tampil_kompleks, 'baris JENIS 2'),
-            array('KUOTA BENAR/SALAH', (int) ($bank->tampil_bs ?? 0), 'baris JENIS 6'),
+            array('KUOTA PILIHAN GANDA', (int) $bank->tampil_pg, 'soal'),
+            array('KUOTA PILIHAN GANDA KOMPLEKS', (int) $bank->tampil_kompleks, 'soal'),
+            array('KUOTA BENAR/SALAH', (int) ($bank->tampil_bs ?? 0), 'soal'),
             array('OPSI JAWABAN', (int) $bank->opsi, 'jumlah pilihan A-E'),
         );
     }
 
-    public function preview()
+    public function create()
     {
-        $bank = $this->authorisedBank($this->input->post('bank_id', true));
-        if (!$bank) {
+        $bankId = $this->input->post('bank_id', true);
+        if (!$this->authorisedBank($bankId)) {
             return;
         }
         $parsed = $this->parseUpload();
         if (!$parsed) {
             return;
         }
+        if ($parsed['file_errors']) {
+            $this->json(array('message' => 'File belum dapat diproses.', 'errors' => $parsed['file_errors']), 422);
+            return;
+        }
 
-        $preview = array();
-        foreach (array_slice($parsed['questions'], 0, 50) as $question) {
-            $preview[] = array(
-                'no' => $question['nomor_soal'],
-                'jenis' => $question['jenis'],
-                'soal' => strip_tags($question['soal']),
-                'tampilkan' => $question['tampilkan']
+        $now = date('Y-m-d H:i:s');
+        $this->db->trans_begin();
+        $this->db->insert('cbt_soal_import', array(
+            'bank_id' => (int) $bankId,
+            'user_id' => (int) $this->ion_auth->user()->row()->id,
+            'source_type' => 'excel',
+            'original_filename' => basename($_FILES['excel_file']['name']),
+            'status' => 'draft',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ));
+        $importId = (int) $this->db->insert_id();
+        $existing = $this->existingQuestionKeys($bankId);
+        $rows = array();
+        foreach ($parsed['items'] as $item) {
+            $warning = $this->duplicateWarning($item['normalized_data'], $existing);
+            if ($warning) {
+                $item['warnings'][] = $warning;
+            }
+            $rows[] = array(
+                'import_id' => $importId,
+                'row_number' => $item['row_number'],
+                'question_type' => $item['normalized_data']['type'],
+                'raw_data' => json_encode($item['raw_data'], JSON_UNESCAPED_UNICODE),
+                'normalized_data' => json_encode($item['normalized_data'], JSON_UNESCAPED_UNICODE),
+                'is_valid' => $item['errors'] ? 0 : 1,
+                'validation_errors' => json_encode(array('errors' => $item['errors'], 'warnings' => $item['warnings']), JSON_UNESCAPED_UNICODE),
+                'imported' => 0,
+                'created_at' => $now,
+                'updated_at' => $now,
             );
+            $questionKey = $this->question_import->comparisonKey($item['normalized_data']['question']);
+            if ($questionKey !== '') {
+                $existing[$questionKey] = true;
+            }
+        }
+        foreach (array_chunk($rows, 200) as $batch) {
+            $this->db->insert_batch('cbt_soal_import_item', $batch);
+        }
+        $this->refreshCounts($importId);
+        if ($this->db->trans_status() === false) {
+            $this->db->trans_rollback();
+            $this->json(array('message' => 'Draft import gagal disimpan. Silakan coba lagi.'), 500);
+            return;
+        }
+        $this->db->trans_commit();
+        $this->json(array('message' => 'File berhasil diperiksa.', 'import_id' => $importId));
+    }
+
+    public function preview()
+    {
+        $this->create();
+    }
+
+    public function latest()
+    {
+        $bankId = $this->input->get('bank_id', true);
+        if (!$this->authorisedBank($bankId)) {
+            return;
+        }
+        $userId = (int) $this->ion_auth->user()->row()->id;
+        $draft = $this->db->where(array('bank_id' => (int) $bankId, 'user_id' => $userId, 'status' => 'draft'))
+            ->order_by('id', 'DESC')->get('cbt_soal_import')->row();
+        $this->json(array('import_id' => $draft ? (int) $draft->id : null));
+    }
+
+    public function session()
+    {
+        $import = $this->authorisedImport($this->input->get('import_id', true));
+        if (!$import) {
+            return;
+        }
+        $page = max(1, (int) $this->input->get('page', true));
+        $perPage = (int) $this->input->get('per_page', true) === 50 ? 50 : 20;
+        $filter = $this->input->get('filter', true);
+
+        $this->db->where('import_id', $import->id);
+        $this->db->where('imported', 0);
+        if ($filter === 'ready') {
+            $this->db->where('is_valid', 1);
+        } elseif ($filter === 'problems') {
+            $this->db->where('is_valid', 0);
+        }
+        $totalFiltered = $this->db->count_all_results('cbt_soal_import_item');
+
+        $this->db->where('import_id', $import->id);
+        $this->db->where('imported', 0);
+        if ($filter === 'ready') {
+            $this->db->where('is_valid', 1);
+        } elseif ($filter === 'problems') {
+            $this->db->where('is_valid', 0);
+        }
+        $items = $this->db->order_by('row_number', 'ASC')->limit($perPage, ($page - 1) * $perPage)
+            ->get('cbt_soal_import_item')->result();
+
+        $responseItems = array();
+        foreach ($items as $item) {
+            $responseItems[] = $this->itemForResponse($item);
         }
         $this->json(array(
-            'valid' => count($parsed['errors']) === 0 && count($parsed['questions']) > 0,
-            'total' => count($parsed['questions']),
-            'preview' => $preview,
-            'errors' => $parsed['errors']
+            'import' => $import,
+            'items' => $responseItems,
+            'pagination' => array(
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $totalFiltered,
+                'pages' => max(1, (int) ceil($totalFiltered / $perPage)),
+            ),
         ));
     }
 
-    public function upload()
+    public function updateItem()
     {
-        $bankId = $this->input->post('bank_id', true);
-        $bank = $this->authorisedBank($bankId);
-        if (!$bank) {
+        $import = $this->authorisedImport($this->input->post('import_id', true));
+        if (!$import) {
             return;
         }
-        $parsed = $this->parseUpload();
-        if (!$parsed) {
+        if ($import->status !== 'draft') {
+            $this->json(array('message' => 'Draft import ini sudah selesai atau dibatalkan.'), 409);
             return;
         }
-        if ($parsed['errors'] || !$parsed['questions']) {
-            $this->json(array('message' => 'File belum valid.', 'errors' => $parsed['errors']), 422);
+        $itemId = (int) $this->input->post('item_id', true);
+        $item = $this->db->where(array('id' => $itemId, 'import_id' => $import->id))->get('cbt_soal_import_item')->row();
+        if (!$item) {
+            $this->json(array('message' => 'Soal draft tidak ditemukan.'), 404);
             return;
         }
 
-        $mode = $this->input->post('mode', true) === 'replace' ? 'replace' : 'append';
-        if ($mode === 'append') {
-            $duplicates = $this->findDuplicates($bankId, $parsed['questions']);
-            if ($duplicates) {
-                $this->json(array(
-                    'message' => 'Nomor soal sudah ada. Gunakan mode ganti seluruh soal atau ubah nomor.',
-                    'errors' => $duplicates
-                ), 409);
-                return;
-            }
+        $raw = array(
+            'jenis' => $this->input->post('type', true),
+            'pertanyaan' => $this->input->post('question', false),
+            'a' => $this->input->post('option_a', false),
+            'b' => $this->input->post('option_b', false),
+            'c' => $this->input->post('option_c', false),
+            'd' => $this->input->post('option_d', false),
+            'e' => $this->input->post('option_e', false),
+            'jawaban' => $this->input->post('correct_answers', true) ?: array(),
+            'pembahasan' => $this->input->post('explanation', false),
+        );
+        $normalized = $this->question_import->normalizeQuestion($raw);
+        $errors = $this->question_import->validateQuestion($normalized);
+        $warnings = array();
+        $warning = $this->duplicateWarning($normalized, $this->existingQuestionKeys($import->bank_id));
+        if ($warning) {
+            $warnings[] = $warning;
+        }
+        $this->db->where('id', $itemId)->update('cbt_soal_import_item', array(
+            'question_type' => $normalized['type'],
+            'raw_data' => json_encode($raw, JSON_UNESCAPED_UNICODE),
+            'normalized_data' => json_encode($normalized, JSON_UNESCAPED_UNICODE),
+            'is_valid' => $errors ? 0 : 1,
+            'validation_errors' => json_encode(array('errors' => $errors, 'warnings' => $warnings), JSON_UNESCAPED_UNICODE),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ));
+        $this->refreshCounts($import->id);
+        $updated = $this->db->where('id', $itemId)->get('cbt_soal_import_item')->row();
+        $this->json(array('message' => $errors ? 'Soal masih perlu diperbaiki.' : 'Perbaikan berhasil disimpan.', 'item' => $this->itemForResponse($updated)));
+    }
+
+    public function commit()
+    {
+        $import = $this->authorisedImport($this->input->post('import_id', true));
+        if (!$import) {
+            return;
+        }
+        if ($import->status !== 'draft') {
+            $this->json(array('message' => 'Draft import ini sudah selesai atau dibatalkan.'), 409);
+            return;
+        }
+        $bank = $this->authorisedBank($import->bank_id);
+        if (!$bank) {
+            return;
+        }
+        $items = $this->db->where(array('import_id' => $import->id, 'is_valid' => 1, 'imported' => 0))
+            ->order_by('row_number', 'ASC')->get('cbt_soal_import_item')->result();
+        if (!$items) {
+            $this->json(array('message' => 'Belum ada soal yang siap diimport.'), 422);
+            return;
+        }
+
+        $maxRows = $this->db->select('jenis, MAX(nomor_soal) AS nomor', false)->where('bank_id', $import->bank_id)
+            ->group_by('jenis')->get('cbt_soal')->result();
+        $numbers = array('1' => 0, '2' => 0, '6' => 0);
+        foreach ($maxRows as $row) {
+            $numbers[(string) $row->jenis] = (int) $row->nomor;
         }
 
         $now = time();
         $rows = array();
-        foreach ($parsed['questions'] as $question) {
-            $question['bank_id'] = $bankId;
-            $question['created_on'] = $now;
-            $question['updated_on'] = $now;
-            $rows[] = $question;
+        $itemIds = array();
+        foreach ($items as $item) {
+            $question = json_decode($item->normalized_data, true);
+            $errors = $this->question_import->validateQuestion($question);
+            if ($errors) {
+                continue;
+            }
+            $typeMap = array('pg' => '1', 'pg_complex' => '2', 'true_false' => '6');
+            $type = $typeMap[$question['type']];
+            $rows[] = array_merge($this->question_import->toDatabaseRow($question, ++$numbers[$type]), array(
+                'bank_id' => (int) $import->bank_id,
+                'created_on' => $now,
+                'updated_on' => $now,
+            ));
+            $itemIds[] = (int) $item->id;
+        }
+        if (!$rows) {
+            $this->json(array('message' => 'Belum ada soal yang siap diimport.'), 422);
+            return;
         }
 
         $this->db->trans_begin();
-        if ($mode === 'replace') {
-            $this->db->where('bank_id', $bankId)->delete('cbt_soal');
-        }
         foreach (array_chunk($rows, 200) as $batch) {
             $this->db->insert_batch('cbt_soal', $batch);
         }
-        $this->updateBankStatus($bankId, $bank);
+        $this->db->where_in('id', $itemIds)->update('cbt_soal_import_item', array('imported' => 1, 'updated_at' => date('Y-m-d H:i:s')));
+        $remaining = $this->db->where(array('import_id' => $import->id, 'imported' => 0))->count_all_results('cbt_soal_import_item');
+        $this->db->where('id', $import->id)->update('cbt_soal_import', array(
+            'status' => $remaining ? 'draft' : 'committed',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ));
+        $this->updateBankStatus($import->bank_id, $bank);
+        $this->refreshCounts($import->id);
         if ($this->db->trans_status() === false) {
             $this->db->trans_rollback();
-            $this->json(array('message' => 'Database gagal menyimpan soal.'), 500);
+            $this->json(array('message' => 'Soal gagal disimpan. Draft tetap tersedia untuk dicoba kembali.'), 500);
             return;
         }
         $this->db->trans_commit();
+        $this->json(array('message' => count($rows) . ' soal berhasil diimport.', 'inserted' => count($rows), 'remaining' => $remaining));
+    }
 
-        $this->json(array(
-            'message' => count($rows) . ' soal berhasil diimpor.',
-            'inserted' => count($rows),
-            'mode' => $mode
-        ));
+    public function cancel()
+    {
+        $import = $this->authorisedImport($this->input->post('import_id', true));
+        if (!$import) {
+            return;
+        }
+        if ($import->status === 'committed') {
+            $this->json(array('message' => 'Import yang sudah selesai tidak dapat dibatalkan.'), 409);
+            return;
+        }
+        $this->db->where('id', $import->id)->update('cbt_soal_import', array('status' => 'cancelled', 'updated_at' => date('Y-m-d H:i:s')));
+        $this->json(array('message' => 'Draft import dibatalkan.'));
+    }
+
+    public function upload()
+    {
+        $this->json(array('message' => 'Import langsung telah dinonaktifkan. Upload kembali untuk membuat draft.'), 410);
     }
 
     private function parseUpload()
@@ -240,7 +387,7 @@ class Excelsoal extends CI_Controller
         }
 
         try {
-            return $this->excel_question_importer->parse($file['tmp_name']);
+            return $this->excel_question_draft_importer->parse($file['tmp_name']);
         } catch (Throwable $exception) {
             log_message('error', 'Import soal Excel gagal: ' . $exception->getMessage());
             $this->json(array('message' => 'File Excel tidak dapat dibaca. Gunakan template yang disediakan.'), 422);
@@ -275,21 +422,72 @@ class Excelsoal extends CI_Controller
         return $bank;
     }
 
-    private function findDuplicates($bankId, $questions)
+    private function authorisedImport($importId)
     {
-        $existing = $this->db->select('jenis, nomor_soal')->where('bank_id', $bankId)->get('cbt_soal')->result();
-        $keys = array();
-        foreach ($existing as $row) {
-            $keys[$row->jenis . ':' . $row->nomor_soal] = true;
+        if (!ctype_digit((string) $importId)) {
+            $this->json(array('message' => 'Draft import tidak valid.'), 422);
+            return null;
         }
-        $errors = array();
-        foreach ($questions as $question) {
-            $key = $question['jenis'] . ':' . $question['nomor_soal'];
-            if (isset($keys[$key])) {
-                $errors[] = 'Jenis ' . $question['jenis'] . ', nomor ' . $question['nomor_soal'] . ' sudah ada.';
+        $import = $this->db->where('id', (int) $importId)->get('cbt_soal_import')->row();
+        if (!$import) {
+            $this->json(array('message' => 'Draft import tidak ditemukan.'), 404);
+            return null;
+        }
+        if (!$this->ion_auth->is_admin() && (int) $import->user_id !== (int) $this->ion_auth->user()->row()->id) {
+            $this->json(array('message' => 'Anda tidak memiliki akses ke draft import ini.'), 403);
+            return null;
+        }
+        if (!$this->authorisedBank($import->bank_id)) {
+            return null;
+        }
+        return $import;
+    }
+
+    private function refreshCounts($importId)
+    {
+        $total = $this->db->where('import_id', $importId)->count_all_results('cbt_soal_import_item');
+        $valid = $this->db->where(array('import_id' => $importId, 'is_valid' => 1, 'imported' => 0))->count_all_results('cbt_soal_import_item');
+        $invalid = $this->db->where(array('import_id' => $importId, 'is_valid' => 0, 'imported' => 0))->count_all_results('cbt_soal_import_item');
+        $this->db->where('id', $importId)->update('cbt_soal_import', array(
+            'total_items' => $total,
+            'valid_items' => $valid,
+            'invalid_items' => $invalid,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ));
+    }
+
+    private function itemForResponse($item)
+    {
+        $messages = json_decode($item->validation_errors, true) ?: array();
+        return array(
+            'id' => (int) $item->id,
+            'row_number' => (int) $item->row_number,
+            'question_type' => $item->question_type,
+            'question' => json_decode($item->normalized_data, true),
+            'is_valid' => (bool) $item->is_valid,
+            'imported' => (bool) $item->imported,
+            'errors' => isset($messages['errors']) ? $messages['errors'] : array(),
+            'warnings' => isset($messages['warnings']) ? $messages['warnings'] : array(),
+        );
+    }
+
+    private function existingQuestionKeys($bankId)
+    {
+        $rows = $this->db->select('soal')->where('bank_id', $bankId)->get('cbt_soal')->result();
+        $keys = array();
+        foreach ($rows as $row) {
+            $key = $this->question_import->comparisonKey($row->soal);
+            if ($key !== '') {
+                $keys[$key] = true;
             }
         }
-        return $errors;
+        return $keys;
+    }
+
+    private function duplicateWarning($question, $existing)
+    {
+        $key = $this->question_import->comparisonKey(isset($question['question']) ? $question['question'] : '');
+        return $key !== '' && isset($existing[$key]) ? 'Soal yang sama sudah terdapat dalam bank. Soal tetap dapat diimport.' : null;
     }
 
     private function updateBankStatus($bankId, $bank)

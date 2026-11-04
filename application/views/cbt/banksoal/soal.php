@@ -197,8 +197,11 @@ foreach ($soal_ada as $key => $value) {
                         <h6 id="nomor-soal"><b>Soal Nomor: 1</b></h6>
                     </div>
                     <div class="card-tools">
-                        <button type="submit" class="btn btn-primary btn-sm mr-1">
-                            <i class="fa fa-plus mr-1"></i>Simpan
+                        <button type="submit" id="save-question" class="btn btn-primary btn-sm mr-1">
+                            <i class="fa fa-save mr-1"></i>Simpan
+                        </button>
+                        <button type="submit" id="save-add-another" class="btn btn-outline-primary btn-sm">
+                            Simpan &amp; Tambah Lagi
                         </button>
                     </div>
                 </div>
@@ -245,7 +248,14 @@ foreach ($soal_ada as $key => $value) {
                                     foreach ($rangeAbjad as $abjad) :
                                         ?>
                                         <div class="mb-3 ml-3">
-                                            <label>Jawaban <?= strtoupper($abjad) ?></label>
+                                            <div class="custom-control custom-radio mb-2">
+                                                <input type="radio" class="custom-control-input pg-correct-answer"
+                                                       name="jawaban_pg" value="<?= $abjad ?>"
+                                                       id="jawaban-benar-<?= $abjad ?>" required>
+                                                <label class="custom-control-label" for="jawaban-benar-<?= $abjad ?>">
+                                                    Jawaban <?= strtoupper($abjad) ?> benar
+                                                </label>
+                                            </div>
                                             <textarea class="textjawaban" id="textjawaban_<?= $abjad ?>"
                                                       name="jawaban_<?= $abjad ?>"
                                                       placeholder="Place some text here"
@@ -275,13 +285,7 @@ foreach ($soal_ada as $key => $value) {
                                 <div class="mt-1 ml-3" id="jawaban-benar">
                                     <label>Jawaban Benar</label>
                                     <div id="root-jawaban-pg" class="<?= $pg_none ?>">
-                                        <?php
-                                        echo form_dropdown(
-                                            'jawaban_pg',
-                                            $opsis,
-                                            '',
-                                            'id="jawaban" class="select2 form-control" required'
-                                        ); ?>
+                                        <small class="text-muted">Pilih lingkaran pada pilihan jawaban yang benar di atas.</small>
                                     </div>
                                     <div class="<?= $bs_none ?>" id="root-jawaban-bs">
                                         <?php

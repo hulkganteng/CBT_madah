@@ -294,6 +294,12 @@ class Exam_security_hook
         if (!$this->ci->ion_auth->logged_in()) {
             return;
         }
+        if ($controller === 'cbtbanksoal' && in_array($method, array('tambahsoal', 'doimport', 'uploadsoal'), TRUE)) {
+            $message = $method === 'tambahsoal'
+                ? 'Soal baru disimpan setelah formulir lengkap.'
+                : 'Import lama telah dinonaktifkan karena dapat mengganti soal yang sudah ada.';
+            $this->deny($message, 410);
+        }
         if ($this->ci->ion_auth->is_admin()) {
             return;
         }
@@ -333,6 +339,7 @@ class Exam_security_hook
             'import' => 'id_bank',
             'saveselected' => 'id_bank',
             'preview' => 'bank_id',
+            'create' => 'bank_id',
             'upload' => 'bank_id',
             'uploadfile' => 'id_soal',
         );
@@ -341,8 +348,19 @@ class Exam_security_hook
             'editbank' => 'id_bank',
             'getsoalnomor' => 'bank_id',
             'template' => 'bank_id',
+            'latest' => 'bank_id',
         );
         $byPostIds = array('deleteallbank');
+        if ($controller === 'excelsoal' && in_array($method, array('session', 'updateitem', 'commit', 'cancel'), TRUE)) {
+            $importId = $method === 'session'
+                ? (int) $this->ci->input->get('import_id', TRUE)
+                : (int) $this->ci->input->post('import_id', TRUE);
+            $draft = $this->ci->db->select('bank_id')->get_where('cbt_soal_import', array('id' => $importId))->row();
+            if (!$draft || !$this->ownsBank($draft->bank_id)) {
+                $this->deny('Anda tidak memiliki akses ke draft import ini.', 403);
+            }
+            return;
+        }
         if ($method === 'deletefile') {
             /* deleteFile memanggil unlink() pada path yang dikirim pengirim.
                Batasi ke folder bank soal dan wajibkan ID soal milik guru. */

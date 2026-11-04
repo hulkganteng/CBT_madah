@@ -88,7 +88,7 @@ unset($migrationEnabled, $autoMigrate);
 | be upgraded / downgraded to.
 |
 */
-$config['migration_version'] = 20261028000400;
+$config['migration_version'] = 20261103000100;
 
 /*
 |--------------------------------------------------------------------------

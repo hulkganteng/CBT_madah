@@ -31,3 +31,8 @@ application/logs/*
 !/uploads/index.html
 /graphify-out/
 /vendor/
+/.phpunit.result.cache
+
+# Local IDE metadata and generated documentation archive
+/.idea/
+/docs/*.zip

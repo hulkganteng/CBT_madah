@@ -3,6 +3,7 @@ var fieldLinks;
 
 let dataJodohkan;
 let adaJawaban = false;
+let saveAndAddAnother = false;
 
 $(document).ready(function() {
     ajaxcsrf();
@@ -112,6 +113,9 @@ $(document).ready(function() {
         uploadAttach(base_url + 'cbtbanksoal/uploadfile?id_soal='+idSoal, form);
     });
 
+    $('#save-question').on('click', function () { saveAndAddAnother = false; });
+    $('#save-add-another').on('click', function () { saveAndAddAnother = true; });
+
     $('#create').submit('click', function (e) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -171,13 +175,19 @@ $(document).ready(function() {
                                 showCancelButton: false
                             });
                         } else {
-                            showSuccessToast("Soal nomor" + nomor_soal + " berhasil disimpan");
+                            showSuccessToast("Soal berhasil disimpan.");
                             if (jenis==='1' || jenis==='2') {
                                 $('#btn-'+jenis+nomor_soal).removeClass('btn-outline-danger');
                                 $('#btn-'+jenis+nomor_soal).addClass('btn-success');
                             } else {
                                 $('#btn-'+jenis+nomor_soal).removeClass('btn-outline-danger');
                                 $('#btn-'+jenis+nomor_soal).addClass('btn-primary');
+                            }
+                            if (saveAndAddAnother) {
+                                var $addButton = $('[data-bank="' + idBank + '"][data-nomor]:visible').first();
+                                var nextNumber = Math.max(parseInt($addButton.data('nomor'), 10) || 0, parseInt(nomor_soal, 10) + 1);
+                                $addButton.data('nomor', nextNumber + 1).attr('data-nomor', nextNumber + 1);
+                                getSoalById(idBank, nextNumber, jenis + '' + nextNumber, jenis);
                             }
                         }
                     }, error: function (xhr, status, error) {
@@ -317,6 +327,19 @@ function initTextArea() {
     });
 }
 
+function resetComplexOptions() {
+    var html = '';
+    ['a', 'b'].forEach(function (key) {
+        html += '<div class="pg-kompleks mb-4 ml-3">' +
+            '<div class="row mb-2"><div class="col-6"><span class="abjad-pg2"><b>Jawaban ' + key.toUpperCase() + '</b></span></div>' +
+            '<div class="col-6 text-right d-flex justify-content-end"><b>Jawaban benar</b>' +
+            '<input class="check-pg2" type="checkbox" style="width:24px;height:24px;margin-left:8px" name="jawaban_benar_pg2[]" value="' + key + '"></div></div>' +
+            '<textarea class="textjawaban2" id="textjawaban2_' + key + '" name="jawaban2_' + key + '" placeholder="Tulis jawaban" style="width:100%;"></textarea></div>';
+    });
+    $('#opsi-pg2').html(html);
+    initTextArea();
+}
+
 function myOwnCallBack(file, idtextarea) {
     var allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (allowedTypes.indexOf(file.type) === -1) {
@@ -396,6 +419,7 @@ function deleteEditorImage(src) {
 }
 
 function inputKosong() {
+    if ($('.textsoal').summernote('isEmpty')) return true;
     var kosong = true;
     if (jenis === '1') {
         $('.textjawaban').each(function () {
@@ -406,6 +430,7 @@ function inputKosong() {
                 kosong = false;
             }
         });
+        if (!$('[name="jawaban_pg"]:checked').length) kosong = true;
     } else if (jenis === '2') {
         $('.textjawaban2').each(function () {
             if ($(this).summernote('isEmpty')) {
@@ -415,6 +440,7 @@ function inputKosong() {
                 kosong = false;
             }
         });
+        if (!$('.check-pg2:checked').length) kosong = true;
     } else if (jenis === '3') {
         kosong = false;
     } else if (jenis === '4') {
@@ -459,8 +485,7 @@ function getSoalById(id_bank, number, id, jenis_soal) {
         $('.textjawaban').removeAttr('disabled', 'disabled');
         $('#jawaban-benar').removeClass('d-none');
         $('#root-jawaban-pg').removeClass('d-none');
-        $('#jawaban').prop('required', true);
-        $('#jawaban').removeAttr('disabled');
+        $('[name="jawaban_pg"]').prop('required', true).prop('disabled', false);
 
         // 2 disable
         $('#root-opsi-pg2').addClass('d-none');
@@ -492,8 +517,7 @@ function getSoalById(id_bank, number, id, jenis_soal) {
         $('.textjawaban').attr('disabled', 'disabled');
         $('#jawaban-benar').addClass('d-none');
         $('#root-jawaban-pg').addClass('d-none');
-        $('#jawaban').prop('required', false);
-        $('#jawaban').attr('disabled', 'disabled');
+        $('[name="jawaban_pg"]').prop('required', false).prop('disabled', true);
 
         // 2 enable
         $('#root-opsi-pg2').removeClass('d-none');
@@ -524,8 +548,7 @@ function getSoalById(id_bank, number, id, jenis_soal) {
         $('#root-opsi-pg').addClass('d-none');
         $('.textjawaban').attr('disabled', 'disabled');
         $('#root-jawaban-pg').addClass('d-none');
-        $('#jawaban').prop('required', false);
-        $('#jawaban').attr('disabled', 'disabled');
+        $('[name="jawaban_pg"]').prop('required', false).prop('disabled', true);
 
         // 2 disable
         $('#root-opsi-pg2').addClass('d-none');
@@ -557,8 +580,7 @@ function getSoalById(id_bank, number, id, jenis_soal) {
         $('#root-opsi-pg').addClass('d-none');
         $('.textjawaban').attr('disabled', 'disabled');
         $('#root-jawaban-pg').addClass('d-none');
-        $('#jawaban').prop('required', false);
-        $('#jawaban').attr('disabled', 'disabled');
+        $('[name="jawaban_pg"]').prop('required', false).prop('disabled', true);
 
         // 2 disable
         $('#root-opsi-pg2').addClass('d-none');
@@ -590,8 +612,7 @@ function getSoalById(id_bank, number, id, jenis_soal) {
         $('#root-opsi-pg').addClass('d-none');
         $('.textjawaban').attr('disabled', 'disabled');
         $('#root-jawaban-pg').addClass('d-none');
-        $('#jawaban').prop('required', false);
-        $('#jawaban').attr('disabled', 'disabled');
+        $('[name="jawaban_pg"]').prop('required', false).prop('disabled', true);
 
         // 2 disable
         $('#root-opsi-pg2').addClass('d-none');
@@ -627,8 +648,7 @@ function getSoalById(id_bank, number, id, jenis_soal) {
 		$('#root-opsi-pg').addClass('d-none');
         $('.textjawaban').attr('disabled', 'disabled');
         $('#root-jawaban-pg').addClass('d-none');
-        $('#jawaban').prop('required',false);
-        $('#jawaban').attr('disabled', 'disabled');
+        $('[name="jawaban_pg"]').prop('required', false).prop('disabled', true);
 
         // 2 disable
         $('#root-opsi-pg2').addClass('d-none');
@@ -664,8 +684,8 @@ function getSoalById(id_bank, number, id, jenis_soal) {
 				$('#loading').addClass('d-none');
 				console.log('soal', data);
 				if (data == null) {
-                    $('#empty-soal').removeClass('d-none');
-                    $('#not-empty-soal').addClass('d-none');
+                    $('#empty-soal').addClass('d-none');
+                    $('#not-empty-soal').removeClass('d-none');
 					$('#soal-id').val('0');
 					$('#method').val('add');
 					$('#textsoal').summernote('code', '');
@@ -673,7 +693,8 @@ function getSoalById(id_bank, number, id, jenis_soal) {
 					$(".textjawaban").each(function(){
 						$(this).summernote('code', '');
 					});
-					$('#jawaban').prop('selectedIndex', 0).change();
+                    $('[name="jawaban_pg"]').prop('checked', false);
+					if (jenis_soal === '2') resetComplexOptions();
 					$('#jawaban-essai').summernote('code', '');
 					$('#jawaban-bs').prop('selectedIndex', 0).change();
 				} else {
@@ -743,7 +764,7 @@ function getSoalById(id_bank, number, id, jenis_soal) {
 
                         var jwb = data.jawaban == null ? '' : $.trim((data.jawaban).toLowerCase());
                         console.log(jwb);
-                        $('#jawaban').prop('selectedIndex', arrAbjad.indexOf(jwb) + 1).change();
+                        $('[name="jawaban_pg"][value="' + jwb + '"]').prop('checked', true);
                     } else if (jenis_soal === '2') {
                         var jwb2 = '';
                         if (data.opsi_a) {
@@ -882,75 +903,15 @@ function getSoalById(id_bank, number, id, jenis_soal) {
 }
 
 function tambahSoalPg(e) {
-	var nomor = $(e).data('nomor');
-    var bank = $(e).data('bank');
-    var mapel = $(e).data('mapel');
-
-    $.ajax({
-        url: base_url + "cbtbanksoal/tambahSoal",
-        type: "POST",
-        dataType: "JSON",
-        data: {
-        	nomor: nomor,
-			jenis: 1,
-			bank: bank
-		},
-        success: function (data) {
-            console.log(data);
-            window.location.href = base_url + 'cbtbanksoal/buatsoal/'+bank+'?tab=1';
-        }, error: function (xhr, status, error) {
-            console.log("error", xhr.responseText);
-            showDangerToast('Gagal menambah soal');
-        }
-    });
+    getSoalById($(e).data('bank'), $(e).data('nomor'), '1' + $(e).data('nomor'), '1');
 }
 
 function tambahSoalPg2(e) {
-    var nomor = $(e).data('nomor');
-    var bank = $(e).data('bank');
-    var mapel = $(e).data('mapel');
-
-    $.ajax({
-        url: base_url + "cbtbanksoal/tambahSoal",
-        type: "POST",
-        dataType: "JSON",
-        data: {
-            nomor: nomor,
-            jenis: 2,
-            bank: bank
-        },
-        success: function (data) {
-            console.log(data);
-            window.location.href = base_url + 'cbtbanksoal/buatsoal/'+bank+'?tab=2';
-        }, error: function (xhr, status, error) {
-            console.log("error", xhr.responseText);
-            showDangerToast('Gagal menambah soal');
-        }
-    });
+    getSoalById($(e).data('bank'), $(e).data('nomor'), '2' + $(e).data('nomor'), '2');
 }
 
 function tambahSoalBs(e) {
-    var nomor = $(e).data('nomor');
-    var bank = $(e).data('bank');
-    var mapel = $(e).data('mapel');
-
-    $.ajax({
-        url: base_url + "cbtbanksoal/tambahSoal",
-        type: "POST",
-        dataType: "JSON",
-        data: {
-            nomor: nomor,
-            jenis: 6,
-            bank: bank
-        },
-        success: function (data) {
-            console.log(data);
-            window.location.href = base_url + 'cbtbanksoal/buatsoal/'+bank+'?tab=6';
-        }, error: function (xhr, status, error) {
-            console.log("error", xhr.responseText);
-            showDangerToast('Gagal menambah soal');
-        }
-    });
+    getSoalById($(e).data('bank'), $(e).data('nomor'), '6' + $(e).data('nomor'), '6');
 }
 
 function tambahSoalJodohkan(e) {
