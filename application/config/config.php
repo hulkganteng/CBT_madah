@@ -4,6 +4,28 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 date_default_timezone_set('Asia/Jakarta');
 //date_default_timezone_set('Asia/Makassar');
 //date_default_timezone_set('Asia/Jayapura');
+
+/* Baca nilai konfigurasi dari environment, atau dari .env lokal bila variabel
+   environment tidak tersedia (index.php hanya memakai .env untuk CI_ENV). */
+if (!function_exists('app_env')) {
+    function app_env($key, $fallback = NULL)
+    {
+        static $file = NULL;
+        $value = getenv($key);
+        if ($value !== FALSE && $value !== '') {
+            return $value;
+        }
+        if ($file === NULL) {
+            $file = array();
+            $path = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env';
+            if (is_file($path) && is_readable($path)) {
+                $parsed = parse_ini_file($path, FALSE, INI_SCANNER_RAW);
+                $file = is_array($parsed) ? $parsed : array();
+            }
+        }
+        return isset($file[$key]) && $file[$key] !== '' ? $file[$key] : $fallback;
+    }
+}
 /*
 |--------------------------------------------------------------------------
 | Base Site URL
@@ -33,13 +55,66 @@ date_default_timezone_set('Asia/Jakarta');
 
 /* Di balik reverse proxy / Cloudflare Tunnel TLS berakhir di proxy, sehingga
    Apache tidak pernah menyetel HTTPS. Tanpa ini base_url dan hash Safe Exam
-   Browser memakai http:// padahal browser berada di https://. */
-$forwardedProto = isset($_SERVER['HTTP_X_FORWARDED_PROTO'])
-    ? strtolower(trim(strtok($_SERVER['HTTP_X_FORWARDED_PROTO'], ',')))
-    : '';
+   Browser memakai http:// padahal browser berada di https://.
+
+   Header proxy hanya dipercaya dari alamat proxy yang terdaftar
+   (APP_TRUSTED_PROXIES atau config proxy_ips). Host divalidasi dan dibatasi
+   allowlist APP_ALLOWED_HOSTS agar Host/X-Forwarded-Host tidak bisa dipakai
+   untuk meracuni URL, redirect, maupun hash SEB. */
+$trustedProxies = app_env('APP_TRUSTED_PROXIES');
+$trustedProxies = array_filter(array_map('trim', $trustedProxies === FALSE
+    ? array()
+    : explode(',', (string) $trustedProxies)));
+/* Satu sumber kebenaran: dipakai base_url di sini dan dibaca ulang oleh
+   library lewat config proxy_ips. */
+$config['proxy_ips'] = implode(',', $trustedProxies);
+$remoteAddr = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+$proxyTrusted = FALSE;
+foreach ($trustedProxies as $proxy) {
+    if ($proxy === $remoteAddr) {
+        $proxyTrusted = TRUE;
+        break;
+    }
+    if (strpos($proxy, '/') !== FALSE) {
+        list($subnet, $bits) = explode('/', $proxy, 2);
+        $ip = ip2long($remoteAddr);
+        $net = ip2long($subnet);
+        $mask = -1 << (32 - (int) $bits);
+        if ($ip !== FALSE && $net !== FALSE && (($ip & $mask) === ($net & $mask))) {
+            $proxyTrusted = TRUE;
+            break;
+        }
+    }
+}
+
+$forwardedProto = '';
+if ($proxyTrusted && isset($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+    $forwardedProto = strtolower(trim(strtok($_SERVER['HTTP_X_FORWARDED_PROTO'], ',')));
+}
 $scheme = ((isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') || $forwardedProto === 'https')
     ? 'https' : 'http';
+
 $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : (isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'localhost');
+$host = strtolower(trim($host));
+/* Tolak Host yang mengandung skema, path, spasi, atau karakter aneh. */
+if (!preg_match('/^[a-z0-9.-]+(:[0-9]{1,5})?$/D', $host)
+    || substr_count($host, ':') > 1) {
+    $host = 'localhost';
+}
+$allowedHosts = array_filter(array_map('trim', explode(',', (string) app_env('APP_ALLOWED_HOSTS'))));
+if ($allowedHosts) {
+    $hostName = preg_replace('/:[0-9]+$/', '', $host);
+    $allowed = FALSE;
+    foreach ($allowedHosts as $allowedHost) {
+        if (strcasecmp($allowedHost, $host) === 0 || strcasecmp($allowedHost, $hostName) === 0) {
+            $allowed = TRUE;
+            break;
+        }
+    }
+    if (!$allowed) {
+        $host = $allowedHosts[0];
+    }
+}
 $scriptName = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '/index.php';
 $config['base_url'] = $scheme . '://' . $host;
 $config['base_url'] .= preg_replace('@/+$@', '', dirname($scriptName)) . '/';
@@ -590,7 +665,10 @@ $config['rewrite_short_tags'] = FALSE;
 | Comma-separated:	'10.0.1.200,192.168.5.0/24'
 | Array:		array('10.0.1.200', '192.168.5.0/24')
 */
-$config['proxy_ips'] = '';
+$config['proxy_ips'] = isset($config['proxy_ips']) ? $config['proxy_ips'] : '';
+
+/* Proxy tepercaya diatur lewat APP_TRUSTED_PROXIES pada blok base_url di atas;
+   nilai di sini hanya cadangan bila environment tidak menyetelnya. */
 
 $config['min_password_length']  = 6;
 $config['max_password_length'] = 20;

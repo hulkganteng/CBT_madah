@@ -172,10 +172,27 @@ $config['remember_cookie_name'] = 'remember_code';
  | 	  'file' = Use the default CI config or use from a config file
  | 	  array  = Manually set your email config settings
  */
-$config['use_ci_email'] = FALSE; // Send Email using the builtin CI email class, if false it will return the code and the identity
+if (!function_exists('app_env')) {
+	function app_env($key, $fallback = NULL)
+	{
+		$value = getenv($key);
+		return $value === FALSE || $value === '' ? $fallback : $value;
+	}
+}
+
+$config['use_ci_email'] = app_env('AUTH_EMAIL_ENABLED') === '1'; // Kirim email sungguhan hanya bila dikonfigurasi (AUTH_EMAIL_ENABLED=1 + SMTP).
 $config['email_config'] = [
 	'mailtype' => 'html',
 ];
+$emailHost = app_env('AUTH_SMTP_HOST');
+if ($emailHost !== NULL && trim($emailHost) !== '') {
+	$config['email_config']['protocol'] = 'smtp';
+	$config['email_config']['smtp_host'] = trim($emailHost);
+	$config['email_config']['smtp_port'] = (int) (app_env('AUTH_SMTP_PORT', '587'));
+	$config['email_config']['smtp_user'] = (string) app_env('AUTH_SMTP_USER', '');
+	$config['email_config']['smtp_pass'] = (string) app_env('AUTH_SMTP_PASS', '');
+	$config['email_config']['smtp_crypto'] = (string) app_env('AUTH_SMTP_CRYPTO', 'tls');
+}
 
 /*
  | -------------------------------------------------------------------------

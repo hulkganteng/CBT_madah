@@ -12,6 +12,13 @@ class Exam_security_hook
         $controller = strtolower($this->ci->router->fetch_class());
         $method = strtolower($this->ci->router->fetch_method());
 
+        /* Restore database menahan transaksi ujian selama proses berjalan.
+           Marker dibuat dan dihapus oleh Db_restore. */
+        if ($this->maintenanceActive()
+            && in_array($controller, array('siswa', 'examguard', 'examactivity'), TRUE)) {
+            $this->deny('Pemulihan database sedang berjalan. Ujian ditahan sementara. Silakan coba lagi.', 503);
+        }
+
         $this->denyRetiredModules($controller);
         $this->guardRoleAccess($controller, $method);
         $this->guardSebStudentPortal($controller, $method);
@@ -1012,7 +1019,8 @@ class Exam_security_hook
         }
 
         $payload = json_decode($this->ci->output->get_output());
-        if (!$payload || empty($payload->status)) {
+        /* Attempt hanya boleh SUBMITTED setelah grading benar-benar tersimpan. */
+        if (!$payload || empty($payload->status) || empty($payload->status_nilai)) {
             return;
         }
         $this->loadService();
@@ -1310,6 +1318,12 @@ class Exam_security_hook
             }
         }
         return array_values(array_unique($keys));
+    }
+
+    private function maintenanceActive()
+    {
+        return defined('FCPATH')
+            && is_file(FCPATH . 'backups' . DIRECTORY_SEPARATOR . '.restore.lock');
     }
 
     /**

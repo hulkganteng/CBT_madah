@@ -39,6 +39,7 @@ $lang['password_change_successful']					= 'Kata Sandi Berhasil Diubah';
 $lang['password_change_unsuccessful']				= 'Tidak Dapat Mengganti Kata Sandi';
 $lang['forgot_password_successful']					= 'Email untuk Set Ulang Kata Sandi Telah Dikirim';
 $lang['forgot_password_unsuccessful']				= 'Tidak Dapat Set Ulang Kata Sandi';
+$lang['forgot_password_email_not_configured']		= 'Reset kata sandi lewat email belum dikonfigurasi. Hubungi administrator untuk mengatur ulang kata sandi.';
 
 // Activation
 $lang['activate_successful']						= 'Akun Telah Diaktifkan';

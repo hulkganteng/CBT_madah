@@ -82,8 +82,20 @@ class Environment_database_installer
     public function writeConfiguration(array $data)
     {
         $rendered = $this->renderConfiguration($data);
+        /* Jangan hapus DB_* yang sudah diisi operator di .env. */
+        $env = "CI_ENV=development\n";
+        $envPath = $this->root . '/.env';
+        if (is_file($envPath) && is_readable($envPath)) {
+            $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines ?: array() as $line) {
+                if (preg_match('/^\s*CI_ENV\s*=/', $line)) {
+                    continue;
+                }
+                $env .= $line . "\n";
+            }
+        }
         if (file_put_contents($this->root . '/application/config/database.php', $rendered, LOCK_EX) === false
-            || file_put_contents($this->root . '/.env', "CI_ENV=development\n", LOCK_EX) === false) {
+            || file_put_contents($envPath, $env, LOCK_EX) === false) {
             throw new RuntimeException('Konfigurasi database atau .env tidak dapat ditulis.');
         }
 

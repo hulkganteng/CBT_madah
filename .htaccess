@@ -13,6 +13,22 @@ Options -Indexes
     </IfModule>
 </Files>
 
+# .env berisi kredensial database dan tidak boleh dapat diunduh.
+<FilesMatch "^\.env">
+    <IfModule authz_core_module>
+        Require all denied
+    </IfModule>
+    <IfModule !authz_core_module>
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Backup database hanya boleh diunduh lewat controller yang memeriksa admin.
+RewriteRule ^backups/ - [F,L]
+
+# Folder unggahan tidak boleh menjalankan skrip apa pun.
+RewriteRule ^uploads/.*\.(ph(p[0-9]?|tml|ps|ar)|pht|cgi|pl|py|sh|asp|aspx|jsp)$ - [F,L,NC]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php/$1 [L]

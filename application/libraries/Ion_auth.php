@@ -159,8 +159,10 @@ class Ion_auth
 
 				if (!$this->config->item('use_ci_email', 'ion_auth'))
 				{
-					$this->set_message('forgot_password_successful');
-					return $data;
+					/* Tanpa konfigurasi email, kode reset tidak dapat dikirim.
+					   Jangan tampilkan sukses palsu; arahkan ke administrator. */
+					$this->set_error('forgot_password_email_not_configured');
+					return FALSE;
 				}
 				else
 				{

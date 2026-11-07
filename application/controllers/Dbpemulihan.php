@@ -11,9 +11,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *
  * Restore memakai mysqli langsung, bukan dbutil, supaya file .sql.zip
  * hasil Dbmanager (dbutil->backup) bisa diputar balik apa adanya.
+ * Impor dilakukan ke database staging lebih dulu; lihat Db_restore.
  */
 class Dbpemulihan extends CI_Controller
 {
+    private $pemulih = NULL;
+
     public function __construct()
     {
         parent::__construct();
@@ -56,33 +59,13 @@ class Dbpemulihan extends CI_Controller
      */
     public function backup()
     {
-        $this->load->dbutil();
-        $this->load->helper('file');
-
-        $this->dbutil->optimize_database();
-        $sql = $this->dbutil->backup(array(
-            'tables' => $this->db->list_tables(),
-            'ignore' => array(),
-            'format' => 'zip',
-            'filename' => 'backup.sql',
-            'add_drop' => TRUE,
-            'add_insert' => TRUE,
-            'newline' => "\n",
-        ));
-        $nama = 'backup-db-' . date('Y-m-d-H-i-s') . '.sql.zip';
-        if (!write_file($this->folder() . $nama, $sql)) {
-            $this->balas('Gagal menulis ' . $nama, 1);
-            return;
-        }
-        $this->bersihkanTua();
-
-        $this->balas('Backup dibuat: ' . $nama, 0);
+        $hasil = $this->buatBackup();
+        $this->balas($hasil['pesan'], $hasil['ok'] ? 0 : 1);
     }
 
     /**
      * Pulihkan dari file backup. Konfirmasi berupa nama file yang harus
-     * diketik ulang, dan database saat ini dibackup dulu supaya salah
-     * pilih file masih bisa dibatalkan.
+     * diketik ulang. Restore dibatalkan bila backup pengaman gagal.
      */
     public function pulihkan()
     {
@@ -102,90 +85,107 @@ class Dbpemulihan extends CI_Controller
             return;
         }
 
-        $this->backup();
-
-        $sql = $this->bacaZip($path);
-        if ($sql === NULL) {
-            $this->balas('Berkas backup tidak bisa dibaca.', 1);
+        try {
+            $this->pemulih()->readBackup($path);
+        } catch (Throwable $error) {
+            $this->balas('Backup ditolak: ' . $error->getMessage(), 1);
             return;
         }
 
-        $hasil = $this->jalankan($sql);
-        if ($hasil !== NULL) {
-            $this->balas('Restore gagal: ' . $hasil, 1);
+        $pengaman = $this->buatBackup();
+        if (!$pengaman['ok']) {
+            $this->balas('Restore dibatalkan karena backup pengaman gagal: ' . $pengaman['pesan'], 1);
             return;
         }
-        $this->balas('Restore selesai dari ' . $berkas . '. Muat ulang halaman dan periksa data ujian.', 0);
+
+        try {
+            $this->pemulih()->restore($path);
+        } catch (Throwable $error) {
+            $this->balas('Restore gagal: ' . $error->getMessage() . ' Backup pengaman: ' . $pengaman['nama'], 1);
+            return;
+        }
+
+        $this->balas('Restore selesai dari ' . $berkas . '. Backup pengaman: ' . $pengaman['nama']
+            . '. Muat ulang halaman dan periksa data ujian.', 0);
     }
 
     public function unduh($berkas)
     {
         $berkas = basename((string) $berkas);
         $path = $this->folder() . $berkas;
-        if (!is_file($path)) {
+        if (!preg_match('/\.sql\.zip$/', $berkas) || !is_file($path)) {
             show_404();
         }
         $this->load->helper('download');
         force_download($berkas, file_get_contents($path));
     }
 
-    private function bacaZip($path)
+    /**
+     * Buat backup dan verifikasi hasilnya sebelum dianggap berhasil.
+     * Selalu mengembalikan array('ok', 'nama', 'pesan').
+     */
+    private function buatBackup()
     {
-        if (!class_exists('ZipArchive')) {
-            return NULL;
+        $this->load->dbutil();
+
+        $folder = $this->folder();
+        if (!is_dir($folder) || !is_writable($folder)) {
+            return array('ok' => FALSE, 'nama' => '', 'pesan' => 'Folder backup tidak dapat ditulis. Periksa izin folder backups.');
         }
-        $zip = new ZipArchive();
-        if ($zip->open($path) !== TRUE) {
-            return NULL;
+
+        $nama = 'backup-db-' . date('Y-m-d-H-i-s') . '-' . bin2hex(random_bytes(3)) . '.sql.zip';
+        $tmp = $folder . $nama . '.part';
+        $this->dbutil->optimize_database();
+        $sql = $this->dbutil->backup(array(
+            'tables' => $this->db->list_tables(),
+            'ignore' => array(),
+            'format' => 'zip',
+            'filename' => 'backup.sql',
+            'add_drop' => TRUE,
+            'add_insert' => TRUE,
+            'newline' => "\n",
+        ));
+        if (!is_string($sql) || $sql === '') {
+            return array('ok' => FALSE, 'nama' => '', 'pesan' => 'Backup gagal dibuat oleh dbutil.');
         }
-        $sql = NULL;
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $nama = $zip->getNameIndex($i);
-            if (preg_match('/\.sql$/i', $nama)) {
-                $sql = $zip->getFromIndex($i);
-                break;
-            }
+        if (write_file($tmp, $sql) === FALSE) {
+            @unlink($tmp);
+            return array('ok' => FALSE, 'nama' => '', 'pesan' => 'Backup gagal ditulis. Disk penuh atau izin ditolak.');
         }
-        $zip->close();
-        return $sql === FALSE ? NULL : $sql;
+        try {
+            $this->pemulih()->readBackup($tmp);
+        } catch (Throwable $error) {
+            @unlink($tmp);
+            return array('ok' => FALSE, 'nama' => '', 'pesan' => 'Backup baru rusak: ' . $error->getMessage());
+        }
+        if (!@rename($tmp, $folder . $nama)) {
+            @unlink($tmp);
+            return array('ok' => FALSE, 'nama' => '', 'pesan' => 'Backup gagal dipindahkan ke nama akhir.');
+        }
+        clearstatcache(TRUE, $folder . $nama);
+        if (!is_file($folder . $nama) || filesize($folder . $nama) <= 0) {
+            @unlink($folder . $nama);
+            return array('ok' => FALSE, 'nama' => '', 'pesan' => 'Berkas backup tidak terbentuk sempurna.');
+        }
+
+        $this->bersihkanTua();
+        return array('ok' => TRUE, 'nama' => $nama, 'pesan' => 'Backup dibuat: ' . $nama);
     }
 
-    private function jalankan($sql)
+    private function pemulih()
     {
-        $cfg = array(
-            'hostname' => $this->db->hostname,
-            'username' => $this->db->username,
-            'password' => $this->db->password,
-            'database' => $this->db->database,
-            'port' => $this->db->port,
-        );
-        mysqli_report(MYSQLI_REPORT_OFF);
-        $link = @new mysqli(
-            $cfg['hostname'],
-            $cfg['username'],
-            $cfg['password'],
-            $cfg['database'],
-            $cfg['port'] ? (int) $cfg['port'] : NULL
-        );
-        if ($link->connect_errno) {
-            return $link->connect_error;
+        if ($this->pemulih === NULL) {
+            $this->load->library('db_restore', array(
+                'hostname' => $this->db->hostname,
+                'username' => $this->db->username,
+                'password' => $this->db->password,
+                'database' => $this->db->database,
+                'port' => isset($this->db->port) ? $this->db->port : NULL,
+                'folder' => $this->folder(),
+            ));
+            $this->pemulih = $this->db_restore;
         }
-        $link->set_charset('utf8mb4');
-        /* DROP TABLE di dalam dump gagal bila ada foreign key aktif
-           (mis. cbt_exam_event -> cbt_exam_attempt). Matikan selama restore. */
-        $link->query('SET FOREIGN_KEY_CHECKS=0');
-        if (!$link->multi_query($sql)) {
-            $err = $link->error;
-            $link->close();
-            return $err;
-        }
-        while ($link->more_results() && $link->next_result()) {
-            /* habiskan seluruh result set sebelum koneksi ditutup */
-        }
-        $err = $link->error;
-        $link->query('SET FOREIGN_KEY_CHECKS=1');
-        $link->close();
-        return $err === '' ? NULL : $err;
+        return $this->pemulih;
     }
 
     private function daftarBerkas()

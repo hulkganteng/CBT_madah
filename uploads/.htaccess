@@ -1,0 +1,16 @@
+# Folder unggahan hanya untuk media. Jangan pernah mengeksekusi skrip di sini.
+Options -Indexes -ExecCGI
+
+<IfModule mod_authz_core.c>
+    <FilesMatch "\.(php|phtml|php[0-9]|phps|pht|phar|cgi|pl|py|sh|asp|aspx|jsp)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    <FilesMatch "\.(php|phtml|php[0-9]|phps|pht|phar|cgi|pl|py|sh|asp|aspx|jsp)$">
+        Deny from all
+    </FilesMatch>
+</IfModule>
+
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps .pht .phar .cgi .pl .py .sh .asp .aspx .jsp
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .phps .pht .phar .cgi .pl .py .sh .asp .aspx .jsp

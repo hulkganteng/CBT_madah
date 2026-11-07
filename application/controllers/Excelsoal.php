@@ -392,6 +392,9 @@ class Excelsoal extends CI_Controller
             return;
         }
 
+        /* Kunci baris bank selama penomoran supaya dua commit paralel pada bank
+           yang sama tidak menghasilkan nomor_soal duplikat. */
+        $this->db->query('SELECT id_bank FROM cbt_bank_soal WHERE id_bank = ? FOR UPDATE', array((int) $import->bank_id));
         $maxRows = $this->db->select('jenis, MAX(nomor_soal) AS nomor', false)->where('bank_id', $import->bank_id)
             ->group_by('jenis')->get('cbt_soal')->result();
         $numbers = array('1' => 0, '2' => 0, '6' => 0);

@@ -28,6 +28,7 @@ $lang['password_change_successful']          = 'Password Successfully Changed';
 $lang['password_change_unsuccessful']        = 'Unable to Change Password';
 $lang['forgot_password_successful']          = 'Password Reset Email Sent';
 $lang['forgot_password_unsuccessful']        = 'Unable to email the Reset Password link';
+$lang['forgot_password_email_not_configured'] = 'Password reset by email is not configured. Please contact the administrator to reset your password.';
 
 // Activation
 $lang['activate_successful']                 = 'Account Activated';

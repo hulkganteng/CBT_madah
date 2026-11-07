@@ -3,6 +3,11 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Exam_attempt_service
 {
+    /* Batas event per attempt per menit. Event keamanan kritis tetap dicatat
+       walau batas terlampaui supaya bukti pelanggaran tidak hilang. */
+    const EVENT_LIMIT_PER_MINUTE = 120;
+    const EVENT_DUPLICATE_WINDOW = 3;
+
     private $ci;
 
     public function __construct()
@@ -461,8 +466,21 @@ class Exam_attempt_service
             return FALSE;
         }
         $minutes = max(1, min(120, (int) $minutes));
-        $total = (int) $attempt->extra_minutes + $minutes;
-        $deadline = strtotime($attempt->deadline_at . ' +' . $minutes . ' minutes');
+
+        /* Baca ulang attempt di dalam transaksi supaya dua proktor yang
+           menambah waktu bersamaan tidak menimpa total satu sama lain. */
+        $this->ci->db->trans_begin();
+        $locked = $this->ci->db->query(
+            'SELECT deadline_at, extra_minutes FROM cbt_exam_attempt
+             WHERE attempt_id = ? AND status = ? FOR UPDATE',
+            array($attempt->attempt_id, 'IN_PROGRESS')
+        )->row();
+        if (!$locked) {
+            $this->ci->db->trans_rollback();
+            return FALSE;
+        }
+        $total = (int) $locked->extra_minutes + $minutes;
+        $deadline = strtotime($locked->deadline_at . ' +' . $minutes . ' minutes');
 
         $this->ci->db->where('attempt_id', $attempt->attempt_id)->update('cbt_exam_attempt', array(
             'deadline_at' => date('Y-m-d H:i:s', $deadline),
@@ -485,6 +503,12 @@ class Exam_attempt_service
         }
 
         $this->recordEvent($attempt, 'TIME_EXTENDED', array('minutes' => $minutes, 'reason' => (string) $reason));
+
+        if ($this->ci->db->trans_status() === FALSE) {
+            $this->ci->db->trans_rollback();
+            return FALSE;
+        }
+        $this->ci->db->trans_commit();
         return TRUE;
     }
 
@@ -619,6 +643,12 @@ class Exam_attempt_service
         if (strlen($json) > 4000) {
             $json = json_encode(array('truncated' => TRUE));
         }
+        if ($this->isDuplicateEvent($attempt, $eventType, $json)) {
+            return FALSE;
+        }
+        if (!$this->eventRateAllowed($attempt, $eventType)) {
+            return FALSE;
+        }
         $now = date('Y-m-d H:i:s');
         $this->ci->db->insert('cbt_exam_event', array(
             'attempt_id' => $attempt->attempt_id,
@@ -629,6 +659,43 @@ class Exam_attempt_service
             'ip_hash' => $this->hashValue($this->ci->input->ip_address()),
             'user_agent_hash' => $this->hashValue($this->userAgent())
         ));
+    }
+
+    /**
+     * Pengaman log: event non-kritis dari client dibatasi, tetapi event
+     * keamanan penting selalu tercatat agar bukti pelanggaran tidak hilang.
+     */
+    private function criticalEvent($eventType)
+    {
+        return in_array($eventType, array(
+            'SESSION_TAKEOVER', 'PROCTOR_KICK', 'PROCTOR_UNKICK',
+            'TIME_EXTENDED', 'PASTE_ATTEMPT',
+        ), TRUE);
+    }
+
+    private function isDuplicateEvent($attempt, $eventType, $json)
+    {
+        if ($this->criticalEvent($eventType)) {
+            return FALSE;
+        }
+        $recent = $this->ci->db->select('event_id')
+            ->where('attempt_id', $attempt->attempt_id)
+            ->where('event_type', $eventType)
+            ->where('recorded_at >=', date('Y-m-d H:i:s', time() - self::EVENT_DUPLICATE_WINDOW))
+            ->where('metadata', $json)
+            ->count_all_results('cbt_exam_event');
+        return $recent > 0;
+    }
+
+    private function eventRateAllowed($attempt, $eventType)
+    {
+        if ($this->criticalEvent($eventType)) {
+            return TRUE;
+        }
+        $count = $this->ci->db->where('attempt_id', $attempt->attempt_id)
+            ->where('recorded_at >=', date('Y-m-d H:i:s', time() - 60))
+            ->count_all_results('cbt_exam_event');
+        return $count < self::EVENT_LIMIT_PER_MINUTE;
     }
 
     public function submit($attempt)
@@ -681,9 +748,10 @@ class Exam_attempt_service
     {
         /* Hash SEB dihitung browser dari URL https yang sebenarnya. Di balik
            Cloudflare Tunnel / reverse proxy, Apache melihat permintaan http,
-           jadi skema harus diambil dari X-Forwarded-Proto. */
+           jadi skema harus diambil dari X-Forwarded-Proto — hanya bila
+           permintaan datang dari proxy yang terdaftar di proxy_ips. */
         $https = !empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off';
-        if (!$https && isset($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+        if (!$https && $this->trustedProxy() && isset($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
             $forwarded = strtolower(trim(strtok($_SERVER['HTTP_X_FORWARDED_PROTO'], ',')));
             $https = $forwarded === 'https';
         }
@@ -691,6 +759,28 @@ class Exam_attempt_service
         $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : parse_url(base_url(), PHP_URL_HOST);
         $uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/';
         return $scheme . '://' . $host . $uri;
+    }
+
+    private function trustedProxy()
+    {
+        $remote = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+        $configured = $this->ci->config->item('proxy_ips');
+        $list = is_array($configured) ? $configured : explode(',', (string) $configured);
+        foreach (array_filter(array_map('trim', $list)) as $proxy) {
+            if ($proxy === $remote) {
+                return TRUE;
+            }
+            if (strpos($proxy, '/') !== FALSE) {
+                list($subnet, $bits) = explode('/', $proxy, 2);
+                $ip = ip2long($remote);
+                $net = ip2long($subnet);
+                $mask = -1 << (32 - (int) $bits);
+                if ($ip !== FALSE && $net !== FALSE && (($ip & $mask) === ($net & $mask))) {
+                    return TRUE;
+                }
+            }
+        }
+        return FALSE;
     }
 
     private function header($name)

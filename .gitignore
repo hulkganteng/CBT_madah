@@ -21,6 +21,7 @@ application/logs/*
 /application/config/.encryption_key
 /backups/*.sql
 /backups/*.sql.zip
+/backups/.restore.lock
 /garudacbt.zip
 
 # SEB global secret and generated client configuration
@@ -29,6 +30,7 @@ application/logs/*
 
 # Local/generated data
 /uploads/*
+!/uploads/.htaccess
 !/uploads/index.html
 /graphify-out/
 /vendor/

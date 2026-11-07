@@ -1,6 +1,6 @@
 <?php
 /**
- * Smoke test simulasi ujian TANPA SEB dengan banyak peserta BERBARENGAN.
+ * Smoke test simulasi ujian dengan banyak peserta BERBARENGAN (SEB aktif).
  *
  * Semua peserta login, validasi token, memuat soal, menyimpan jawaban, dan
  * mengumpulkan ujian secara paralel lewat curl_multi, lalu hasilnya diperiksa
@@ -78,8 +78,16 @@ function scalar(mysqli $dbh, string $sql, array $params = array())
 }
 
 $UA = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36 SEB/3.7.0';
-/* Login peserta wajib dari SEB: kirim Config Key hash milik jadwal SEB yang ada. */
-$sebKey = (string) scalar($dbh, "SELECT seb_config_key FROM cbt_jadwal WHERE seb_config_key IS NOT NULL AND seb_config_key <> '' ORDER BY id_jadwal DESC LIMIT 1");
+/* Login peserta wajib dari SEB. Kebijakan global (config/.seb_global.php)
+   menang atas kunci per jadwal, jadi pakai kunci global bila ada. */
+$sebKey = bin2hex(random_bytes(32));
+$sebGlobal = dirname(__DIR__) . '/application/config/.seb_global.php';
+if (is_file($sebGlobal)) {
+    $sebConfig = require $sebGlobal;
+    if (!empty($sebConfig['config_key'])) {
+        $sebKey = (string) $sebConfig['config_key'];
+    }
+}
 
 /**
  * Jalankan sekumpulan request bersamaan.
@@ -193,8 +201,8 @@ for ($nomor = 1; $nomor <= 3; $nomor++) {
         array($bankId, $nomor, 'SMOKE Q SOAL ' . $nomor));
 }
 
-q($dbh, "INSERT INTO cbt_jadwal (id_tp, id_smt, id_bank, id_jenis, tgl_mulai, tgl_selesai, durasi_ujian, pengawas, acak_soal, acak_opsi, hasil_tampil, token, status, ulang, reset_login, seb_mode, rekap, jam_ke, jarak, time_create) VALUES (?, ?, ?, 1, ?, ?, 30, '', 0, 0, 1, 0, 1, 0, 0, 'OFF', 1, 1, 0, ?)",
-    array((int) $tp['id_tp'], (int) $smt['id_smt'], $bankId, $today, $today, date('Y-m-d H:i:s')));
+q($dbh, "INSERT INTO cbt_jadwal (id_tp, id_smt, id_bank, id_jenis, tgl_mulai, tgl_selesai, durasi_ujian, pengawas, acak_soal, acak_opsi, hasil_tampil, token, status, ulang, reset_login, seb_mode, seb_config_key, rekap, jam_ke, jarak, time_create) VALUES (?, ?, ?, 1, ?, ?, 30, '', 1, 0, 1, 0, 1, 0, 0, 'ON', ?, 1, 1, 0, ?)",
+    array((int) $tp['id_tp'], (int) $smt['id_smt'], $bankId, $today, $today, $sebKey, date('Y-m-d H:i:s')));
 $jadwalId = (int) $dbh->insert_id;
 
 $kelasSiswaBase = (int) scalar($dbh, "SELECT COALESCE(MAX(id_kelas_siswa),0) FROM kelas_siswa");
@@ -422,6 +430,46 @@ try {
         step('simpan jawaban nomor ' . $nomor . ' serentak', $saveOk === count($jobs), "berhasil=$saveOk/" . count($jobs));
     }
 
+    /* 5c. Randomisasi: setiap peserta tetap menerima 3 soal dari bank yang
+       sama, dan urutan soal berbeda antar peserta. */
+    $urutan = array();
+    $semuaSoal = array();
+    foreach ($peserta as $row) {
+        $soalIds = array();
+        for ($n = 1; $n <= 3; $n++) {
+            if (isset($row['soal'][$n]['soal_id'])) {
+                $soalIds[] = (int) $row['soal'][$n]['soal_id'];
+            }
+        }
+        $urutan[implode(',', $soalIds)] = true;
+        foreach ($soalIds as $id) {
+            $semuaSoal[$id] = true;
+        }
+    }
+    $acakOk = count($urutan) > 1 && count($semuaSoal) === 3;
+    step('randomisasi soal per peserta', $acakOk, 'urutan unik=' . count($urutan) . ' soal=' . count($semuaSoal));
+
+    /* 5b. Resume: buka ulang halaman ujian dengan sesi yang sama. Attempt
+       tidak boleh dibuat ulang dan jawaban yang sudah disimpan tetap ada. */
+    $jobs = array();
+    foreach ($peserta as $i => $row) {
+        $jobs[] = array('key' => (string) $i, 'jar' => $row['jar'], 'url' => $base . 'siswa/penilaian/' . $jadwalId);
+    }
+    $res = multi($jobs);
+    $resumeOk = 0;
+    foreach ($res as $info) {
+        if ($info['code'] === 200 && strpos($info['body'], 'loadnomorsoal') !== false) {
+            $resumeOk++;
+        }
+    }
+    step('resume halaman ujian', $resumeOk === $jumlah, "berhasil=$resumeOk/$jumlah");
+
+    $attemptUnik = (int) scalar($dbh, "SELECT COUNT(*) FROM (SELECT id_siswa FROM cbt_exam_attempt WHERE id_jadwal=? GROUP BY id_siswa HAVING COUNT(*) > 1) d", array($jadwalId));
+    step('resume tidak membuat attempt ganda', $attemptUnik === 0, "duplikat=$attemptUnik");
+
+    $jawabLain = (int) scalar($dbh, "SELECT COUNT(*) FROM cbt_soal_siswa WHERE id_bank=? AND id_jadwal<>? AND id_siswa IN (" . implode(',', array_fill(0, count($harap = array_column($peserta, 'id')), '?')) . ")", array_merge(array($bankId, $jadwalId), $harap));
+    step('jawaban tidak bocor ke jadwal lain', $jawabLain === 0, "baris lain=$jawabLain");
+
     /* 6. Kumpulkan ujian serentak. */
     $jobs = array();
     foreach ($peserta as $i => $row) {
@@ -479,8 +527,8 @@ try {
     $soalSiswaOk = (int) scalar($dbh, "SELECT COUNT(DISTINCT id_siswa) FROM cbt_soal_siswa WHERE id_jadwal=?", array($jadwalId));
     step('kuota soal per peserta', $soalSiswaOk === $jumlah, "peserta=$soalSiswaOk/$jumlah");
 
-    $tanpaSeb = (int) scalar($dbh, "SELECT COUNT(*) FROM cbt_exam_attempt WHERE id_jadwal=? AND seb_verified=0", array($jadwalId));
-    step('attempt tanpa SEB tidak terverifikasi', $tanpaSeb === $jumlah, "seb_verified=0: $tanpaSeb/$jumlah");
+    $tanpaSeb = (int) scalar($dbh, "SELECT COUNT(*) FROM cbt_exam_attempt WHERE id_jadwal=? AND seb_verified=1", array($jadwalId));
+    step('attempt terverifikasi SEB', $tanpaSeb === $jumlah, "seb_verified=1: $tanpaSeb/$jumlah");
 
     step('waktu eksekusi', true, number_format($elapsed, 1) . ' detik untuk ' . $jumlah . ' peserta');
 } finally {
@@ -494,6 +542,6 @@ try {
 }
 
 echo $failures === 0
-    ? "SMOKE $jumlah PESERTA SERENTAK TANPA SEB: OK\n"
-    : "SMOKE $jumlah PESERTA SERENTAK TANPA SEB: $failures GAGAL\n";
+    ? "SMOKE $jumlah PESERTA SERENTAK: OK\n"
+    : "SMOKE $jumlah PESERTA SERENTAK: $failures GAGAL\n";
 exit($failures === 0 ? 0 : 1);
