@@ -157,6 +157,10 @@ define('VIEWPATH', $view_folder . DIRECTORY_SEPARATOR);
 //require_once BASEPATH . 'core/CodeIgniter.php';
 
 include 'application/config/database.php';
+if (version_compare(PHP_VERSION, '8.1', '>=')) {
+    $mysqli_driver = new mysqli_driver();
+    $mysqli_driver->report_mode = MYSQLI_REPORT_OFF;
+}
 $database = $db['default']['database'];
 if ($database == '') {
     header("Location: installer");
@@ -164,7 +168,6 @@ if ($database == '') {
     $data = $db['default'];
     $mysqli = new mysqli($data['hostname'], $data['username'], $data['password'], $data['database']);
     if (mysqli_connect_errno()) {
-        $mysqli->close();
         header("Location: installer");
     } else {
         $mysqli->close();
