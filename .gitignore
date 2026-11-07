@@ -17,6 +17,7 @@ application/logs/*
 /orm/
 
 # Rahasia lokal dan data hasil operasi tidak boleh masuk repositori.
+/.env
 /application/config/.encryption_key
 /backups/*.sql
 /backups/*.sql.zip

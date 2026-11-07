@@ -42,7 +42,7 @@ class Excel_question_draft_importer
         for ($index = 1; $index < $limit; $index++) {
             $values = array_pad($rows[$index], count($headers), '');
             $raw = array_combine($headers, array_slice($values, 0, count($headers)));
-            if ($this->isEmptyRow($raw) || $this->isTemplateExample($raw)) {
+            if ($this->isEmptyRow($raw) || $this->isBlankQuestionRow($raw) || $this->isTemplateExample($raw)) {
                 continue;
             }
 
@@ -96,5 +96,15 @@ class Excel_question_draft_importer
     {
         $number = isset($row['no']) ? strtoupper(trim((string) $row['no'])) : '';
         return $number === 'CONTOH' || $number === 'EXAMPLE';
+    }
+
+    private function isBlankQuestionRow($row)
+    {
+        foreach (array('pertanyaan', 'soal', 'a', 'b', 'c', 'd', 'e', 'jawaban', 'kunci', 'pembahasan') as $key) {
+            if (isset($row[$key]) && trim((string) $row[$key]) !== '') {
+                return false;
+            }
+        }
+        return true;
     }
 }

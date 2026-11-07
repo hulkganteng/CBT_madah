@@ -56,6 +56,14 @@ final class QuestionImportTest extends TestCase
         self::assertSame('b', $this->import->toDatabaseRow($question, 1)['jawaban']);
     }
 
+    public function testImportedQuestionCanBeStoredAsReserve(): void
+    {
+        $question = $this->question('PG', 'A');
+
+        self::assertSame('1', $this->import->toDatabaseRow($question, 1)['tampilkan']);
+        self::assertSame('0', $this->import->toDatabaseRow($question, 2, false)['tampilkan']);
+    }
+
     public function testUnavailableAnswerIsInvalid(): void
     {
         $errors = $this->import->validateQuestion($this->question('PG', 'E'));

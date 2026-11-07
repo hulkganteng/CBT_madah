@@ -27,6 +27,11 @@ $allBanksIds = [];
                            class="btn btn-primary btn-sm ml-1">
                             <i class="fas fa-plus-circle"></i> Tambah Bank Soal
                         </a>
+                        <?php if ($this->ion_auth->is_admin()) : ?>
+                            <a href="<?= base_url('excelsoal/template') ?>" class="btn btn-info btn-sm ml-1">
+                                <i class="fas fa-download"></i> Download Template Soal Global
+                            </a>
+                        <?php endif; ?>
                         <button type="button" data-toggle="modal" data-target="#openAllBankSoal"
                                 class="btn btn-sm btn-success"><i class="fa fa-copy"></i> Copy Bank Soal
                         </button>

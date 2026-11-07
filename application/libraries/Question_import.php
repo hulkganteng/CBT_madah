@@ -117,7 +117,7 @@ class Question_import
         return function_exists('mb_strtolower') ? mb_strtolower($value, 'UTF-8') : strtolower($value);
     }
 
-    public function toDatabaseRow($question, $number)
+    public function toDatabaseRow($question, $number, $visible = true)
     {
         $typeMap = array('pg' => '1', 'pg_complex' => '2', 'true_false' => '6');
         $row = array(
@@ -131,7 +131,7 @@ class Question_import
             'file' => serialize(array()),
             'opsi_a' => '', 'opsi_b' => '', 'opsi_c' => '', 'opsi_d' => '', 'opsi_e' => '',
             'jawaban' => '',
-            'tampilkan' => '1',
+            'tampilkan' => $visible ? '1' : '0',
         );
 
         if ($question['type'] === 'pg') {

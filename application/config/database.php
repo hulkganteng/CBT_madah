@@ -9,7 +9,9 @@ $db['default'] = array(
     'hostname' => 'localhost',
     'username' => 'root',
     'password' => '',
-    'database' => 'garuda_cbt',
+    'database' => in_array(ENVIRONMENT, array('development', 'testing'), TRUE)
+        ? 'garuda_cbt_development'
+        : 'garuda_cbt_production',
     'dbdriver' => 'mysqli',
     'dbprefix' => '',
     'pconnect' => FALSE,

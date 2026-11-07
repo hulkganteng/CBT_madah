@@ -2,7 +2,13 @@
 declare(strict_types=1);
 
 // Real MariaDB advisory-lock test. It only uses GET_LOCK/RELEASE_LOCK and does not touch exam rows.
-$dsn = ['127.0.0.1', 'root', '', 'garuda_cbt'];
+$root = dirname(__DIR__);
+define('BASEPATH', $root . DIRECTORY_SEPARATOR . 'system' . DIRECTORY_SEPARATOR);
+define('ENVIRONMENT', 'development');
+$db = [];
+include $root . '/application/config/database.php';
+$cfg = $db['default'];
+$dsn = [$cfg['hostname'], $cfg['username'], $cfg['password'], $cfg['database']];
 $key = 'codex_exam_integrity_' . getmypid() . '_' . bin2hex(random_bytes(4));
 $first = new mysqli($dsn[0], $dsn[1], $dsn[2], $dsn[3]);
 $second = new mysqli($dsn[0], $dsn[1], $dsn[2], $dsn[3]);

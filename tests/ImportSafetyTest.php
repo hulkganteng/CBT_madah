@@ -24,6 +24,24 @@ final class ImportSafetyTest extends TestCase
         self::assertStringContainsString("'uploadsoal'", strtolower($hook));
     }
 
+    public function testGlobalTemplateButtonIsOnlyRenderedForAdmin(): void
+    {
+        $source = file_get_contents(dirname(__DIR__) . '/application/views/cbt/banksoal/data.php');
+
+        self::assertStringContainsString("ion_auth->is_admin()", $source);
+        self::assertStringContainsString("base_url('excelsoal/template')", $source);
+        self::assertStringContainsString('Download Template Soal Global', $source);
+    }
+
+    public function testTemplateDownloadUsesCodeIgniterOutputPipeline(): void
+    {
+        $source = file_get_contents(dirname(__DIR__) . '/application/controllers/Excelsoal.php');
+
+        self::assertStringNotContainsString("save('php://output')", $source);
+        self::assertStringContainsString("set_content_type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')", $source);
+        self::assertStringContainsString('->set_output($contents)', $source);
+    }
+
     public function testCommitOnlySelectsValidUnimportedDraftItems(): void
     {
         $source = file_get_contents(dirname(__DIR__) . '/application/controllers/Excelsoal.php');
@@ -31,5 +49,7 @@ final class ImportSafetyTest extends TestCase
         self::assertStringContainsString("array('imported' => 1", $source);
         self::assertStringContainsString("'imported' => 0", $source);
         self::assertStringContainsString('trans_rollback()', $source);
+        self::assertStringContainsString("'status' => 'committing'", $source);
+        self::assertStringContainsString('$visibleRemaining', $source);
     }
 }

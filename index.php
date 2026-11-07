@@ -37,7 +37,14 @@
  */
 
 $envs = ['development', 'testing', 'production'];
-define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : $envs[2]);
+$environment = isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : NULL;
+$envFile = __DIR__ . DIRECTORY_SEPARATOR . '.env';
+if ($environment === NULL && is_file($envFile)) {
+    $localEnv = parse_ini_file($envFile, FALSE, INI_SCANNER_RAW);
+    $environment = isset($localEnv['CI_ENV']) ? trim($localEnv['CI_ENV']) : NULL;
+}
+define('ENVIRONMENT', $environment ?: $envs[2]);
+unset($environment, $envFile, $localEnv);
 
 switch (ENVIRONMENT) {
     case 'development':

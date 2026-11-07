@@ -27,6 +27,20 @@ final class ExcelQuestionDraftImporterTest extends TestCase
         );
     }
 
+    public function testUnfilledQuotaRowsAreSkipped(): void
+    {
+        $parsed = $this->parse(array(
+            array('NO', 'JENIS', 'PERTANYAAN', 'A', 'B', 'JAWABAN'),
+            array(1, 1, '', '', '', ''),
+            array(2, 1, 'Dua ditambah dua adalah...', '4', '5', 'A'),
+            array(3, 1, '', '', '', ''),
+        ));
+
+        self::assertSame(array(), $parsed['file_errors']);
+        self::assertCount(1, $parsed['items']);
+        self::assertSame(3, $parsed['items'][0]['row_number']);
+    }
+
     private function parse(array $rows): array
     {
         $spreadsheet = new Spreadsheet();

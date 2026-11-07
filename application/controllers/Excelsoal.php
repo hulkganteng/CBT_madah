@@ -1,6 +1,8 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\NamedRange;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -37,51 +39,133 @@ class Excelsoal extends CI_Controller
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('SOAL');
-        $headers = array('NO', 'JENIS', 'PERTANYAAN', 'A', 'B', 'C', 'D', 'JAWABAN', 'PEMBAHASAN');
+        $headers = array('NO', 'JENIS', 'PERTANYAAN', 'A', 'B', 'C', 'D', 'E', 'JAWABAN', 'PEMBAHASAN');
         $sheet->fromArray($headers, null, 'A1');
-        $sheet->fromArray(array(
-            array('CONTOH', 'Pilihan Ganda', 'Ibukota Indonesia adalah ...', 'Jakarta', 'Bandung', 'Surabaya', 'Semarang', 'A', ''),
-            array('CONTOH', 'Pilihan Ganda Kompleks', 'Pilih bilangan genap.', '2', '3', '4', '5', 'A,C', ''),
-            array('CONTOH', 'Benar/Salah', 'Air membeku pada suhu 0 derajat Celsius.', '', '', '', '', 'Benar', ''),
-        ), null, 'A2');
+        $rows = $this->templateRows($bank);
+        if ($rows) {
+            $sheet->fromArray($rows, null, 'A2');
+        }
+        $lastRow = $bank ? max(2, count($rows) + 1) : 101;
 
-        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
-        $sheet->getStyle('A1:I1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9EAF7');
+        $sheet->getStyle('A1:J1')->getFont()->setName('Carlito')->setSize(11)->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle('A1:J1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF17365D');
+        $sheet->getStyle('A1:J1')->getAlignment()->setHorizontal('center')->setVertical('center');
+        $sheet->getStyle('A2:J' . $lastRow)->getFont()->setName('Carlito')->setSize(11);
+        $sheet->getStyle('A2:J' . $lastRow)->getAlignment()->setWrapText(true)->setVertical('top');
+        $sheet->getRowDimension(1)->setRowHeight(32);
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:I4');
-        foreach (range('A', 'I') as $column) {
-            $sheet->getColumnDimension($column)->setAutoSize(true);
+        $widths = array('A' => 7, 'B' => 26, 'C' => 65, 'D' => 25, 'E' => 25, 'F' => 25, 'G' => 25, 'H' => 25, 'I' => 16, 'J' => 42);
+        foreach ($widths as $column => $width) {
+            $sheet->getColumnDimension($column)->setWidth($width);
         }
 
         $guide = $spreadsheet->createSheet();
         $guide->setTitle('PETUNJUK');
         $guide->fromArray(array(
-            array('JENIS SOAL', 'CARA MENGISI JAWABAN', 'CONTOH'),
-            array('Pilihan Ganda', 'Isi satu huruf pilihan yang benar.', 'A'),
-            array('Pilihan Ganda Kompleks', 'Pisahkan beberapa jawaban dengan koma.', 'A,C'),
-            array('Benar/Salah', 'Isi Benar atau Salah.', 'Benar'),
-            array('', 'Baris bertanda CONTOH tidak akan diimport.', ''),
-            array('', 'Kolom Pembahasan boleh dikosongkan.', ''),
+            array('JENIS SOAL', 'CARA MENGISI', 'JAWABAN'),
+            array('Pilihan Ganda', 'Isi pertanyaan dan sedikitnya pilihan A dan B.', 'Pilih satu huruf pada dropdown.'),
+            array('Pilihan Ganda Kompleks', 'Isi pertanyaan dan pilihan jawaban yang diperlukan.', 'Pilih kombinasi huruf pada dropdown.'),
+            array('Benar/Salah', 'Isi pertanyaan; kolom pilihan A-E dikosongkan.', 'Pilih Benar atau Salah.'),
+            array('', 'Gunakan dropdown pada kolom JENIS dan JAWABAN.', ''),
+            array('', 'Baris kosong tidak akan diimport.', ''),
+            array('', 'Kolom PEMBAHASAN boleh dikosongkan.', ''),
             array('', 'Jangan mengubah nama kolom pada sheet SOAL.', '')
         ), null, 'A1');
         if ($bank) {
             $info = $this->templateBankInfo($bank);
-            $guide->fromArray(array(array('', '', '')), null, 'A8');
-            $guide->fromArray($info, null, 'A9');
+            $guide->fromArray(array(array('', '', '')), null, 'A9');
+            $guide->fromArray($info, null, 'A10');
         }
-        $guide->getStyle('A1:C1')->getFont()->setBold(true);
-        foreach (range('A', 'C') as $column) {
-            $guide->getColumnDimension($column)->setAutoSize(true);
+        $guide->getStyle('A1:C1')->getFont()->setName('Carlito')->setSize(11)->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $guide->getStyle('A1:C1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF17365D');
+        $guide->getStyle('A1:C20')->getAlignment()->setWrapText(true)->setVertical('top');
+        $guide->getColumnDimension('A')->setWidth(28);
+        $guide->getColumnDimension('B')->setWidth(58);
+        $guide->getColumnDimension('C')->setWidth(38);
+
+        $letters = array_slice(array('A', 'B', 'C', 'D', 'E'), 0, $bank ? max(2, min(5, (int) $bank->opsi)) : 5);
+        $complexAnswers = $this->complexAnswerCombinations($letters);
+        $guide->fromArray(array('Pilihan Ganda', 'Pilihan Ganda Kompleks', 'Benar/Salah', 'Jenis Soal'), null, 'L1');
+        $guide->fromArray(array_map(function ($value) { return array($value); }, $letters), null, 'L2');
+        $guide->fromArray(array_map(function ($value) { return array($value); }, $complexAnswers), null, 'M2');
+        $guide->fromArray(array(array('Benar'), array('Salah')), null, 'N2');
+        $guide->fromArray(array(array('Pilihan Ganda'), array('Pilihan Ganda Kompleks'), array('Benar/Salah')), null, 'O2');
+        foreach (range('L', 'O') as $column) {
+            $guide->getColumnDimension($column)->setVisible(false);
         }
+
+        $spreadsheet->addNamedRange(new NamedRange('JAWABAN_PG', $guide, '$L$2:$L$' . (count($letters) + 1)));
+        $spreadsheet->addNamedRange(new NamedRange('JAWABAN_KOMPLEKS', $guide, '$M$2:$M$' . (count($complexAnswers) + 1)));
+        $spreadsheet->addNamedRange(new NamedRange('JAWABAN_BS', $guide, '$N$2:$N$3'));
+        $spreadsheet->addNamedRange(new NamedRange('JENIS_SOAL', $guide, '$O$2:$O$4'));
+
+        $typeValidation = (new DataValidation())
+            ->setType(DataValidation::TYPE_LIST)->setErrorStyle(DataValidation::STYLE_STOP)
+            ->setAllowBlank(true)->setShowDropDown(true)->setShowErrorMessage(true)
+            ->setErrorTitle('Jenis soal tidak valid')->setError('Pilih jenis soal dari dropdown.')
+            ->setFormula1('=JENIS_SOAL');
+        $sheet->setDataValidation('B2:B' . $lastRow, $typeValidation);
+
+        $answerValidation = (new DataValidation())
+            ->setType(DataValidation::TYPE_LIST)->setErrorStyle(DataValidation::STYLE_STOP)
+            ->setAllowBlank(true)->setShowDropDown(true)->setShowErrorMessage(true)
+            ->setErrorTitle('Jawaban tidak valid')->setError('Pilih jawaban dari dropdown sesuai jenis soal.')
+            ->setFormula1('=INDIRECT(IF($B2="Pilihan Ganda","JAWABAN_PG",IF($B2="Pilihan Ganda Kompleks","JAWABAN_KOMPLEKS",IF($B2="Benar/Salah","JAWABAN_BS","JAWABAN_PG"))))');
+        $sheet->setDataValidation('I2:I' . $lastRow, $answerValidation);
 
         $suffix = $bank ? '_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $bank->bank_kode) : '';
         $filename = 'template_import_soal' . $suffix . '.xlsx';
-        $this->output
-            ->set_header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            ->set_header('Content-Disposition: attachment; filename="' . $filename . '"')
-            ->set_header('Cache-Control: max-age=0');
-        (new Xlsx($spreadsheet))->save('php://output');
+        $stream = fopen('php://temp', 'w+b');
+        (new Xlsx($spreadsheet))->save($stream);
+        rewind($stream);
+        $contents = stream_get_contents($stream);
+        fclose($stream);
         $spreadsheet->disconnectWorksheets();
+
+        $this->output
+            ->set_content_type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->set_header('Content-Disposition: attachment; filename="' . $filename . '"')
+            ->set_header('Content-Length: ' . strlen($contents))
+            ->set_header('Cache-Control: max-age=0')
+            ->set_output($contents);
+    }
+
+    private function templateRows($bank)
+    {
+        if (!$bank) {
+            return array();
+        }
+        $quota = array(
+            array('jenis' => 1, 'total' => (int) $bank->tampil_pg),
+            array('jenis' => 2, 'total' => (int) $bank->tampil_kompleks),
+            array('jenis' => 6, 'total' => (int) ($bank->tampil_bs ?? 0)),
+        );
+        $rows = array();
+        $labels = array(1 => 'Pilihan Ganda', 2 => 'Pilihan Ganda Kompleks', 6 => 'Benar/Salah');
+        foreach ($quota as $item) {
+            for ($i = 0; $i < $item['total'] && count($rows) < Excel_question_draft_importer::MAX_ROWS; $i++) {
+                $rows[] = array(count($rows) + 1, $labels[$item['jenis']], '', '', '', '', '', '', '', '');
+            }
+        }
+        return $rows;
+    }
+
+    private function complexAnswerCombinations($letters)
+    {
+        $answers = array();
+        for ($mask = 1; $mask < (1 << count($letters)); $mask++) {
+            $selected = array();
+            foreach ($letters as $index => $letter) {
+                if ($mask & (1 << $index)) {
+                    $selected[] = $letter;
+                }
+            }
+            $answers[] = implode(',', $selected);
+        }
+        usort($answers, function ($left, $right) {
+            return substr_count($left, ',') <=> substr_count($right, ',') ?: strcmp($left, $right);
+        });
+        return $answers;
     }
 
     private function templateBankInfo($bank)
@@ -288,9 +372,22 @@ class Excelsoal extends CI_Controller
         if (!$bank) {
             return;
         }
+
+        $this->db->trans_begin();
+        $this->db->where(array('id' => $import->id, 'status' => 'draft'))->update('cbt_soal_import', array(
+            'status' => 'committing',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ));
+        if ($this->db->affected_rows() !== 1) {
+            $this->db->trans_rollback();
+            $this->json(array('message' => 'Draft import sedang diproses atau sudah selesai.'), 409);
+            return;
+        }
+
         $items = $this->db->where(array('import_id' => $import->id, 'is_valid' => 1, 'imported' => 0))
             ->order_by('row_number', 'ASC')->get('cbt_soal_import_item')->result();
         if (!$items) {
+            $this->db->trans_rollback();
             $this->json(array('message' => 'Belum ada soal yang siap diimport.'), 422);
             return;
         }
@@ -300,6 +397,20 @@ class Excelsoal extends CI_Controller
         $numbers = array('1' => 0, '2' => 0, '6' => 0);
         foreach ($maxRows as $row) {
             $numbers[(string) $row->jenis] = (int) $row->nomor;
+        }
+
+        $visibleRemaining = array(
+            '1' => (int) $bank->tampil_pg,
+            '2' => (int) $bank->tampil_kompleks,
+            '6' => (int) ($bank->tampil_bs ?? 0),
+        );
+        $activeRows = $this->db->select('jenis, COUNT(*) AS total', false)
+            ->where(array('bank_id' => $import->bank_id, 'tampilkan' => '1'))
+            ->group_by('jenis')->get('cbt_soal')->result();
+        foreach ($activeRows as $row) {
+            if (isset($visibleRemaining[(string) $row->jenis])) {
+                $visibleRemaining[(string) $row->jenis] = max(0, $visibleRemaining[(string) $row->jenis] - (int) $row->total);
+            }
         }
 
         $now = time();
@@ -313,7 +424,9 @@ class Excelsoal extends CI_Controller
             }
             $typeMap = array('pg' => '1', 'pg_complex' => '2', 'true_false' => '6');
             $type = $typeMap[$question['type']];
-            $rows[] = array_merge($this->question_import->toDatabaseRow($question, ++$numbers[$type]), array(
+            $visible = $visibleRemaining[$type] > 0;
+            $visibleRemaining[$type] -= $visible ? 1 : 0;
+            $rows[] = array_merge($this->question_import->toDatabaseRow($question, ++$numbers[$type], $visible), array(
                 'bank_id' => (int) $import->bank_id,
                 'created_on' => $now,
                 'updated_on' => $now,
@@ -321,11 +434,11 @@ class Excelsoal extends CI_Controller
             $itemIds[] = (int) $item->id;
         }
         if (!$rows) {
+            $this->db->trans_rollback();
             $this->json(array('message' => 'Belum ada soal yang siap diimport.'), 422);
             return;
         }
 
-        $this->db->trans_begin();
         foreach (array_chunk($rows, 200) as $batch) {
             $this->db->insert_batch('cbt_soal', $batch);
         }
@@ -352,11 +465,15 @@ class Excelsoal extends CI_Controller
         if (!$import) {
             return;
         }
-        if ($import->status === 'committed') {
-            $this->json(array('message' => 'Import yang sudah selesai tidak dapat dibatalkan.'), 409);
+        if ($import->status !== 'draft') {
+            $this->json(array('message' => 'Import yang sedang diproses atau sudah selesai tidak dapat dibatalkan.'), 409);
             return;
         }
-        $this->db->where('id', $import->id)->update('cbt_soal_import', array('status' => 'cancelled', 'updated_at' => date('Y-m-d H:i:s')));
+        $this->db->where(array('id' => $import->id, 'status' => 'draft'))->update('cbt_soal_import', array('status' => 'cancelled', 'updated_at' => date('Y-m-d H:i:s')));
+        if ($this->db->affected_rows() !== 1) {
+            $this->json(array('message' => 'Import sedang diproses atau sudah selesai.'), 409);
+            return;
+        }
         $this->json(array('message' => 'Draft import dibatalkan.'));
     }
 
