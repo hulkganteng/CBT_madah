@@ -1,25 +1,18 @@
 <?php
 
-class Database {
+require_once dirname(__DIR__, 2) . '/application/libraries/Environment_database_installer.php';
 
-    function create_database($data) {
-        $mysqli = new mysqli($data['hostname'], $data['username'], $data['password'], '');
-        if (mysqli_connect_errno())
-            return false;
-        $mysqli->query("CREATE DATABASE IF NOT EXISTS " . $data['database']);
-        while (mysqli_next_result($mysqli));
-        $mysqli->close();
-        return true;
+class Database
+{
+    private $installer;
+
+    public function __construct()
+    {
+        $this->installer = new Environment_database_installer();
     }
 
-    function create_tables($data) {
-        $mysqli = new mysqli($data['hostname'], $data['username'], $data['password'], $data['database']);
-        if (mysqli_connect_errno())
-            return false;
-        $query = file_get_contents('../assets/app/db/master.sql');
-        $mysqli->multi_query($query);
-        while (mysqli_next_result($mysqli));
-        $mysqli->close();
-        return true;
+    public function install($data)
+    {
+        return $this->installer->installAndConfigure($data);
     }
 }

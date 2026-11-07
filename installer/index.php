@@ -62,13 +62,13 @@ $base_url = str_replace('installer/', '', $base_url);
                                     </small>
                                 </div>
                                 <div class="form-group col-12" required="">
-                                    <label for="input-nama-db">Nama Database</label>
-                                    <input type="text" class="form-control db" id="input-nama-db" name="database" value="" placeholder="Nama Database">
-                                    <small class="form-text text-muted">Jangan gunakan spasi.</small>
+                                    <label for="input-nama-db">Nama Dasar Database</label>
+                                    <input type="text" class="form-control db" id="input-nama-db" name="database" value="" placeholder="Contoh: garuda_cbt">
+                                    <small class="form-text text-muted">Installer membuat akhiran _development dan _production. Gunakan huruf, angka, atau garis bawah.</small>
                                 </div>
                             </div>
                             <div class="d-flex flex-wrap align-items-center justify-content-end">
-                                <button type="submit" id="install-db" class="btn-primary btn">INSTALL / UPDATE</button>
+                                <button type="submit" id="install-db" class="btn-primary btn">INSTALL BARU</button>
                             </div>
                         </form>
                     </div>
@@ -79,8 +79,7 @@ $base_url = str_replace('installer/', '', $base_url);
             <i><b>A. Update Aplikasi</b></i>
             <ul>
                 <li>
-                    Isi kolom di atas, sesuaikan dengan pengaturan localhost/mySql dan nama database yang sudah ada,
-                    lalu klik [INSTALL / UPDATE].
+                    Untuk database yang sudah ada, gunakan halaman <b>/update</b>. Installer baru tidak menimpa database lama.
                 </li>
             </ul>
             <br>
@@ -88,7 +87,7 @@ $base_url = str_replace('installer/', '', $base_url);
             <ul>
                 <li>
                     Isi kolom di atas, sesuaikan dengan pengaturan localhost/mySql, isi nama database, lalu klik
-                    [INSTALL / UPDATE
+                    [INSTALL BARU]
                 </li>
                 <li>
                     Lanjutkan proses instalasi di halaman selanjutnya
@@ -99,10 +98,10 @@ $base_url = str_replace('installer/', '', $base_url);
             <br>Jika ingin menginstall manual, lakukan langkah dibawah ini:
             <ol>
                 <li>
-                    Buat database baru di <b>phpmyadmin</b>
+                    Buat dua database baru di <b>phpmyadmin</b> dengan akhiran <code>_development</code> dan <code>_production</code>
                 </li>
                 <li>
-                    IMPORT file database di dalam folder /assets/app/db/master.sql
+                    IMPORT file /assets/app/db/master.sql ke kedua database
                 </li>
                 <li>
                     Buka file <b>database.php</b> di dalam folder /application/config/
@@ -113,7 +112,7 @@ $base_url = str_replace('installer/', '', $base_url);
                         <code><span class="badge badge-light">'hostname' =&gt; '',</span></code>
                         <code><span class="badge badge-light">'username' =&gt; '',</span></code>
                         <code><span class="badge badge-light">'password' =&gt; '',</span></code>
-                        <code><span class="badge badge-light">'database' =&gt; '',</span></code>
+                        <code><span class="badge badge-light">'database' development/production =&gt; '',</span></code>
                     </pre>
                     menjadi:
                     <br>
@@ -182,7 +181,7 @@ $base_url = str_replace('installer/', '', $base_url);
                     swal.close();
                     swal.fire({
                         title: isSuccess ? "Sukses" : "Gagal!",
-                        html: isSuccess ? "Database berhasil diinstall" : response,
+                        html: isSuccess ? "Database development dan production berhasil diinstall" : response,
                         icon: isSuccess ? "success" : "error",
                         closeOnClickOutside: false,
                         showCancelButton: false,

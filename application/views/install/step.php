@@ -91,11 +91,11 @@
                                                     </small>
                                                 </div>
                                                 <div class="form-group col-md-6">
-                                                    <label for="input-nama-db">Nama Database</label>
+                                                    <label for="input-nama-db">Nama Dasar Database</label>
                                                     <input type="text" class="form-control db" id="input-nama-db"
                                                            name="database" value="<?= $data->database ?>"
-                                                           placeholder="Nama Database" readonly="">
-                                                    <small class="form-text text-muted">Jangan gunakan spasi.</small>
+                                                           placeholder="Nama Dasar Database" readonly="">
+                                                    <small class="form-text text-muted">Database development dan production dibuat otomatis.</small>
                                                 </div>
                                             </div>
                                             <div class="d-flex flex-wrap align-items-center justify-content-end">

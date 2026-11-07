@@ -11,18 +11,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $_POST) {
     $database = new Database();
 
     if ($core->checkEmpty($_POST) == true) {
-        if ($database->create_database($_POST) == false) {
+        try {
+            $database->install($_POST);
+        } catch (Throwable $e) {
             $message = $core->show_message('error',
-                "ERROR#001<br>Gagal membuat database, pastikan semua parameter diisi dengan benar.");
-        } else if ($database->create_tables($_POST) == false) {
-            $message = $core->show_message('error',
-                "ERROR#002<br>Gagal membuat database, pastikan semua parameter diisi dengan benar.");
-        } else if ($core->checkFile() == false) {
+                "ERROR#001<br>" . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
+        }
+        if (!isset($message) && $core->checkFile() == false) {
             $message = $core->show_message('error',
                 "ERROR#003<br>File application/config/database.php tidak ditemukan");
-        } else if ($core->write_db_config($_POST) == false) {
-            $message = $core->show_message('error',
-                "ERROR#004<br>Tidak bisa membuat database, silakan ganti permission chmod application/config/database.php menjadi 777");
         }
     } else {
         $message = $core->show_message('error',

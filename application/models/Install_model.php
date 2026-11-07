@@ -1,7 +1,45 @@
 <?php
-/*   ________________________________________
-    |                 GarudaCBT              |
-    |    https://github.com/garudacbt/cbt    |
-    |________________________________________|
-*/
- class Install_model extends CI_Model { function install_success() { return $this->check_installer(); } function check_installer() { goto G4Kzx; Nij17: return "\64"; goto uIlPk; vAO0K: goto PWpBR; goto MkjzK; ONKCH: if ($CI->db->table_exists("\x75\x73\x65\162\163")) { goto LgwCG; } goto fKhmY; HNOAw: if (!$this->dbutil->database_exists($database)) { goto O3510; } goto MErPA; OM4x3: goto WMOmc; goto syPs4; pYlRu: goto flDVC; goto E3F5g; ZBBi9: return "\61"; goto MREhe; e8z1l: if ($database == '') { goto p9HkA; } goto HNOAw; MREhe: WMOmc: goto JYfK2; eZH3L: if ($CI->db->get("\163\145\164\164\x69\x6e\147")->row()) { goto rfece; } goto Nij17; q2FyQ: $database = $db["\x64\145\146\x61\165\154\x74"]["\x64\141\x74\x61\142\x61\x73\145"]; goto Z50kV; iozb8: LgwCG: goto B1bz2; MErPA: $CI =& get_instance(); goto iBS7t; E_tx5: goto uMJ73; goto iozb8; i_whZ: PWpBR: goto OM4x3; iBS7t: $CI->load->database(); goto ONKCH; GMlVf: return "\x30"; goto o0zJz; uIlPk: goto C2UWt; goto IoFmt; HAXmY: return "\x35"; goto i_whZ; LcYGU: return "\63"; goto pYlRu; o0zJz: C2UWt: goto xX_Ws; MkjzK: O3510: goto HAXmY; Z50kV: $this->load->dbutil(); goto e8z1l; B1bz2: if ($CI->db->get("\165\x73\x65\x72\x73")->row()) { goto sN8sF; } goto LcYGU; fKhmY: return "\x32"; goto E_tx5; E3F5g: sN8sF: goto eZH3L; syPs4: p9HkA: goto ZBBi9; xX_Ws: flDVC: goto aEzV8; IoFmt: rfece: goto GMlVf; G4Kzx: include APPPATH . "\143\x6f\156\146\151\147\57\x64\141\x74\141\142\x61\x73\x65\56\x70\150\160"; goto q2FyQ; aEzV8: uMJ73: goto vAO0K; JYfK2: } }
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Install_model extends CI_Model
+{
+    public function install_success()
+    {
+        return $this->check_installer();
+    }
+
+    public function check_installer()
+    {
+        include APPPATH . 'config/database.php';
+        $database = $db['development']['database'];
+        if ($database === '') {
+            return '1';
+        }
+
+        $this->load->dbutil();
+        if (!$this->dbutil->database_exists($database)) {
+            return '5';
+        }
+        if (!$this->db->table_exists('users')) {
+            return '2';
+        }
+        if (!$this->db->get('users')->row()) {
+            return '3';
+        }
+        if (!$this->db->get('setting')->row()) {
+            return '4';
+        }
+        return '0';
+    }
+
+    public function finalizeDualInstallation($adminId)
+    {
+        include APPPATH . 'config/database.php';
+        $this->load->library('environment_database_installer');
+        return $this->environment_database_installer->finalize(
+            $db['development'],
+            $db['production'],
+            $adminId
+        );
+    }
+}

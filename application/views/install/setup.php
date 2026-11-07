@@ -36,14 +36,14 @@
                                 <small class="form-text text-muted">Kosongkan jika tidak menggunakan password.</small>
                             </div>
                             <div class="form-group col-12" required>
-                                <label for="input-nama-db">Nama Database</label>
+                                <label for="input-nama-db">Nama Dasar Database</label>
                                 <input type="text" class="form-control db" id="input-nama-db" name="database" value=""
-                                       placeholder="Nama Database">
-                                <small class="form-text text-muted">Jangan gunakan spasi.</small>
+                                       placeholder="Contoh: garuda_cbt">
+                                <small class="form-text text-muted">Akan dibuat _development dan _production.</small>
                             </div>
                         </div>
                         <div class="d-flex flex-wrap align-items-center justify-content-end">
-                            <button type="submit" id="install-db" class="btn-primary btn">INSTALL / UPDATE</button>
+                            <button type="submit" id="install-db" class="btn-primary btn">INSTALL BARU</button>
                         </div>
                         <?= form_close() ?>
                     </div>
@@ -55,8 +55,7 @@
             <i><b>A. Update Aplikasi</b></i>
             <ul>
                 <li>
-                    Isi kolom di atas, sesuaikan dengan pengaturan localhost/mySql dan nama database yang sudah ada,
-                    lalu klik [INSTALL / UPDATE].
+                    Gunakan halaman <b>/update</b> untuk database yang sudah ada. Installer baru tidak menimpa data lama.
                 </li>
             </ul>
             <br>
@@ -64,7 +63,7 @@
             <ul>
                 <li>
                     Isi kolom di atas, sesuaikan dengan pengaturan localhost/mySql, isi nama database, lalu klik
-                    [INSTALL / UPDATE
+                    [INSTALL BARU]
                 </li>
                 <li>
                     Lanjutkan proses instalasi di halaman selanjutnya
@@ -75,10 +74,10 @@
             <br>Jika ingin menginstall manual, lakukan langkah dibawah ini:
             <ol>
                 <li>
-                    Buat database baru di <b>phpmyadmin</b>
+                    Buat database development dan production di <b>phpmyadmin</b>
                 </li>
                 <li>
-                    IMPORT file database di dalam folder /assets/app/db/master.sql
+                    IMPORT file /assets/app/db/master.sql ke kedua database
                 </li>
                 <li>
                     Buka file <b>database.php</b> di dalam folder /application/config/
@@ -155,11 +154,12 @@
                 data: dataPost + '&page=0',
                 success: function (response) {
                     console.log(response);
+                    const isSuccess = response.host && response.database && response.table;
                     swal.close();
                     swal.fire({
-                        title: "Sukses",
-                        html: "Database berhasil diinstall",
-                        icon: "success",
+                        title: isSuccess ? "Sukses" : "Gagal!",
+                        html: isSuccess ? "Database development dan production berhasil diinstall" : response.host_msg,
+                        icon: isSuccess ? "success" : "error",
                         closeOnClickOutside: false,
                         showCancelButton: false,
                         closeOnEsc: false,
@@ -168,7 +168,7 @@
                         confirmButtonColor: "#3085d6",
                         confirmButtonText: "OK"
                     }).then(result => {
-                        if (result.value) {
+                        if (result.value && isSuccess) {
                             window.location.reload();
                         }
                     });

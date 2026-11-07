@@ -1,55 +1,35 @@
 <?php
 
-class Core {
-    function checkEmpty($data) {
-        if (!empty($data['hostname']) && !empty($data['username']) && !empty($data['database'])) {
-            return true;
-        } else {
-            return false;
-        }
+require_once dirname(__DIR__, 2) . '/application/libraries/Environment_database_installer.php';
+
+class Core
+{
+    public function checkEmpty($data)
+    {
+        return !empty($data['hostname']) && !empty($data['username']) && !empty($data['database']);
     }
 
-    function show_message($type, $message) {
+    public function show_message($type, $message)
+    {
         return $message;
     }
 
-    function getAllData($data) {
+    public function getAllData($data)
+    {
         return $data;
     }
 
-    function write_db_config($data) {
-        $template_path = '../assets/app/db/database.php';
-        $output_path = '../application/config/database.php';
-
-        $database_file = file_get_contents($template_path);
-
-        $new = str_replace("%HOSTNAME%", $data['hostname'], $database_file);
-        $new = str_replace("%USERNAME%", $data['username'], $new);
-        $new = str_replace("%PASSWORD%", $data['password'], $new);
-        $new = str_replace("%DATABASE%", $data['database'], $new);
-
-        $handle = fopen($output_path, 'w+');
-        @chmod($output_path, 0777);
-
-        if (is_writable(dirname($output_path))) {
-
-            if (fwrite($handle, $new)) {
-                return true;
-            } else {
-                return false;
-            }
-        } else {
+    public function write_db_config($data)
+    {
+        try {
+            return (new Environment_database_installer())->writeConfiguration($data);
+        } catch (Throwable $e) {
             return false;
         }
     }
 
-    function checkFile() {
-        $output_path = '../application/config/database.php';
-
-        if (file_exists($output_path)) {
-            return true;
-        } else {
-            return false;
-        }
+    public function checkFile()
+    {
+        return file_exists(dirname(__DIR__, 2) . '/application/config/database.php');
     }
 }
