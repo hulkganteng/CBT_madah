@@ -1,6 +1,7 @@
 <?php
 error_reporting(0);
 $db_config_path = '../application/config/database.php';
+require_once __DIR__ . '/guard.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && $_POST) {
 
