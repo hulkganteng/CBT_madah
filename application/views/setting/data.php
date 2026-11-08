@@ -152,7 +152,7 @@ $satuan = ["1" => ["SD", "MI"], "2" => ["SMP", "MTS"], "3" => ["SMA", "MA", "SMK
                             <div class="form-group pb-2">
                                 <label for="logo-kiri">Tandatangan</label>
                                 <input type="file" id="tanda-tangan" name="logo" class="dropify"
-                                       data-max-file-size-preview="2M" data-allowed-file-extensions="jpg jpeg png"
+                                       data-max-file-size="8M" data-max-file-size-preview="8M" data-allowed-file-extensions="jpg jpeg png"
                                        data-default-file="<?= base_url() . $setting->tanda_tangan ?>"/>
                             </div>
                             <?= form_close() ?>
@@ -162,7 +162,7 @@ $satuan = ["1" => ["SD", "MI"], "2" => ["SMP", "MTS"], "3" => ["SMA", "MA", "SMK
                             <div class="form-group pb-2">
                                 <label for="logo-kiri">Logo Kiri / Logo Aplikasi</label>
                                 <input type="file" id="logo-kiri" name="logo" class="dropify"
-                                       data-max-file-size-preview="2M"
+                                       data-max-file-size="8M" data-max-file-size-preview="8M"
                                        data-allowed-file-extensions="jpg jpeg png"
                                        data-default-file="<?= base_url() . $setting->logo_kiri ?>"/>
                             </div>
@@ -173,7 +173,7 @@ $satuan = ["1" => ["SD", "MI"], "2" => ["SMP", "MTS"], "3" => ["SMA", "MA", "SMK
                             <div class="form-group pb-2">
                                 <label for="logo-kanan">Logo Kanan</label>
                                 <input type="file" id="logo-kanan" name="logo" class="dropify"
-                                       data-max-file-size-preview="2M"
+                                       data-max-file-size="8M" data-max-file-size-preview="8M"
                                        data-allowed-file-extensions="jpg jpeg png"
                                        data-default-file="<?= base_url() . $setting->logo_kanan ?>"/>
                             </div>
@@ -294,10 +294,15 @@ $satuan = ["1" => ["SD", "MI"], "2" => ["SMP", "MTS"], "3" => ["SMA", "MA", "SMK
                         swal.showLoading();
                     }
                 });
+                var saveUrl = base_url + 'settings/savesetting';
+                if (window.location.protocol === 'https:' && saveUrl.indexOf('http://') === 0) {
+                    saveUrl = 'https://' + saveUrl.substring(7);
+                }
                 $.ajax({
-                    url: base_url + 'settings/savesetting',
+                    url: saveUrl,
                     type: 'POST',
                     data: $(this).serialize() + '&logo_kanan=' + logoKanan + '&logo_kiri=' + logoKiri + '&tanda_tangan=' + tandatangan,
+                    timeout: 30000,
                     success: function (response) {
                         console.log(response);
                         swal.fire({
@@ -314,10 +319,9 @@ $satuan = ["1" => ["SD", "MI"], "2" => ["SMP", "MTS"], "3" => ["SMA", "MA", "SMK
                     },
                     error: function (xhr, error, status) {
                         console.log(xhr.responseText);
-                        const err = JSON.parse(xhr.responseText)
                         swal.fire({
                             title: "Error",
-                            text: err.Message,
+                            text: "Simpan gagal (HTTP " + xhr.status + ") " + (xhr.statusText || "Request diblokir atau koneksi terputus"),
                             icon: "error"
                         });
                     }
@@ -370,6 +374,18 @@ $satuan = ["1" => ["SD", "MI"], "2" => ["SMP", "MTS"], "3" => ["SMA", "MA", "SMK
         });
 
         function uploadAttach(action, data) {
+            // Ikuti protokol halaman agar upload tidak diblokir mixed-content
+            // saat aplikasi berada di balik HTTPS Cloudflare.
+            if (window.location.protocol === 'https:' && action.indexOf('http://') === 0) {
+                action = 'https://' + action.substring(7);
+            }
+            // ajaxSetup tidak selalu menambahkan data ke FormData multipart.
+            // Sertakan token CSRF secara eksplisit agar upload tidak ditolak server.
+            var csrfName = '<?= $this->security->get_csrf_token_name() ?>';
+            var csrfHash = '<?= $this->security->get_csrf_hash() ?>';
+            if (data instanceof FormData && !data.has(csrfName)) {
+                data.append(csrfName, csrfHash);
+            }
             $.ajax({
                 type: "POST",
                 enctype: 'multipart/form-data',
@@ -380,6 +396,18 @@ $satuan = ["1" => ["SD", "MI"], "2" => ["SMP", "MTS"], "3" => ["SMA", "MA", "SMK
                 cache: false,
                 timeout: 600000,
                 success: function (data) {
+                    if (!data || data.status !== true) {
+                        $.toast({
+                            heading: "Upload gagal",
+                            text: data && data.src ? data.src : "File tidak dapat diunggah",
+                            icon: "error",
+                            showHideTransition: "fade",
+                            allowToastClose: true,
+                            hideAfter: 7000,
+                            position: "top-right"
+                        });
+                        return;
+                    }
                     if (data.src.includes('kanan')) {
                         logoKanan = data.src;
                         //console.log('kanan', data.src);
@@ -395,7 +423,7 @@ $satuan = ["1" => ["SD", "MI"], "2" => ["SMP", "MTS"], "3" => ["SMA", "MA", "SMK
                     console.log("error", e.responseText);
                     $.toast({
                         heading: "ERROR!!",
-                        text: "file tidak terbaca",
+                        text: "Upload gagal (HTTP " + e.status + ") " + (e.statusText || "Request diblokir atau koneksi terputus"),
                         icon: 'error',
                         showHideTransition: 'fade',
                         allowToastClose: true,
