@@ -27,7 +27,7 @@
                         <div class="card-header">
                             <h6 class="card-title">File Excel</h6>
                             <?php
-                            $url = $tipe == 'add' ? 'uploads/import/format/format_siswa.xlsx' : 'datasiswa/downloaddata';
+                            $url = $tipe == 'add' ? 'assets/app/template-import/format_siswa.xlsx' : 'datasiswa/downloaddata';
                             ?>
                             <a href="<?= base_url() . $url ?>" class="card-tools btn-success btn btn-sm">
                                 <i class="fas fa-download"></i><span class="ml-2">Download Template</span>

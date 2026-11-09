@@ -106,7 +106,7 @@
                         <?= form_open_multipart('', array('id' => 'formPreviewExcel')); ?>
                         <div class="card-header">
                             <h6 class="card-title">File Excel</h6>
-                            <a href="<?= base_url('uploads/import/format/format_guru.xlsx') ?>"
+                            <a href="<?= base_url('assets/app/template-import/format_guru.xlsx') ?>"
                                class="card-tools btn-success btn btn-sm">
                                 <i class="fas fa-download"></i><span class="ml-2">Download Template</span>
                             </a>
@@ -124,7 +124,7 @@
                         <?= form_open_multipart('', array('id' => 'formPreviewWord')); ?>
                         <div class="card-header">
                             <h6 class="card-title">File Word</h6>
-                            <a href="<?= base_url('uploads/import/format/format_guru.docx') ?>"
+                            <a href="<?= base_url('assets/app/template-import/format_guru.docx') ?>"
                                class="btn-success btn btn-sm card-tools">
                                 <i class="fas fa-download"></i><span class="ml-2">Download Template</span>
                             </a>
