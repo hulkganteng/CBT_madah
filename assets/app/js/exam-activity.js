@@ -18,7 +18,7 @@
     }
 
     function labelStatus(row) {
-        if (row.kicked) return '<span class="badge badge-danger">Dihentikan</span>';
+        if (row.kicked) return '<span class="badge badge-danger">Terkunci—perlu reset</span>';
         if (row.status === 'SUBMITTED') return '<span class="badge badge-success">Selesai</span>';
         if (row.status === 'EXPIRED') return '<span class="badge badge-secondary">Waktu habis</span>';
         if (row.status !== 'IN_PROGRESS') return '<span class="badge badge-secondary">' + row.status + '</span>';
@@ -41,11 +41,11 @@
         var html = '';
         if (row.status === 'IN_PROGRESS') {
             html += '<button type="button" class="btn btn-xs btn-warning mr-1 btn-waktu" data-id="' + row.id_siswa +
-                '" data-nama="' + encodeURIComponent(row.nama || '') + '"><i class="fa fa-clock"></i></button>';
+                '" data-nama="' + encodeURIComponent(row.nama || '') + '" title="Tambah Waktu"><i class="fa fa-clock"></i></button>';
             if (row.kicked) {
-                html += '<button type="button" class="btn btn-xs btn-success mr-1 btn-unkick" data-id="' + row.id_siswa + '"><i class="fa fa-unlock"></i></button>';
+                html += '<button type="button" class="btn btn-xs btn-success mr-1 btn-unkick" data-id="' + row.id_siswa + '" title="Reset Login"><i class="fa fa-unlock"></i> Reset Login</button>';
             } else {
-                html += '<button type="button" class="btn btn-xs btn-danger mr-1 btn-kick" data-id="' + row.id_siswa + '"><i class="fa fa-ban"></i></button>';
+                html += '<button type="button" class="btn btn-xs btn-danger mr-1 btn-kick" data-id="' + row.id_siswa + '" title="Hentikan Ujian"><i class="fa fa-ban"></i></button>';
             }
         }
         html += '<button type="button" class="btn btn-xs btn-info btn-detail" data-attempt="' + row.attempt_id + '"><i class="fa fa-list"></i></button>';
@@ -152,7 +152,15 @@
         });
 
         $(document).on('click', '.btn-unkick', function () {
-            aksi('examactivity/unkick', {jadwal: jadwalId, siswa: $(this).data('id')}, muat);
+            var id = $(this).data('id');
+            var alasan = window.prompt('Masukkan alasan Reset Login / Buka Kunci:');
+            if (alasan === null) return;
+            alasan = $.trim(alasan);
+            if (alasan === '') {
+                window.alert('Alasan Reset Login wajib diisi.');
+                return;
+            }
+            aksi('examactivity/unkick', {jadwal: jadwalId, siswa: id, alasan: alasan}, muat);
         });
 
         $(document).on('click', '.btn-waktu', function () {

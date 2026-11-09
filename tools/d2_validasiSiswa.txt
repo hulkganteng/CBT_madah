@@ -1,0 +1,272 @@
+﻿function validasiSiswa()
+{
+    $id_jadwal = $this->input->post("jadwal");
+    $id_siswa = $this->input->post("siswa");
+    $id_bank = $this->input->post("bank");
+    $token_siswa = $this->input->post("token");
+    $this->load->model("Cbt_model", "cbt");
+    $this->db->trans_start();
+    $info = $this->cbt->getJadwalById($id_jadwal);
+    $token_valid = true;
+    if (!($info->token == "1")) {
+        // then -> cMkGe
+        $data["token"] = $token_valid;
+        if (!$token_valid) {
+            // then -> jnhfh
+            $this->db->trans_complete();
+            if (!$this->db->trans_status() || (!empty($data["izinkan"]) && empty($data["jml_soal"]))) { $data["izinkan"] = false; $data["message"] = "Mapping ujian gagal disiapkan. Hubungi pengawas."; $this->output->set_status_header(409); } goto lm_Cw;
+            $curr_agent = $this->agent->mobile();
+            $curr_device = $this->agent->platform();
+            $support = $curr_agent != "unknown";
+            $data["support"] = $support;
+            if (!$support) {
+                // then -> xNtl7
+                /* goto HpLSa (already emitted) */
+                return;
+                // else -> cUeJK
+                $mulai_baru = false;
+                $cek_reset_waktu = false;
+                $log = $this->db->where("id_log", $id_siswa . "0" . $id_jadwal . "1")->get("log_ujian")->row();
+                if ($log == null) {
+                    // then -> xsVkN
+                    $inserted = $this->cbt->saveLog($id_siswa, $id_jadwal, 1, "Memulai Ujian");
+                    if ($inserted) {
+                        // then -> x2Cmg
+                        $log = $this->db->where("id_log", $id_siswa . "0" . $id_jadwal . "1")->get("log_ujian")->row();
+                        $izinkan = true;
+                        $mulai_baru = true;
+                        $data["izinkan"] = $izinkan;
+                        $data["log"] = $log;
+                        $mulai_baru_d = false;
+                        $ada_waktu = false;
+                        if (!($izinkan || $cek_reset_waktu)) {
+                            // then -> UFh7c
+                            $data["ada_waktu"] = $ada_waktu;
+                            $data["elapsed"] = $this->cbt->getElapsed($id_siswa . "0" . $id_jadwal);
+                            if (!$ada_waktu) {
+                                // then -> vTv2n
+                                /* goto Odh0t (already emitted) */
+                                return;
+                                // else -> RDlO2
+                                $soal = $this->cbt->getJumlahSoalSiswa($id_bank, $id_siswa, $id_jadwal);
+                                if ($soal > 0) {
+                                    // then -> hgdrK
+                                    /* Resume preserves the existing mapping and answers. */ goto Ib2mG;
+                                    $data["jml_soal"] = $this->cbt->getJumlahSoalSiswa($id_bank, $id_siswa, $id_jadwal);
+                                    /* goto TLnVm (already emitted) */
+                                    return;
+                                    // else -> ra2oo
+                                    $nomor_soal = $this->createQueueNumber($id_siswa, $id_bank, $id_jadwal);
+                                    if (!(count($nomor_soal) > 0)) {
+                                        // then -> CaJBl
+                                        /* goto IgnyR (already emitted) */
+                                        return;
+                                        // else -> E1eAj
+                                        $this->db->insert_batch("cbt_soal_siswa", $nomor_soal);
+                                        /* goto BUT81 (already emitted) */
+                                        return;
+                                    }
+                                    $id_jadwal = $this->input->post("jadwal");
+                                    /* goto pyA1O (already emitted) */
+                                    return;
+                                }
+                                if ($log->address == $curr_address && $log->agent == $curr_agent && $log->device == $curr_device) {
+                                    // then -> CcinD
+                                    $izinkan = true;
+                                    $mulai_baru = false;
+                                    /* goto vUWbi (already emitted) */
+                                    return;
+                                    // else -> TkJ73
+                                    if ($log->reset == "0") {
+                                        // then -> JSelS
+                                        $izinkan = false;
+                                        /* goto NhDZl (already emitted) */
+                                        return;
+                                        // else -> hARK9
+                                        $this->db->set("address", $curr_address);
+                                        $this->db->set("agent", $curr_agent);
+                                        $this->db->set("device", $curr_device);
+                                        $this->db->set("reset", 0);
+                                        $this->db->where("id_log", $id_siswa . "0" . $id_jadwal . "1");
+                                        if ($this->db->update("log_ujian")) {
+                                            // then -> pkcHa
+                                            $log = $this->db->where("id_log", $id_siswa . "0" . $id_jadwal . "1")->get("log_ujian")->row();
+                                            $izinkan = true;
+                                            $mulai_baru = false;
+                                            $cek_reset_waktu = true;
+                                            /* goto VLgQS (already emitted) */
+                                            return;
+                                            // else -> sc0XZ
+                                            $izinkan = false;
+                                            $mulai_baru = false;
+                                            /* goto w1K3d (already emitted) */
+                                            return;
+                                        }
+                                        $this->db->where("id_durasi", $id_siswa . "0" . $id_jadwal);
+                                        $data["update_reset"] = $this->db->update("cbt_durasi_siswa");
+                                        /* goto h1CV2 (already emitted) */
+                                        return;
+                                    }
+                                    /* goto w1K3d (already emitted) */
+                                    return;
+                                }
+                                /* goto Ub8jI (already emitted) */
+                                return;
+                            }
+                            $izinkan = false;
+                            $mulai_baru = false;
+                            /* goto rWlGp (already emitted) */
+                            return;
+                            // else -> kPLCG
+                            $elapsed = $this->cbt->getElapsed($id_siswa . "0" . $id_jadwal);
+                            if ($elapsed == null) {
+                                // then -> WejJK
+                                $ada_waktu = true;
+                                $mulai_baru_d = true;
+                                $insert = ["id_durasi" => $id_siswa . "0" . $id_jadwal, "id_siswa" => $id_siswa, "id_jadwal" => $id_jadwal, "status" => 1, "mulai" => date("Y-m-d H:i:s"), "lama_ujian" => "00:00:00", "reset" => 0];
+                                $this->db->insert("cbt_durasi_siswa", $insert);
+                                /* goto IOcXi (already emitted) */
+                                return;
+                                // else -> SLR6s
+                                $mulai_baru_d = $elapsed->reset == "3";
+                                if ($elapsed->reset == "1") {
+                                    // then -> HStmm
+                                    $ada_waktu = true;
+                                    $this->db->set("lama_ujian", "00:00:00");
+                                    $this->db->set("mulai", date("Y-m-d H:i:s"));
+                                    $this->db->set("reset", 0);
+                                    $this->db->where("id_durasi", $id_siswa . "0" . $id_jadwal);
+                                    /* goto GnSWO (already emitted) */
+                                    return;
+                                    // else -> YBPhu
+                                    if ($elapsed->reset == "2") {
+                                        // then -> sDo_u
+                                        $ada_waktu = true;
+                                        $dt = array_pad(array_map('intval', explode(':', (string) ($elapsed->lama_ujian ?? ''))), 3, 0);
+                                        $time = new DateTime();
+                                        $time->sub(new DateInterval('PT' . max(0, $dt[0]) . 'H' . max(0, $dt[1]) . 'M' . max(0, $dt[2]) . 'S'));
+                                        $this->db->set("mulai", $time->format("Y-m-d H:i:s"));
+                                        $this->db->set("reset", 0);
+                                        $this->db->where("id_durasi", $id_siswa . "0" . $id_jadwal);
+                                        $data["update_reset"] = $this->db->update("cbt_durasi_siswa");
+                                        /* goto vpv95 (already emitted) */
+                                        return;
+                                        // else -> djI9s
+                                        if ($elapsed->reset == "3") {
+                                            // then -> yWijO
+                                            $ada_waktu = true;
+                                            $this->db->set("lama_ujian", "00:00:00");
+                                            $this->db->set("mulai", date("Y-m-d H:i:s"));
+                                            $this->db->set("reset", 0);
+                                            $this->db->where("id_durasi", $id_siswa . "0" . $id_jadwal);
+                                            $data["update_reset"] = $this->db->update("cbt_durasi_siswa");
+                                            /* goto WJX32 (already emitted) */
+                                            return;
+                                            // else -> qU0Yc
+                                            $mulai = new DateTime($elapsed->mulai);
+                                            $interval = $mulai->diff(new DateTime());
+                                            $minutes = $interval->days * 24 * 60 + $interval->h * 60 + $interval->i;
+                                            $data["interval"] = ["days" => $interval->days, "hari" => $interval->d, "jam" => $interval->h, "menit" => $interval->i, "detik" => $interval->s, "total" => $minutes];
+                                            $ada_waktu = $minutes < $info->durasi_ujian;
+                                            $data["warn"] = ["durasi_ujian" => $info->durasi_ujian, "siswa_mulai" => $elapsed->mulai, "durasi_siswa" => $elapsed->lama_ujian, "timer_elapsed" => $minutes, "terlampaui" => $minutes - $info->durasi_ujian, "status" => $ada_waktu ? 0 : 1, "msg" => $ada_waktu ? '' : "Waktu ujian sudah habis"];
+                                            /* goto vpv95 (already emitted) */
+                                            return;
+                                        }
+                                        $token_siswa = $this->input->post("token");
+                                        /* goto exMZs (already emitted) */
+                                        return;
+                                    }
+                                    $ada_waktu = $minutes < $info->durasi_ujian;
+                                    /* goto EXrcD (already emitted) */
+                                    return;
+                                }
+                                $this->db->set("reset", 0);
+                                /* goto hZNfS (already emitted) */
+                                return;
+                            }
+                            if ($log->address == $curr_address && $log->agent == $curr_agent && $log->device == $curr_device) {
+                                // then -> CcinD
+                                /* join/loop CcinD */
+                                // else -> TkJ73
+                                /* join/loop TkJ73 */
+                            }
+                            /* goto Ifq2C (already emitted) */
+                            return;
+                        }
+                        $this->db->where("id_durasi", $id_siswa . "0" . $id_jadwal);
+                        /* goto dJ1tl (already emitted) */
+                        return;
+                        // else -> YzqTX
+                        $izinkan = false;
+                        /* goto tqEzl (already emitted) */
+                        return;
+                    }
+                    $mulai_baru_d = false;
+                    /* goto feldH (already emitted) */
+                    return;
+                    // else -> nPy69
+                    if ($info->reset_login == "1") {
+                        // then -> YXtH7
+                        /* goto NaZS2 (already emitted) */
+                        return;
+                        // else -> QsDCc
+                        $izinkan = true;
+                        $mulai_baru = false;
+                        /* goto zi3zW (already emitted) */
+                        return;
+                    }
+                    /* goto vpv95 (already emitted) */
+                    return;
+                }
+                /* goto CvMqj (already emitted) */
+                return;
+            }
+            $inserted = $this->cbt->saveLog($id_siswa, $id_jadwal, 1, "Memulai Ujian");
+            /* goto TsbOH (already emitted) */
+            return;
+            // else -> zZPkg
+            $curr_address = $this->input->ip_address();
+            if ($this->agent->is_browser()) {
+                // then -> SNbPt
+                $curr_agent = $this->agent->browser() . " " . $this->agent->version();
+                /* goto CvMqj (already emitted) */
+                return;
+                // else -> YF3KG
+                if ($this->agent->is_mobile()) {
+                    // then -> y61N2
+                    /* goto gAEDu (already emitted) */
+                    return;
+                    // else -> O9U1c
+                    $curr_agent = "unknown";
+                    /* goto CvMqj (already emitted) */
+                    return;
+                }
+                /* goto zi3zW (already emitted) */
+                return;
+            }
+            /* goto BTuQv (already emitted) */
+            return;
+        }
+        $ada_waktu = false;
+        /* goto Z39Cq (already emitted) */
+        return;
+        // else -> x8Cc6
+        $token = $this->cbt->getToken();
+        if ($token == null) {
+            // then -> uq0qp
+            $token_valid = false;
+            $data["token_msg"] = "Token tidak ada";
+            /* goto AZ0rC (already emitted) */
+            return;
+            // else -> XAjk3
+            $token_valid = $token->token == $token_siswa ? true : false;
+            $data["token_msg"] = $token_valid ? '' : "Token salah";
+            /* goto Ifq2C (already emitted) */
+            return;
+        }
+        $support = $curr_agent != "unknown";
+        /* goto dUkUk (already emitted) */
+        return;
+    }
+    /* goto SNYIK (already emitted) */
+}

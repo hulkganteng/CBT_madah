@@ -1,0 +1,92 @@
+﻿function inputEssai() {
+goto rgWyW;
+qnS3H: $data["tp_active"] = $tp;
+goto VMQ5K;
+TEgTx: rp5NM: goto PUmEW;
+p1BFH: $this->load->view("cbt/nilai/nilai_essai");
+goto jI5c1;
+wJqow: foreach ($siswas as $siswa) {
+goto h5W3Q;
+gf0Y2: $siswa->skor_pg2 = isset($nilai[$siswa->id_siswa]) ? $nilai[$siswa->id_siswa]->kompleks_nilai : "0";
+goto diETT;
+xUpyv: zURbL: goto i_RVE;
+diETT: $siswa->skor_jod = isset($nilai[$siswa->id_siswa]) ? $nilai[$siswa->id_siswa]->jodohkan_nilai : "0";
+goto nJ68X;
+nJ68X: $siswa->skor_isian = isset($nilai[$siswa->id_siswa]) ? $nilai[$siswa->id_siswa]->isian_nilai : "0";
+goto I3Vfo;
+I3Vfo: $siswa->skor_essai = isset($nilai[$siswa->id_siswa]) ? $nilai[$siswa->id_siswa]->essai_nilai : "0";
+goto xUpyv;
+h5W3Q: $siswa->skor_pg = isset($nilai[$siswa->id_siswa]) ? $nilai[$siswa->id_siswa]->pg_nilai : "0";
+goto gf0Y2;
+i_RVE: }
+goto sl3WG;
+j4WrB: $data["nama_kelas"] = $this->dropdown->getNamaKelasById($tp->id_tp, $smt->id_smt, $kelas_selected);
+goto h7WNp;
+m0721: $kelas_selected = $this->input->get("kelas");
+goto w9Z7N;
+w9Z7N: $jadwal_selected = $this->input->get("jadwal");
+goto TGeFu;
+Fm_YW: $nilai = $this->cbt->getNilaiAllSiswa([$jadwal_selected], $ids);
+goto wJqow;
+eqRRz: $data["tp"] = $this->dashboard->getTahun();
+goto HyzzS;
+hKCvW: $data["siswas"] = $siswas;
+goto aoX2h;
+mqtqG: $ids = [];
+goto DL2l2;
+w0ljv: $this->load->view("members/guru/templates/header", $data);
+goto aK0T9;
+scAke: $data["guru"] = $guru;
+goto w0ljv;
+bLDs3: tT4Z9: goto xCWr9;
+O1JND: $tp = $this->dashboard->getTahunActive();
+goto covmt;
+kpsgM: $data["jadwal"] = $info;
+goto hKCvW;
+sl3WG: yWwed: goto lGu32;
+PPFAw: goto rp5NM;
+goto bLDs3;
+TGeFu: $info = $this->cbt->getJadwalById($jadwal_selected);
+goto O1JND;
+h7WNp: $data["kelas_selected"] = $kelas_selected;
+goto gOvFb;
+Pd5wU: $this->load->model("Dropdown_model", "dropdown");
+goto m0721;
+covmt: $smt = $this->dashboard->getSemesterActive();
+goto qtsC4;
+VMQ5K: $data["smt_active"] = $smt;
+goto j4WrB;
+aoX2h: if ($this->ion_auth->is_admin()) {
+goto tT4Z9;
+}
+goto NZdhH;
+P6xGG: $this->load->model("Cbt_model", "cbt");
+goto Pd5wU;
+HyzzS: $data["smt"] = $this->dashboard->getSemester();
+goto qnS3H;
+NZdhH: $guru = $this->dashboard->getDataGuruByUserId($user->id, $tp->id_tp, $smt->id_smt);
+goto scAke;
+aK0T9: $this->load->view("cbt/nilai/nilai_essai");
+goto jL1HX;
+jL1HX: $this->load->view("members/guru/templates/footer");
+goto PPFAw;
+gOvFb: $data["jadwal_selected"] = $jadwal_selected;
+goto kpsgM;
+rgWyW: $this->load->model("Dashboard_model", "dashboard");
+goto P6xGG;
+lGu32: $user = $this->ion_auth->user()->row();
+goto r4eK4;
+xCWr9: $this->load->view("_templates/dashboard/_header", $data);
+goto p1BFH;
+r4eK4: $data = ["user" => $user, "judul" => "Input Nilai Manual", "subjudul" => '', "profile" => $this->dashboard->getProfileAdmin($user->id), "setting" => $this->dashboard->getSetting()];
+goto eqRRz;
+DL2l2: foreach ($siswas as $key => $val) {
+array_push($ids, $val->id_siswa);
+NejcY: }
+goto rKC3a;
+qtsC4: $siswas = $this->cbt->getSiswaByKelas($tp->id_tp, $smt->id_smt, $kelas_selected);
+goto mqtqG;
+rKC3a: nfrHO: goto Fm_YW;
+jI5c1: $this->load->view("_templates/dashboard/_footer");
+goto TEgTx;
+PUmEW: }

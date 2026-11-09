@@ -763,11 +763,13 @@
             '&waktu=' + encodeURIComponent($('#timer').text()) + '&elapsed=' + encodeURIComponent(elapsed) +
             '&data=' + encodeURIComponent(JSON.stringify(jsonJawaban || {}));
 
-        $.ajax({
+        var saveRequest = jsonJawaban && jsonJawaban.jenis ? $.ajax({
             url: base_url + 'siswa/savejawaban',
             method: 'POST',
             data: saveData
-        }).done(function () {
+        }) : $.Deferred().resolve().promise();
+
+        saveRequest.done(function () {
             /* Simpan jawaban terakhir lebih dahulu, lalu kumpulkan ujian. */
             $.post(base_url + 'siswa/selesaiujian', {
                 siswa: siswa,

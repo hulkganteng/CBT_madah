@@ -212,6 +212,7 @@ class Exam_security_hook
 
         if ($method === 'leavecbt') {
             $this->service->recordEvent($attempt, 'LEAVE_ATTEMPT');
+            $this->service->lockStudentExam($student->id_siswa, $attempt->attempt_id, 'Siswa keluar dari sesi ujian');
         }
     }
 
@@ -929,6 +930,13 @@ class Exam_security_hook
         if ($portal === 'staf' && $isStudent) {
             $this->rejectLogin('Akun peserta tidak dapat masuk di sini. Gunakan halaman login peserta.');
         }
+        if ($isStudent) {
+            $siswa = $this->ci->db->select('id_siswa, exam_locked_at, exam_locked_reason')
+                ->get_where('master_siswa', array('username' => $identity))->row();
+            if ($siswa && !empty($siswa->exam_locked_at)) {
+                $this->rejectLogin('Login dikunci karena siswa keluar dari sesi ujian. Hubungi pengawas untuk Reset Login.', array('exam_locked' => TRUE));
+            }
+        }
         if ($isStudent && $portal !== 'staf'
             && $this->ci->config->item('student_portal_requires_seb')) {
             $this->loadService();
@@ -1011,6 +1019,27 @@ class Exam_security_hook
             $payload = json_decode($this->ci->output->get_output());
             if ($payload && !empty($payload->success)) {
                 $this->persistSebSettings();
+            }
+            return;
+        }
+        if ($controller === 'siswa' && $method === 'applyaction') {
+            $payload = json_decode($this->ci->output->get_output());
+            $action = json_decode((string) $this->ci->input->post('aksi'));
+            $force = $action && isset($action->force) && is_array($action->force) ? $action->force : array();
+            if ($payload && !empty($payload->update_selesai) && $force
+                && $this->ci->db->table_exists('cbt_exam_attempt')) {
+                $idJadwal = (int) $this->ci->input->post('jadwal');
+                $rows = $this->ci->db->select('id_siswa')->where('id_jadwal', $idJadwal)
+                    ->where_in('id_durasi', $force)->get('cbt_durasi_siswa')->result();
+                $ids = array_map(function ($row) { return (int) $row->id_siswa; }, $rows);
+                if ($ids) {
+                    $this->ci->db->where('id_jadwal', $idJadwal)->where_in('id_siswa', $ids)
+                        ->where('status', 'IN_PROGRESS')->update('cbt_exam_attempt', array(
+                            'status' => 'SUBMITTED',
+                            'submitted_at' => date('Y-m-d H:i:s'),
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ));
+                }
             }
             return;
         }

@@ -1,0 +1,55 @@
+﻿function selesaiUjian() {
+$this->load->model('Cbt_model', 'cbt');
+$id_siswa = (int) $this->input->post('siswa');
+$id_jadwal = (int) $this->input->post('jadwal');
+$data = array('status' => FALSE, 'status_nilai' => FALSE);
+if ($id_siswa <= 0 || $id_jadwal <= 0) {
+$this->output_json($data);
+return;
+}
+$id_durasi = $id_siswa . '0' . $id_jadwal;
+$this->db->trans_begin();
+$durasi = $this->db->query( 'SELECT status FROM cbt_durasi_siswa WHERE id_durasi = ? FOR UPDATE', array($id_durasi) )->row();
+if (!$durasi) {
+$this->db->trans_rollback();
+$this->output_json($data);
+return;
+}
+/* Submit ulang tidak boleh menilai dua kali. */ if ((int) $durasi->status === 2) {
+$this->db->trans_commit();
+$data['status'] = TRUE;
+$data['status_nilai'] = TRUE;
+$data['sudah_selesai'] = TRUE;
+$this->output_json($data);
+return;
+}
+try {
+$nilai = $this->olahNilai($id_siswa, $id_jadwal);
+$data['status_nilai'] = (bool) $nilai;
+$update = FALSE;
+if ($nilai) {
+$update = $this->db->where('id_durasi', $id_durasi)->update('cbt_durasi_siswa', array( 'selesai' => date('Y-m-d H:i:s'), 'status' => 2, ));
+}
+}
+catch (\Throwable $e) {
+$this->db->trans_rollback();
+$this->output_json($data);
+return;
+}
+if (!$nilai || !$update || !$this->db->trans_status()) {
+$this->db->trans_rollback();
+$this->output_json($data);
+return;
+}
+if (!$this->db->trans_commit()) {
+$this->output_json($data);
+return;
+}
+$data['status'] = TRUE;
+try {
+$this->cbt->saveLog($id_siswa, $id_jadwal, 2, 'Menyelesaikan Ujian');
+}
+catch (\Throwable $e) {
+/* Log tidak boleh membatalkan submit yang sudah tersimpan. */ }
+$this->output_json($data);
+}

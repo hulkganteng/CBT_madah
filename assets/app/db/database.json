@@ -1277,8 +1277,8 @@
   "cbt_nilai": [
     {
       "name": "id_nilai",
-      "type": "int",
-      "max_length": 11,
+      "type": "varchar",
+      "max_length": 64,
       "default": null,
       "primary_key": 1
     },
@@ -2350,7 +2350,7 @@
     {
       "name": "id_soal_siswa",
       "type": "varchar",
-      "max_length": 15,
+      "max_length": 64,
       "default": null,
       "primary_key": 1
     },

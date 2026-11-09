@@ -1,0 +1,328 @@
+﻿function validasiSiswa() {
+goto rX6zW;
+dUkUk: $data["support"] = $support;
+goto CJLnd;
+IgnyR: $data["jml_soal"] = $this->cbt->getJumlahSoalSiswa($id_bank, $id_siswa, $id_jadwal);
+goto TLnVm;
+JuZTB: $data["token_msg"] = "Token tidak ada";
+goto AZ0rC;
+dJ1tl: $data["update_reset"] = $this->db->update("cbt_durasi_siswa");
+goto WJX32;
+yVJLF: pkcHa: goto p9pbe;
+aM5er: if ($soal > 0) {
+goto hgdrK;
+}
+goto ra2oo;
+NaZS2: if ($log->address == $curr_address && $log->agent == $curr_agent && $log->device == $curr_device) {
+goto CcinD;
+}
+goto TkJ73;
+lHwAu: goto Ifq2C;
+goto mKFfq;
+kPLCG: $elapsed = $this->cbt->getElapsed($id_siswa . "0" . $id_jadwal);
+goto usIn1;
+QsDCc: $izinkan = true;
+goto s41Qw;
+b2eu2: $cek_reset_waktu = true;
+goto nn_Wg;
+FkFUw: if ($token == null) {
+goto uq0qp;
+}
+goto XAjk3;
+QQWqp: $support = $curr_agent != "unknown";
+goto dUkUk;
+p_wjW: $ada_waktu = true;
+goto sL21w;
+YMXdx: vUWbi: goto V550C;
+WJX32: vpv95: goto YHPqE;
+mKFfq: uq0qp: goto vtVPo;
+tqEzl: $mulai_baru = false;
+goto pa7QJ;
+bVOFp: /* Resume preserves the existing mapping and answers. */ goto Ib2mG;
+Ib2mG: v0ALr: goto IgnyR;
+Sxz5u: if (!$ada_waktu) {
+goto vTv2n;
+}
+goto RDlO2;
+YzqTX: $izinkan = false;
+goto tqEzl;
+Jmr4A: $data["token_msg"] = $token_valid ? '' : "Token salah";
+goto lHwAu;
+lrWN3: sDo_u: goto dR4xD;
+gS8KB: $this->db->set("mulai", $time->format("Y-m-d H:i:s"));
+goto TQ72N;
+p9pbe: $log = $this->db->where("id_log", $id_siswa . "0" . $id_jadwal . "1")->get("log_ujian")->row();
+goto Py8rO;
+Odh0t: xNtl7: goto HpLSa;
+qGWUj: $data["interval"] = ["days" => $interval->days, "hari" => $interval->d, "jam" => $interval->h, "menit" => $interval->i, "detik" => $interval->s, "total" => $minutes];
+goto sNZtp;
+lm_Cw: $this->output_json($data);
+goto XcmtS;
+RDlO2: $soal = $this->cbt->getJumlahSoalSiswa($id_bank, $id_siswa, $id_jadwal);
+goto aM5er;
+dR4xD: $ada_waktu = true;
+goto wqnZQ;
+Xt0WJ: $data["update_reset"] = $this->db->update("cbt_durasi_siswa");
+goto HiTOZ;
+Rw8hg: $this->db->set("agent", $curr_agent);
+goto oS9iL;
+D5uh8: if (!$token_valid) {
+goto jnhfh;
+}
+goto zZPkg;
+feldH: $ada_waktu = false;
+goto Z39Cq;
+TniH6: $this->db->set("reset", 0);
+goto Tcfbt;
+GOYUN: NhDZl: goto R3b9S;
+IbH5x: $log = $this->db->where("id_log", $id_siswa . "0" . $id_jadwal . "1")->get("log_ujian")->row();
+goto M3kk4;
+E1eAj: $this->db->insert_batch("cbt_soal_siswa", $nomor_soal);
+goto BUT81;
+cUeJK: $mulai_baru = false;
+goto QFR9h;
+ZCkqD: yWijO: goto ZfpDb;
+gJHCb: WejJK: goto ezqG9;
+G0eNI: $this->db->set("mulai", date("Y-m-d H:i:s"));
+goto Vc6NR;
+we0t3: $mulai_baru = false;
+goto bcgq5;
+V550C: $data["izinkan"] = $izinkan;
+goto ezA8e;
+ra2oo: $nomor_soal = $this->createQueueNumber($id_siswa, $id_bank, $id_jadwal);
+goto l9GGt;
+g8m0P: $this->db->insert("cbt_durasi_siswa", $insert);
+goto IOcXi;
+rkDjh: x2Cmg: goto hl7BS;
+R3b9S: zi3zW: goto DuLBi;
+TkJ73: if ($log->reset == "0") {
+goto JSelS;
+}
+goto hARK9;
+xa5Eq: goto w1K3d;
+goto yVJLF;
+HiTOZ: goto vpv95;
+goto ZCkqD;
+ezqG9: $ada_waktu = true;
+goto UOIbe;
+EXrcD: $data["warn"] = ["durasi_ujian" => $info->durasi_ujian, "siswa_mulai" => $elapsed->mulai, "durasi_siswa" => $elapsed->lama_ujian, "timer_elapsed" => $minutes, "terlampaui" => $minutes - $info->durasi_ujian, "status" => $ada_waktu ? 0 : 1, "msg" => $ada_waktu ? '' : "Waktu ujian sudah habis"];
+goto OfQ_K;
+nn_Wg: goto VLgQS;
+goto WiBYQ;
+IOcXi: KaZCA: goto h1CV2;
+DuLBi: goto vUWbi;
+goto z5LPn;
+TacoM: rWlGp: goto YMXdx;
+Y9RFE: $interval = $mulai->diff(new DateTime());
+goto zYG3Z;
+wqnZQ: $dt = array_pad(array_map('intval', explode(':', (string) ($elapsed->lama_ujian ?? ''))), 3, 0);
+goto DW1iy;
+h1CV2: UFh7c: goto wz49X;
+uFssy: if ($this->db->update("log_ujian")) {
+goto pkcHa;
+}
+goto sc0XZ;
+XRlBg: $this->db->where("id_durasi", $id_siswa . "0" . $id_jadwal);
+goto GnSWO;
+usIn1: if ($elapsed == null) {
+goto WejJK;
+}
+goto SLR6s;
+xYce2: YXtH7: goto NaZS2;
+EYM0N: $info = $this->cbt->getJadwalById($id_jadwal);
+goto Y9hpT;
+pyA1O: $id_siswa = $this->input->post("siswa");
+goto mvQ0c;
+Fa5UI: $insert = ["id_durasi" => $id_siswa . "0" . $id_jadwal, "id_siswa" => $id_siswa, "id_jadwal" => $id_jadwal, "status" => 1, "mulai" => date("Y-m-d H:i:s"), "lama_ujian" => "00:00:00", "reset" => 0];
+goto g8m0P;
+mQXme: $izinkan = true;
+goto jtByS;
+QbBDF: $izinkan = true;
+goto wKf4f;
+djI9s: if ($elapsed->reset == "3") {
+goto yWijO;
+}
+goto qU0Yc;
+YWJ9k: $token_siswa = $this->input->post("token");
+goto exMZs;
+vtVPo: $token_valid = false;
+goto JuZTB;
+WiBYQ: JSelS: goto r9BF9;
+O9U1c: $curr_agent = "unknown";
+goto XZmTw;
+GnSWO: $data["update_reset"] = $this->db->update("cbt_durasi_siswa");
+goto j0tUB;
+sc0XZ: $izinkan = false;
+goto KHEb0;
+KHEb0: $mulai_baru = false;
+goto xa5Eq;
+oS9iL: $this->db->set("device", $curr_device);
+goto TniH6;
+SLR6s: $mulai_baru_d = $elapsed->reset == "3";
+goto x1AMf;
+ezA8e: $data["log"] = $log;
+goto Yekfk;
+UOIbe: $mulai_baru_d = true;
+goto Fa5UI;
+nyCuU: HStmm: goto p_wjW;
+WcqYn: $this->db->set("lama_ujian", "00:00:00");
+goto G0eNI;
+s41Qw: $mulai_baru = false;
+goto n57xr;
+x8Cc6: $token = $this->cbt->getToken();
+goto FkFUw;
+r9BF9: $izinkan = false;
+goto Nqax9;
+hZNfS: $this->db->where("id_durasi", $id_siswa . "0" . $id_jadwal);
+goto Xt0WJ;
+gAEDu: $curr_agent = $this->agent->mobile();
+goto Jnqmk;
+bQsjt: hgdrK: goto bVOFp;
+SNYIK: $data["token"] = $token_valid;
+goto D5uh8;
+AIsy7: $curr_agent = $this->agent->browser() . " " . $this->agent->version();
+goto Ac70k;
+QmOG0: $curr_device = $this->agent->platform();
+goto QQWqp;
+Ac70k: goto CvMqj;
+goto szUDI;
+HpLSa: jnhfh: goto cphJR;
+isX6R: $data["elapsed"] = $this->cbt->getElapsed($id_siswa . "0" . $id_jadwal);
+goto Sxz5u;
+wKf4f: $mulai_baru = true;
+goto TacoM;
+exMZs: $this->load->model("Cbt_model", "cbt");
+goto E0OYu;
+Py8rO: $izinkan = true;
+goto we0t3;
+l9GGt: if (!(count($nomor_soal) > 0)) {
+goto CaJBl;
+}
+goto E1eAj;
+rX6zW: $id_jadwal = $this->input->post("jadwal");
+goto pyA1O;
+pa7QJ: goto rWlGp;
+goto rkDjh;
+cphJR: $this->db->trans_complete();
+if (!$this->db->trans_status() || (!empty($data["izinkan"]) && empty($data["jml_soal"]))) {
+$data["izinkan"] = false;
+$data["message"] = "Mapping ujian gagal disiapkan. Hubungi pengawas.";
+$this->output->set_status_header(409);
+}
+goto lm_Cw;
+szUDI: y61N2: goto gAEDu;
+vc095: if ($this->agent->is_browser()) {
+goto SNbPt;
+}
+goto YF3KG;
+BUT81: CaJBl: goto BTuQv;
+TsbOH: if ($inserted) {
+goto x2Cmg;
+}
+goto YzqTX;
+Yekfk: $mulai_baru_d = false;
+goto feldH;
+hl7BS: $log = $this->db->where("id_log", $id_siswa . "0" . $id_jadwal . "1")->get("log_ujian")->row();
+goto QbBDF;
+AZ0rC: Ifq2C: goto Ub8jI;
+Gksw1: $this->db->set("mulai", date("Y-m-d H:i:s"));
+goto KZF2L;
+zZPkg: $curr_address = $this->input->ip_address();
+goto vc095;
+WhPkI: SNbPt: goto AIsy7;
+XAjk3: $token_valid = $token->token == $token_siswa ? true : false;
+goto Jmr4A;
+Z39Cq: if (!($izinkan || $cek_reset_waktu)) {
+goto UFh7c;
+}
+goto kPLCG;
+ZCU1e: $this->db->where("id_durasi", $id_siswa . "0" . $id_jadwal);
+goto dJ1tl;
+XIcZh: CcinD: goto mQXme;
+BTuQv: goto v0ALr;
+goto bQsjt;
+hARK9: $this->db->set("address", $curr_address);
+goto Rw8hg;
+CJLnd: if (!$support) {
+goto xNtl7;
+}
+goto cUeJK;
+rc2L7: $inserted = $this->cbt->saveLog($id_siswa, $id_jadwal, 1, "Memulai Ujian");
+goto TsbOH;
+YF3KG: if ($this->agent->is_mobile()) {
+goto y61N2;
+}
+goto O9U1c;
+n57xr: goto zi3zW;
+goto xYce2;
+YBPhu: if ($elapsed->reset == "2") {
+goto sDo_u;
+}
+goto djI9s;
+sNZtp: $ada_waktu = $minutes < $info->durasi_ujian;
+goto EXrcD;
+Y9hpT: $token_valid = true;
+goto OHAyE;
+jtByS: $mulai_baru = false;
+goto GOYUN;
+z5LPn: xsVkN: goto rc2L7;
+OfQ_K: goto vpv95;
+goto nyCuU;
+Vc6NR: $this->db->set("reset", 0);
+goto ZCU1e;
+M3kk4: if ($log == null) {
+goto xsVkN;
+}
+goto nPy69;
+XZmTw: goto CvMqj;
+goto WhPkI;
+x1AMf: if ($elapsed->reset == "1") {
+goto HStmm;
+}
+goto YBPhu;
+TQ72N: $this->db->set("reset", 0);
+goto hZNfS;
+sL21w: $this->db->set("lama_ujian", "00:00:00");
+goto Gksw1;
+DW1iy: $time = new DateTime();
+goto HWoAi;
+E0OYu: $this->db->trans_start();
+goto EYM0N;
+KZF2L: $this->db->set("reset", 0);
+goto XRlBg;
+nPy69: if ($info->reset_login == "1") {
+goto YXtH7;
+}
+goto QsDCc;
+j0tUB: goto vpv95;
+goto lrWN3;
+YHPqE: goto KaZCA;
+goto gJHCb;
+Mh2Yo: goto NhDZl;
+goto XIcZh;
+ZfpDb: $ada_waktu = true;
+goto WcqYn;
+QFR9h: $cek_reset_waktu = false;
+goto IbH5x;
+Jnqmk: CvMqj: goto QmOG0;
+OHAyE: if (!($info->token == "1")) {
+goto cMkGe;
+}
+goto x8Cc6;
+Ub8jI: cMkGe: goto SNYIK;
+HWoAi: $time->sub(new DateInterval('PT' . max(0, $dt[0]) . 'H' . max(0, $dt[1]) . 'M' . max(0, $dt[2]) . 'S'));
+goto gS8KB;
+TLnVm: vTv2n: goto Odh0t;
+qU0Yc: $mulai = new DateTime($elapsed->mulai);
+goto Y9RFE;
+bcgq5: w1K3d: goto b2eu2;
+wz49X: $data["ada_waktu"] = $ada_waktu;
+goto isX6R;
+Nqax9: VLgQS: goto Mh2Yo;
+zYG3Z: $minutes = $interval->days * 24 * 60 + $interval->h * 60 + $interval->i;
+goto qGWUj;
+mvQ0c: $id_bank = $this->input->post("bank");
+goto YWJ9k;
+Tcfbt: $this->db->where("id_log", $id_siswa . "0" . $id_jadwal . "1");
+goto uFssy;
+XcmtS: }

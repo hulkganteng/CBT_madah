@@ -1,0 +1,101 @@
+﻿function saveJawaban()
+{
+    $this->load->model("Cbt_model", "cbt");
+    $id_bank = $this->input->post("bank", true);
+    $timer = $this->input->post("waktu", true);
+    $id_siswa = $this->input->post("siswa", true);
+    $id_jadwal = $this->input->post("jadwal", true);
+    $elapsed = $this->input->post("elapsed", true);
+    $id_durasi = $id_siswa . "0" . $id_jadwal;
+    if (!($elapsed != "0")) {
+        // then -> WOl9J
+        $update = true;
+        $jawab = json_decode($this->input->post("data", false));
+        if (!($jawab != null && isset($jawab->jenis))) {
+            // then -> mNDjI
+            $data["status"] = $update;
+            if (!($update && $id_bank != null)) {
+                // then -> szbF4
+                if (!($update && $timer != null)) {
+                    // then -> srsJO
+                    $this->output_json($data);
+                    /* missing label tDpXF */
+                    return;
+                    // else -> UMqi1
+                    $this->selesaiUjian();
+                    /* goto MBgtL (already emitted) */
+                    return;
+                }
+                $this->db->set("jawaban_alias", '');
+                $this->db->set("jawaban_siswa", serialize($jawab->jawaban_siswa));
+                $this->db->where("id_soal_siswa", $jawab->id_soal_siswa);
+                $update = $this->db->update("cbt_soal_siswa");
+                /* goto BYRR7 (already emitted) */
+                return;
+                // else -> vjyjR
+                $arrJawaban = [];
+                $terjawab = $this->cbt->getJumlahJawaban($id_bank, $id_siswa, $id_jadwal);
+                foreach ($terjawab as $jawab) { goto BtDv_; bdfRe: VDzrh: goto H26hg; h3TnS: array_push($arrJawaban, $jawab); goto bdfRe; BtDv_: if (!($jawab->jawaban_siswa != null && $jawab->jawaban_siswa != '')) { goto VDzrh; } goto h3TnS; H26hg: eK5fs: goto ttATV; ttATV: } goto q50wJ;
+                $jawab = json_decode($this->input->post("data", false));
+                /* goto fpNuv (already emitted) */
+                return;
+            }
+            $this->db->set("jawaban_alias", $jawab->jawaban_alias);
+            $this->db->set("jawaban_siswa", $jawab->jawaban_siswa);
+            /* goto dGv8S (already emitted) */
+            return;
+            // else -> LTnbc
+            if ($jawab->jenis == 1 || $jawab->jenis == 6) {
+                // then -> hax2U
+                /* goto fOoXT (already emitted) */
+                return;
+                // else -> avEg6
+                if ($jawab->jenis == 2) {
+                    // then -> f42jv
+                    $this->db->set("jawaban_alias", '');
+                    /* goto Qh3FF (already emitted) */
+                    return;
+                    // else -> OPRFJ
+                    if ($jawab->jenis == 3) {
+                        // then -> NnkNq
+                        $this->db->set("jawaban_alias", '');
+                        $this->db->set("jawaban_siswa", serialize($jawab->jawaban_siswa));
+                        /* goto dASlY (already emitted) */
+                        return;
+                        // else -> QFhEY
+                        $jawab_essai = $this->input->post("jawaban", false);
+                        $this->db->set("jawaban_alias", '');
+                        $this->db->set("jawaban_siswa", $jawab_essai);
+                        /* goto dGv8S (already emitted) */
+                        return;
+                    }
+                    /* goto PzG5v (already emitted) */
+                    return;
+                }
+                if (!($update && $timer != null)) {
+                    // then -> srsJO
+                    /* join/loop srsJO */
+                    // else -> UMqi1
+                    /* join/loop UMqi1 */
+                }
+                $this->db->set("jawaban_alias", '');
+                /* goto Qh3FF (already emitted) */
+                return;
+            }
+            $this->selesaiUjian();
+            /* goto MBgtL (already emitted) */
+            return;
+        }
+        $arrJawaban = [];
+        /* goto AvYnL (already emitted) */
+        return;
+        // else -> M2H5J
+        $this->db->set("lama_ujian", $elapsed);
+        $this->db->where("id_durasi", $id_durasi);
+        $this->db->update("cbt_durasi_siswa");
+        /* goto BH2Ub (already emitted) */
+        return;
+    }
+    $jawab_essai = $this->input->post("jawaban", false);
+    /* goto PtX3B (already emitted) */
+}

@@ -1,0 +1,116 @@
+﻿function saveJawaban() {
+goto l6Tsw;
+mqxsA: $elapsed = $this->input->post("elapsed", true);
+goto N1Va9;
+PzG5v: $data["status"] = $update;
+goto Zj0QS;
+AvYnL: $terjawab = $this->cbt->getJumlahJawaban($id_bank, $id_siswa, $id_jadwal);
+goto mqqD7;
+PtX3B: $this->db->set("jawaban_alias", '');
+goto Kh4SP;
+YKKpJ: $this->db->where("id_durasi", $id_durasi);
+goto utmDK;
+mqqD7: foreach ($terjawab as $jawab) {
+goto BtDv_;
+bdfRe: VDzrh: goto H26hg;
+h3TnS: array_push($arrJawaban, $jawab);
+goto bdfRe;
+BtDv_: if (!($jawab->jawaban_siswa != null && $jawab->jawaban_siswa != '')) {
+goto VDzrh;
+}
+goto h3TnS;
+H26hg: eK5fs: goto ttATV;
+ttATV: }
+goto q50wJ;
+Ot0eF: $jawab = json_decode($this->input->post("data", false));
+goto fpNuv;
+fpNuv: if (!($jawab != null && isset($jawab->jenis))) {
+goto mNDjI;
+}
+goto LTnbc;
+vjyjR: $arrJawaban = [];
+goto AvYnL;
+dASlY: dGv8S: goto JgezT;
+fxESP: goto dGv8S;
+goto NsZ3z;
+LIZi5: goto dGv8S;
+goto tMPrA;
+l6Tsw: $this->load->model("Cbt_model", "cbt");
+goto ticxf;
+NsZ3z: f42jv: goto NX9cB;
+jGgdv: $data["soal_terjawab"] = count($arrJawaban);
+goto t28YM;
+xIjQc: NnkNq: goto HpXrZ;
+HpXrZ: $this->db->set("jawaban_alias", '');
+goto sf_xj;
+avEg6: if ($jawab->jenis == 2) {
+goto f42jv;
+}
+goto OPRFJ;
+e5rDX: if (!($update && $timer != null)) {
+goto srsJO;
+}
+goto UMqi1;
+NX9cB: $this->db->set("jawaban_alias", '');
+goto Qh3FF;
+NFgRu: $id_jadwal = $this->input->post("jadwal", true);
+goto mqxsA;
+Kh4SP: $this->db->set("jawaban_siswa", $jawab_essai);
+goto LIZi5;
+xVhfT: $id_siswa = $this->input->post("siswa", true);
+goto NFgRu;
+ticxf: $id_bank = $this->input->post("bank", true);
+goto BQdxJ;
+N1Va9: $id_durasi = $id_siswa . "0" . $id_jadwal;
+goto aAT8b;
+blLY5: $update = $this->db->update("cbt_soal_siswa");
+goto BYRR7;
+MBgtL: srsJO: goto SSJ51;
+vvTzE: $update = true;
+goto Ot0eF;
+BH2Ub: WOl9J: goto vvTzE;
+Qh3FF: $this->db->set("jawaban_siswa", serialize($jawab->jawaban_siswa));
+goto HkDXY;
+sf_xj: $this->db->set("jawaban_siswa", serialize($jawab->jawaban_siswa));
+goto dASlY;
+aAT8b: if (!($elapsed != "0")) {
+goto WOl9J;
+}
+goto M2H5J;
+QFhEY: $jawab_essai = $this->input->post("jawaban", false);
+goto PtX3B;
+OPRFJ: if ($jawab->jenis == 3) {
+goto NnkNq;
+}
+goto QFhEY;
+BYRR7: mNDjI: goto PzG5v;
+LTnbc: if ($jawab->jenis == 1 || $jawab->jenis == 6) {
+goto hax2U;
+}
+goto avEg6;
+UMqi1: $this->selesaiUjian();
+goto MBgtL;
+HkDXY: goto dGv8S;
+goto xIjQc;
+M2H5J: $this->db->set("lama_ujian", $elapsed);
+goto YKKpJ;
+BQdxJ: $timer = $this->input->post("waktu", true);
+goto xVhfT;
+t28YM: szbF4: goto e5rDX;
+q50wJ: Fczgm: goto jGgdv;
+utmDK: $this->db->update("cbt_durasi_siswa");
+goto BH2Ub;
+Zj0QS: if (!($update && $id_bank != null)) {
+goto szbF4;
+}
+goto vjyjR;
+tMPrA: hax2U: goto fOoXT;
+dkTyo: $this->db->set("jawaban_siswa", $jawab->jawaban_siswa);
+goto fxESP;
+SSJ51: $this->output_json($data);
+goto tDpXF;
+fOoXT: $this->db->set("jawaban_alias", $jawab->jawaban_alias);
+goto dkTyo;
+JgezT: $this->db->where("id_soal_siswa", $jawab->id_soal_siswa);
+goto blLY5;
+tDpXF: }

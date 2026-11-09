@@ -77,6 +77,7 @@ final class Phase3StabilityTest extends TestCase
         $service = file_get_contents(dirname(__DIR__) . '/application/libraries/Exam_attempt_service.php');
 
         self::assertStringContainsString('APP_TRUSTED_PROXIES', $config);
+        self::assertStringContainsString("app_env('APP_TRUSTED_PROXIES', '127.0.0.1,::1')", $config);
         self::assertStringContainsString('APP_ALLOWED_HOSTS', $config);
         self::assertStringContainsString('$proxyTrusted', $config);
         self::assertStringContainsString('trustedProxy()', $service);

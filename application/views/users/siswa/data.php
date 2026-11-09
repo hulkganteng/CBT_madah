@@ -216,36 +216,53 @@
 
         $("#users").on("click", ".btn-reset", function() {
             let username = $(this).data("username");
-            let nama = encodeURIComponent($(this).data("nama"));
-            $('#loading').removeClass('d-none');
-            $.ajax({
-                url: base_url + "usersiswa/reset_login/" + username +"/"+nama,
-                type: "GET",
-                success: function (response) {
-                    $('#loading').addClass('d-none');
-                    if (response.msg) {
-                        if (response.status) {
-                            swal.fire({
-                                title: "Sukses",
-                                html: "<b>"+decodeURIComponent(response.msg)+"<b>",
-                                icon: "success"
-                            });
-                            loadSiswa();
-                        } else {
-                            swal.fire({
-                                title: "Error",
-                                html: "<b>"+decodeURIComponent(response.msg)+"<b>",
+            let nama = $(this).data("nama");
+            swal.fire({
+                title: "Reset Login Siswa",
+                text: "Masukkan alasan reset login untuk " + nama + ":",
+                input: "text",
+                inputPlaceholder: "Contoh: Siswa terputus SEB / ganti PC",
+                showCancelButton: true,
+                confirmButtonText: "Reset",
+                cancelButtonText: "Batal",
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) {
+                        return "Alasan reset login wajib diisi!";
+                    }
+                }
+            }).then((result) => {
+                if (result.value) {
+                    $('#loading').removeClass('d-none');
+                    $.ajax({
+                        url: base_url + "usersiswa/reset_login/" + username + "/" + encodeURIComponent(nama) + "?alasan=" + encodeURIComponent(result.value),
+                        type: "GET",
+                        success: function (response) {
+                            $('#loading').addClass('d-none');
+                            if (response.msg) {
+                                if (response.status) {
+                                    swal.fire({
+                                        title: "Sukses",
+                                        html: "<b>" + decodeURIComponent(response.msg) + "<b>",
+                                        icon: "success"
+                                    });
+                                    loadSiswa();
+                                } else {
+                                    swal.fire({
+                                        title: "Error",
+                                        html: "<b>" + decodeURIComponent(response.msg) + "<b>",
+                                        icon: "error"
+                                    });
+                                }
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            $('#loading').addClass('d-none');
+                            Swal.fire({
+                                title: "Gagal",
+                                html: xhr.responseText,
                                 icon: "error"
                             });
                         }
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.log(xhr);
-                    Swal.fire({
-                        title: "Gagal",
-                        html: xhr.responseText,
-                        icon: "error"
                     });
                 }
             });

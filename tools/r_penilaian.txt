@@ -1,0 +1,54 @@
+﻿function penilaian($id_jadwal) {
+goto BokR4;
+WAazh: $data["running_text"] = $this->dashboard->getRunningText();
+goto RkXgu;
+BokR4: $this->load->model("Dashboard_model", "dashboard");
+goto Wz_WK;
+blUxQ: $user = $this->ion_auth->user()->row();
+goto hPAXu;
+O7qXs: SG19o: goto sAZYl;
+ZbCRH: if (!($durasi == null || $durasi->selesai != null)) {
+goto SG19o;
+}
+goto jG0Zy;
+hPAXu: $siswa = $this->cbt->getDataSiswa($user->username, $tp->id_tp, $smt->id_smt);
+goto Buaxb;
+obFhA: $diff = $mulai->diff(new DateTime());
+goto Nho3d;
+Nho3d: $durasi->diff = ["days" => $diff->days, "hari" => $diff->d, "jam" => $diff->h, "menit" => $diff->i, "detik" => $diff->s, "format" => $diff->format("%H:%I:%S")];
+goto ZbCRH;
+jkEhF: $tp = $this->dashboard->getTahunActive();
+goto TJkPa;
+qXG1P: $data["smt_active"] = $smt;
+goto WAazh;
+qEHvX: $mulai = new DateTime($durasi->mulai);
+goto obFhA;
+kUtf2: $data["smt"] = $this->dashboard->getSemester();
+goto qXG1P;
+sAZYl: $data["elapsed"] = $durasi;
+goto Da7vp;
+Da7vp: $this->load->view("members/siswa/templates/header", $data);
+goto ivbl1;
+Wz_WK: $this->load->model("Cbt_model", "cbt");
+goto jkEhF;
+WnUxE: $this->load->view("members/siswa/templates/footer");
+goto KSSSn;
+TJkPa: $smt = $this->dashboard->getSemesterActive();
+goto blUxQ;
+CIUqx: $durasi = $this->cbt->getElapsed($id_durasi);
+goto qEHvX;
+ivbl1: $this->load->view("members/siswa/cbt/ujian");
+goto WnUxE;
+GEagT: $data["tp"] = $this->dashboard->getTahun();
+goto mMjbM;
+RkXgu: $data["jadwal"] = $this->cbt->getCbt($id_jadwal);
+goto lWc1g;
+jG0Zy: redirect("siswa/cbt");
+goto O7qXs;
+Buaxb: $data = ["user" => $user, "siswa" => $siswa, "judul" => "Penilaian", "setting" => $this->dashboard->getSetting()];
+goto GEagT;
+lWc1g: $id_durasi = $siswa->id_siswa . "0" . $id_jadwal;
+goto CIUqx;
+mMjbM: $data["tp_active"] = $tp;
+goto kUtf2;
+KSSSn: }

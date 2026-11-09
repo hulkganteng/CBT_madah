@@ -1,0 +1,79 @@
+﻿function checkTimer($id_siswa, $id_jadwal) {
+goto rZaE0;
+oiwGI: $this->db->set("lama_ujian", $elapsed);
+goto KPj21;
+Id6HC: $this->db->update("cbt_durasi_siswa");
+goto cM9Qk;
+vTK17: goto AcrWu;
+goto HG28I;
+rxMoZ: $this->db->set("lama_ujian", $elapsed);
+goto jyRgD;
+b5ESA: if ($durasi->reset == "0") {
+goto txcVT;
+}
+goto VCrj9;
+jyRgD: $this->db->where("id_durasi", $id_durasi);
+goto dxFcn;
+rZaE0: $this->load->model("Cbt_model", "cbt");
+goto fsoTj;
+uZnwB: goto vuy_o;
+goto SawQg;
+fsoTj: $id_durasi = $id_siswa . "0" . $id_jadwal;
+goto K344u;
+cWcoE: TmtDA: goto Hbinb;
+mGvIj: yPfiD: goto WKRVS;
+WKRVS: $durasi = false;
+goto aAQAB;
+luKMj: $this->db->update("cbt_durasi_siswa");
+goto VYBwf;
+cM9Qk: $durasi = $this->cbt->getElapsed($id_durasi);
+goto vTK17;
+sC0CH: $this->db->where("id_durasi", $id_durasi);
+goto luKMj;
+aAQAB: AcrWu: goto aNAQW;
+Srige: $this->db->where("id_durasi", $id_durasi);
+goto Id6HC;
+XKQNk: if ($durasi != null) {
+goto SJUv_;
+}
+goto Fay9b;
+Fay9b: $durasi = false;
+goto uZnwB;
+mUvXy: $this->db->set("reset", 0);
+goto sC0CH;
+fQYbK: $diff = $mulai->diff(new DateTime());
+goto Gfn9z;
+Gfn9z: $elapsed = $diff->format("%H:%I:%S");
+goto b5ESA;
+SCsxA: $mulai = new DateTime($durasi->mulai);
+goto fQYbK;
+HG28I: txcVT: goto rxMoZ;
+pAARG: if ($durasi->reset == "3") {
+goto yPfiD;
+}
+goto oiwGI;
+SawQg: SJUv_: goto SCsxA;
+aNAQW: vuy_o: goto etagI;
+VCrj9: if ($durasi->reset == "1") {
+goto TmtDA;
+}
+goto pAARG;
+hgyq3: goto AcrWu;
+goto cWcoE;
+K344u: $durasi = $this->cbt->getElapsed($id_durasi);
+goto XKQNk;
+dxFcn: $this->db->update("cbt_durasi_siswa");
+goto mH4H1;
+mH4H1: $durasi = $this->cbt->getElapsed($id_durasi);
+goto hgyq3;
+S20bA: goto AcrWu;
+goto mGvIj;
+etagI: return $durasi;
+goto bMuYe;
+KPj21: $this->db->set("reset", 0);
+goto Srige;
+VYBwf: $durasi = $this->cbt->getElapsed($id_durasi);
+goto S20bA;
+Hbinb: $this->db->set("lama_ujian", "00:00:00");
+goto mUvXy;
+bMuYe: }

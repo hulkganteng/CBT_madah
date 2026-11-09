@@ -305,7 +305,7 @@ DROP TABLE IF EXISTS `cbt_nilai`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cbt_nilai` (
-  `id_nilai` int(11) NOT NULL,
+  `id_nilai` varchar(64) NOT NULL,
   `pg_benar` int(11) DEFAULT 0,
   `pg_nilai` varchar(10) DEFAULT '0',
   `essai_nilai` varchar(10) DEFAULT '0',
@@ -538,7 +538,7 @@ DROP TABLE IF EXISTS `cbt_soal_siswa`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cbt_soal_siswa` (
-  `id_soal_siswa` varchar(15) NOT NULL,
+  `id_soal_siswa` varchar(64) NOT NULL,
   `id_bank` int(7) DEFAULT NULL,
   `id_jadwal` int(6) DEFAULT NULL,
   `id_soal` int(7) DEFAULT NULL,

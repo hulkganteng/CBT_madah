@@ -1,0 +1,67 @@
+﻿diff --git a/application/controllers/Examguard.php b/application/controllers/Examguard.php
+index 5970eb9..b98797b 100644
+--- a/application/controllers/Examguard.php
++++ b/application/controllers/Examguard.php
+@@ -41,7 +41,9 @@ class Examguard extends CI_Controller
+         if (!$schedule || !$attempt) {
+             $this->respond(array('status' => FALSE, 'message' => 'Sesi ujian tidak ditemukan.'), 404);
+         }
+-        list($active, $reason) = $this->exam_attempt_service->validateActiveAttempt($attempt);
++        /* Auto-submit mendapat grace yang sama agar heartbeat paralel tidak
++           mengusir browser ketika pengumpulan sedang berjalan. */
++        list($active, $reason) = $this->exam_attempt_service->validateActiveAttempt($attempt, 120);
+         $seb = $this->exam_attempt_service->verifySeb($schedule);
+         if (!$active || !$seb['ok']) {
+             $this->respond(array('status' => FALSE, 'message' => $reason ?: $seb['reason']), 403);
+diff --git a/application/hooks/Exam_security_hook.php b/application/hooks/Exam_security_hook.php
+index f6e0911..bbe4dc9 100644
+--- a/application/hooks/Exam_security_hook.php
++++ b/application/hooks/Exam_security_hook.php
+@@ -1014,6 +1014,27 @@ class Exam_security_hook
+             }
+             return;
+         }
++        if ($controller === 'siswa' && $method === 'applyaction') {
++            $payload = json_decode($this->ci->output->get_output());
++            $action = json_decode((string) $this->ci->input->post('aksi'));
++            $force = $action && isset($action->force) && is_array($action->force) ? $action->force : array();
++            if ($payload && !empty($payload->update_selesai) && $force
++                && $this->ci->db->table_exists('cbt_exam_attempt')) {
++                $idJadwal = (int) $this->ci->input->post('jadwal');
++                $rows = $this->ci->db->select('id_siswa')->where('id_jadwal', $idJadwal)
++                    ->where_in('id_durasi', $force)->get('cbt_durasi_siswa')->result();
++                $ids = array_map(function ($row) { return (int) $row->id_siswa; }, $rows);
++                if ($ids) {
++                    $this->ci->db->where('id_jadwal', $idJadwal)->where_in('id_siswa', $ids)
++                        ->where('status', 'IN_PROGRESS')->update('cbt_exam_attempt', array(
++                            'status' => 'SUBMITTED',
++                            'submitted_at' => date('Y-m-d H:i:s'),
++                            'updated_at' => date('Y-m-d H:i:s'),
++                        ));
++                }
++            }
++            return;
++        }
+         if ($controller !== 'siswa' || $method !== 'selesaiujian') {
+             return;
+         }
+diff --git a/application/views/members/siswa/cbt/ujian.php b/application/views/members/siswa/cbt/ujian.php
+index 1ec68e2..d3eb087 100644
+--- a/application/views/members/siswa/cbt/ujian.php
++++ b/application/views/members/siswa/cbt/ujian.php
+@@ -763,11 +763,13 @@
+             '&waktu=' + encodeURIComponent($('#timer').text()) + '&elapsed=' + encodeURIComponent(elapsed) +
+             '&data=' + encodeURIComponent(JSON.stringify(jsonJawaban || {}));
+ 
+-        $.ajax({
++        var saveRequest = jsonJawaban && jsonJawaban.jenis ? $.ajax({
+             url: base_url + 'siswa/savejawaban',
+             method: 'POST',
+             data: saveData
+-        }).done(function () {
++        }) : $.Deferred().resolve().promise();
++
++        saveRequest.done(function () {
+             /* Simpan jawaban terakhir lebih dahulu, lalu kumpulkan ujian. */
+             $.post(base_url + 'siswa/selesaiujian', {
+                 siswa: siswa,

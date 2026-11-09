@@ -1,0 +1,60 @@
+﻿diff --git a/application/views/cbt/nilai/detail.php b/application/views/cbt/nilai/detail.php
+index 0ddf995..24f28a2 100644
+--- a/application/views/cbt/nilai/detail.php
++++ b/application/views/cbt/nilai/detail.php
+@@ -317,11 +317,11 @@
+                                         </td>
+                                         <td>
+                                             <button id="edit<?= $s->id_soal_siswa ?>" type="button" class="btn btn-sm"
+-                                                    onclick="edit(<?= $s->id_soal_siswa ?>)"><i
++                                                    onclick="edit('<?= html_escape($s->id_soal_siswa) ?>')"><i
+                                                         class="fa fa-pencil"></i>
+                                             </button>
+                                             <button id="undo<?= $s->id_soal_siswa ?>" type="button" class="btn btn-sm"
+-                                                    onclick="undo(<?= $s->id_soal_siswa ?>, <?= $s->point_otomatis ?>)">
++                                                    onclick="undo('<?= html_escape($s->id_soal_siswa) ?>', <?= $s->point_otomatis ?>)">
+                                                 <i
+                                                         class="fa fa-undo"></i></button>
+                                         </td>
+@@ -446,11 +446,11 @@
+                                         </td>
+                                         <td rowspan="<?=$rows?>">
+                                             <button id="edit<?= $s->id_soal_siswa ?>" type="button" class="btn btn-sm"
+-                                                    onclick="edit(<?= $s->id_soal_siswa ?>)"><i
++                                                    onclick="edit('<?= html_escape($s->id_soal_siswa) ?>')"><i
+                                                         class="fa fa-pencil"></i>
+                                             </button>
+                                             <button id="undo<?= $s->id_soal_siswa ?>" type="button" class="btn btn-sm"
+-                                                    onclick="undo(<?= $s->id_soal_siswa ?>, <?= $s->point_otomatis ?>)">
++                                                    onclick="undo('<?= html_escape($s->id_soal_siswa) ?>', <?= $s->point_otomatis ?>)">
+                                                 <i
+                                                         class="fa fa-undo"></i></button>
+                                         </td>
+@@ -578,11 +578,11 @@
+                                         </td>
+                                         <td>
+                                             <button id="edit<?= $s->id_soal_siswa ?>" type="button" class="btn btn-sm"
+-                                                    onclick="edit(<?= $s->id_soal_siswa ?>)"><i
++                                                    onclick="edit('<?= html_escape($s->id_soal_siswa) ?>')"><i
+                                                         class="fa fa-pencil"></i>
+                                             </button>
+                                             <button id="undo<?= $s->id_soal_siswa ?>" type="button" class="btn btn-sm"
+-                                                    onclick="undo(<?= $s->id_soal_siswa ?>, <?= $s->point_otomatis ?>)">
++                                                    onclick="undo('<?= html_escape($s->id_soal_siswa) ?>', <?= $s->point_otomatis ?>)">
+                                                 <i
+                                                         class="fa fa-undo"></i></button>
+                                         </td>
+@@ -668,11 +668,11 @@
+                                         </td>
+                                         <td>
+                                             <button id="edit<?= $s->id_soal_siswa ?>" type="button" class="btn btn-sm"
+-                                                    onclick="edit(<?= $s->id_soal_siswa ?>)"><i
++                                                    onclick="edit('<?= html_escape($s->id_soal_siswa) ?>')"><i
+                                                         class="fa fa-pencil"></i>
+                                             </button>
+                                             <button id="undo<?= $s->id_soal_siswa ?>" type="button" class="btn btn-sm"
+-                                                    onclick="undo(<?= $s->id_soal_siswa ?>, <?= $s->point_otomatis ?>)">
++                                                    onclick="undo('<?= html_escape($s->id_soal_siswa) ?>', <?= $s->point_otomatis ?>)">
+                                                 <i class="fa fa-undo"></i></button>
+                                         </td>
+                                     </tr>

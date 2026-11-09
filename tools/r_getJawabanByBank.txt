@@ -1,0 +1,25 @@
+﻿function getJawabanByBank($id_bank, $id_siswa = null, $id_jadwal = null) {
+goto gtZIp;
+EsR90: iB9_z: goto kKcqd;
+gtZIp: $this->db->select("a.*, b.nomor_soal, b.jawaban");
+goto VIRpx;
+kKcqd: $this->db->where("a.id_bank=", $id_bank);
+if ($id_jadwal !== null) {
+$this->db->where("a.id_jadwal", $id_jadwal);
+}
+goto GMQvE;
+VIRpx: $this->db->from("cbt_soal_siswa a");
+goto Y5umG;
+SiQVi: $this->db->where("a.id_siswa=", $id_siswa);
+goto EsR90;
+y_JKz: if (!($id_siswa != null)) {
+goto iB9_z;
+}
+goto SiQVi;
+GMQvE: $result = $this->db->get()->result();
+goto caKm_;
+caKm_: return $result;
+goto cownZ;
+Y5umG: $this->db->join("cbt_soal b", "b.id_soal=a.id_soal");
+goto y_JKz;
+cownZ: }

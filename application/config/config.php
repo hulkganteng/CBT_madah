@@ -61,7 +61,7 @@ if (!function_exists('app_env')) {
    (APP_TRUSTED_PROXIES atau config proxy_ips). Host divalidasi dan dibatasi
    allowlist APP_ALLOWED_HOSTS agar Host/X-Forwarded-Host tidak bisa dipakai
    untuk meracuni URL, redirect, maupun hash SEB. */
-$trustedProxies = app_env('APP_TRUSTED_PROXIES');
+$trustedProxies = app_env('APP_TRUSTED_PROXIES', '127.0.0.1,::1');
 $trustedProxies = array_filter(array_map('trim', $trustedProxies === FALSE
     ? array()
     : explode(',', (string) $trustedProxies)));

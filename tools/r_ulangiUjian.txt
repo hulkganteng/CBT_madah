@@ -1,0 +1,15 @@
+﻿function ulangiUjian($id_durasi, $id_bank) {
+$this->load->library('Exam_attempt_service');
+$duration = $this->db->get_where('cbt_durasi_siswa', ['id_durasi' => $id_durasi])->row();
+if (!$duration || (string) $id_bank !== (string) $this->db->get_where('cbt_jadwal', ['id_jadwal' => $duration->id_jadwal])->row()->id_bank || !$this->exam_attempt_service->lockQuestionMapping($duration->id_siswa, $duration->id_jadwal, $id_bank)) {
+$this->output->set_status_header(409);
+$this->output_json(['status' => false]);
+return;
+}
+$this->db->trans_start();
+foreach (['cbt_soal_siswa', 'cbt_nilai', 'log_ujian', 'cbt_durasi_siswa', 'cbt_exam_attempt'] as $table) {
+$this->db->where('id_siswa', $duration->id_siswa)->where('id_jadwal', $duration->id_jadwal)->delete($table);
+}
+$this->db->trans_complete();
+$this->output_json(['status' => $this->db->trans_status()]);
+}

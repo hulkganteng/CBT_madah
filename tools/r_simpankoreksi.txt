@@ -1,0 +1,46 @@
+﻿function simpanKoreksi() {
+goto TXUQP;
+P_7eg: $data["success"] = $updated;
+goto dkz6M;
+azL1D: foreach ($nilais as $nilai) {
+goto qNxC_;
+KoEh8: $jml += $nilai->koreksi;
+goto VVLpD;
+qNxC_: array_push($ids, $nilai->id_soal);
+goto KoEh8;
+VVLpD: $updated[] = ["id_soal_siswa" => $nilai->id_soal, "nilai_koreksi" => $nilai->koreksi, "nilai_otomatis" => 1];
+goto NDr5v;
+NDr5v: VB5cE: goto wYmqq;
+wYmqq: }
+goto dQ4nM;
+QzwPo: $this->db->update("cbt_nilai");
+goto zmON9;
+etzN4: if (!$updated) {
+goto L0r7o;
+}
+goto HMqsL;
+y5d75: $this->db->where("id_nilai", $siswa . "0" . $jadwal);
+goto QzwPo;
+ddTci: $updated = $this->db->update_batch("cbt_soal_siswa", $updated, "id_soal_siswa");
+goto etzN4;
+GGtzZ: $updated = [];
+goto tXS9v;
+rY21T: $jenis = $this->input->post("jenis", true);
+goto bSJQ4;
+tXS9v: $ids = [];
+goto KVKAC;
+HMqsL: $this->db->set($jenis, $jml);
+goto y5d75;
+OYV0d: $jadwal = $this->input->post("jadwal", true);
+goto rY21T;
+bSJQ4: $nilais = json_decode($this->input->post("nilai", true));
+goto GGtzZ;
+dkz6M: $this->output_json($data);
+goto U_e5Q;
+TXUQP: $siswa = $this->input->post("siswa", true);
+goto OYV0d;
+KVKAC: $jml = 0;
+goto azL1D;
+zmON9: L0r7o: goto P_7eg;
+dQ4nM: dd28O: goto ddTci;
+U_e5Q: }

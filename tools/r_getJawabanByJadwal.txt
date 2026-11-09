@@ -1,0 +1,36 @@
+﻿function getJawabanSiswaByJadwal($id_jadwal, $id_siswa = null) {
+goto Hql5F;
+KwB7T: mbB8y: goto q4sFD;
+QYkUB: QbMA_: goto s23nd;
+tGj1_: return $this->db->get()->result();
+goto Ctz1N;
+qWroF: $this->db->join("cbt_soal b", "b.id_soal=a.id_soal");
+goto VwHf8;
+q4sFD: $this->db->where("a.id_jadwal=", $id_jadwal);
+goto iBYPT;
+Tmnm2: goto jUZWD;
+goto QYkUB;
+s23nd: $this->db->where_in("a.id_siswa", $id_siswa);
+goto nJLjD;
+GjWes: $this->db->where("a.id_siswa", $id_siswa);
+goto Tmnm2;
+c1Gph: $this->db->order_by("a.jenis_soal");
+goto enUjP;
+Ibg0G: $this->db->from("cbt_soal_siswa a");
+goto qWroF;
+VwHf8: if (!($id_siswa != null)) {
+goto mbB8y;
+}
+goto h6L23;
+Hql5F: $this->db->select("a.*, b.jenis, b.nomor_soal, b.soal, b.jawaban, b.opsi_a, b.opsi_b, b.opsi_c, b.opsi_d, b.opsi_e, b.tampilkan");
+goto Ibg0G;
+enUjP: $this->db->order_by("b.nomor_soal");
+goto tGj1_;
+nJLjD: jUZWD: goto KwB7T;
+h6L23: if (is_array($id_siswa)) {
+goto QbMA_;
+}
+goto GjWes;
+iBYPT: $this->db->where("b.tampilkan", "1");
+goto c1Gph;
+Ctz1N: }

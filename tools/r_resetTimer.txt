@@ -1,0 +1,24 @@
+﻿function resetTimer() {
+goto kdNUQ;
+npf6M: $this->db->set("reset", $reset);
+goto yG6c1;
+mextR: $this->db->set("lama_ujian", "00:00:00");
+goto iXfdk;
+iXfdk: sD20m: goto npf6M;
+xNA8C: $reset = $this->input->post("reset", true);
+goto QWkU2;
+QWkU2: if (!($reset == "1")) {
+goto sD20m;
+}
+goto mextR;
+mAT4l: $data["status"] = $update;
+goto ZHZFm;
+kdNUQ: $id_durasi = $this->input->post("id_durasi", true);
+goto xNA8C;
+yG6c1: $this->db->where("id_durasi", $id_durasi);
+goto lIi1l;
+lIi1l: $update = $this->db->update("cbt_durasi_siswa");
+goto mAT4l;
+ZHZFm: $this->output_json($data);
+goto M31G7;
+M31G7: }

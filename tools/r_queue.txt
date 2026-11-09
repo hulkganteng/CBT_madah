@@ -1,0 +1,236 @@
+﻿function createQueueNumber($id_siswa, $id_bank, $id_jadwal) {
+goto vjHFs;
+y0YND: if ($ada1 && $ada2 && $ada3 && $ada4 && $ada5 && $ada6) {
+goto moPwB;
+}
+goto ICauW;
+zD6L0: $num4 = isset($cek_soal["4"]) ? count($cek_soal["4"]) : 0;
+goto i5FWl;
+ICauW: return [];
+goto YjLkw;
+XfKex: $ada1 = $num1 == (int) $jadwal->tampil_pg;
+goto jVBP_;
+fYD7j: if ($opsis == "2") {
+goto G9ZpR;
+}
+goto uGlr3;
+MSkmH: $ada4 = $num4 == (int) $jadwal->tampil_isian;
+goto bZitc;
+bL0xR: usort($items, function ($a, $b) {
+return $a["no_soal_alias"] <=> $b["no_soal_alias"];
+});
+goto ooeEu;
+HJ_8g: hRc34: goto bL0xR;
+bZitc: $ada5 = $num5 == (int) $jadwal->tampil_esai;
+$ada6 = $num6 == (int) ($jadwal->tampil_bs ?? 0);
+goto y0YND;
+v6JTY: $arrOpsi = ["A", "B", "C"];
+goto wWBTq;
+VpJhA: goto tUKuu;
+goto rjR55;
+Q0oB8: goto tUKuu;
+goto U2Bbl;
+hQ_Oq: $arrOpsi = ["A", "B", "C", "D"];
+goto gxzDM;
+YjLkw: goto suNGg;
+goto VSTDK;
+SySk5: $arrNum = range(1, $total);
+goto Hw0ZI;
+DZTc1: $num1 = isset($cek_soal["1"]) ? count($cek_soal["1"]) : 0;
+goto SaKcC;
+KJbBV: $j = 0;
+goto DF0Bu;
+uGlr3: if ($opsis == "3") {
+goto KZJOf;
+}
+goto uxdKZ;
+OHDMI: $total = $num1 + $num2 + $num3 + $num4 + $num5 + $num6;
+goto XfKex;
+i5FWl: $num5 = isset($cek_soal["5"]) ? count($cek_soal["5"]) : 0;
+$num6 = isset($cek_soal["6"]) ? count($cek_soal["6"]) : 0;
+goto OHDMI;
+OjfKO: $ada3 = $num3 == (int) $jadwal->tampil_jodohkan;
+goto MSkmH;
+uxdKZ: if ($opsis == "4") {
+goto UgvTD;
+}
+goto F5Ggy;
+jVBP_: $ada2 = $num2 == (int) $jadwal->tampil_kompleks;
+goto OjfKO;
+gxzDM: tUKuu: goto SySk5;
+WmEYW: $num3 = isset($cek_soal["3"]) ? count($cek_soal["3"]) : 0;
+goto zD6L0;
+NvC7J: shuffle($arrNum);
+goto ej8v4;
+ej8v4: eLuvm: goto fEz6X;
+U2Bbl: KZJOf: goto v6JTY;
+ooeEu: return $items;
+goto DAVNu;
+fEz6X: $items = [];
+goto KJbBV;
+DF0Bu: foreach ($cek_soal as $jenis => $soals) {
+goto VJOfO;
+MQXFU: gjJrj: goto vXZeh;
+VJOfO: foreach ($soals as $soal) {
+goto WYNLh;
+hJYeh: $item_soal["opsi_alias_a"] = "A";
+goto ewg4R;
+Ga80F: goto b4csO;
+goto unsVw;
+IF0nr: DSLZy: goto FSZK_;
+YQTSA: $item_soal["id_bank"] = $id_bank;
+goto Wqci7;
+LZ3WE: goto b4csO;
+goto IF0nr;
+hd2Sd: $item_soal["point_soal"] = $jadwal->bobot_pg > 0 ? round($jadwal->bobot_pg / $jadwal->tampil_pg, 2) : 0;
+goto yGuK8;
+SaoTS: $item_soal["opsi_alias_d"] = '';
+goto RKWGS;
+c3iyD: $item_soal["id_siswa"] = $id_siswa;
+goto aAvMb;
+oxfYh: $item_soal["point_soal"] = $jadwal->bobot_isian > 0 ? round($jadwal->bobot_isian / $jadwal->tampil_isian, 2) : 0;
+goto VimiX;
+aAvMb: $item_soal["jenis_soal"] = $jenis;
+goto y23s9;
+y23s9: $item_soal["no_soal_alias"] = $arrNum[$j];
+goto QggJQ;
+siUHL: eoEcQ: goto hJYeh;
+Llsca: array_push($items, $item_soal);
+goto JUZho;
+H5IP6: $item_soal["soal_end"] = $j + 1 === count($arrNum) ? "1" : "0";
+goto Llsca;
+QggJQ: if ($jenis == "1") {
+goto JTlKN;
+}
+goto p1I_I;
+W5LlT: ohUPK: goto dD2E2;
+unsVw: JTlKN: goto xJa_R;
+z54Ad: if (!($jadwal->acak_opsi == "1")) {
+goto KaBKC;
+}
+goto HRxjV;
+ECSA8: x3vry: goto oxfYh;
+excAJ: $item_soal["id_soal_siswa"] = $id_siswa . "0" . $id_jadwal . $id_bank . $arrNum[$j];
+goto YQTSA;
+PeKI9: $item_soal["opsi_alias_d"] = isset($arrOpsi[3]) ? $arrOpsi[3] : '';
+goto St1Hm;
+CzPai: $item_soal["opsi_alias_c"] = isset($arrOpsi[2]) ? $arrOpsi[2] : '';
+goto PeKI9;
+VimiX: goto b4csO;
+goto SrWUC;
+xJa_R: $item_soal["opsi_alias_a"] = $arrOpsi[0];
+goto hMg1X;
+St1Hm: $item_soal["opsi_alias_e"] = isset($arrOpsi[4]) ? $arrOpsi[4] : '';
+goto hd2Sd;
+rl_R_: if ($jenis == "3") {
+goto DSLZy;
+}
+goto bRk_7;
+ewg4R: $item_soal["opsi_alias_b"] = '';
+goto iGgoE;
+RKWGS: $item_soal["opsi_alias_e"] = '';
+goto kXcqt;
+p1I_I: if ($jenis == "2") {
+goto eoEcQ;
+}
+goto rl_R_;
+whNpM: XYTYN: goto excAJ;
+kXcqt: $item_soal["point_soal"] = $jadwal->bobot_kompleks > 0 ? round($jadwal->bobot_kompleks / $jadwal->tampil_kompleks, 2) : 0;
+goto LZ3WE;
+is4AC: $item_soal["jawaban_benar"] = $soal->jawaban;
+goto H5IP6;
+LZRvw: $item_soal["id_soal"] = $soal->id_soal;
+goto c3iyD;
+iGgoE: $item_soal["opsi_alias_c"] = '';
+goto SaoTS;
+Wqci7: $item_soal["id_jadwal"] = $id_jadwal;
+goto LZRvw;
+WYNLh: if (!($jenis == "1")) {
+goto XYTYN;
+}
+goto z54Ad;
+FSZK_: $item_soal["point_soal"] = $jadwal->bobot_jodohkan > 0 ? round($jadwal->bobot_jodohkan / $jadwal->tampil_jodohkan, 2) : 0;
+goto vjcdX;
+hMg1X: $item_soal["opsi_alias_b"] = $arrOpsi[1];
+goto CzPai;
+SrWUC: fsPQ6: goto Q46m6;
+JUZho: $j++;
+goto W5LlT;
+HRxjV: shuffle($arrOpsi);
+goto OvNzv;
+Q46m6: $item_soal["point_soal"] = $jadwal->bobot_esai > 0 ? round($jadwal->bobot_esai / $jadwal->tampil_esai, 2) : 0;
+goto DhD9E;
+OvNzv: KaBKC: goto whNpM;
+vjcdX: goto b4csO;
+goto ECSA8;
+bRk_7: if ($jenis == "4") {
+goto x3vry;
+}
+goto X2b9S;
+X2b9S: if ($jenis == "5") {
+goto fsPQ6;
+}
+if ($jenis == "6") {
+$item_soal["id_soal_siswa"] = $id_siswa . "0" . $id_jadwal . $id_bank . $arrNum[$j];
+$item_soal["id_bank"] = $id_bank;
+$item_soal["id_jadwal"] = $id_jadwal;
+$item_soal["id_soal"] = $soal->id_soal;
+$item_soal["id_siswa"] = $id_siswa;
+$item_soal["jenis_soal"] = $jenis;
+$item_soal["no_soal_alias"] = $arrNum[$j];
+$item_soal["point_soal"] = $jadwal->bobot_bs > 0 ? round($jadwal->bobot_bs / max(1, (int) $jadwal->tampil_bs), 2) : 0;
+$item_soal["opsi_alias_a"] = "B";
+$item_soal["opsi_alias_b"] = "S";
+$item_soal["opsi_alias_c"] = "";
+$item_soal["opsi_alias_d"] = "";
+$item_soal["opsi_alias_e"] = "";
+goto b4csO;
+}
+goto Ga80F;
+DhD9E: b4csO: goto is4AC;
+yGuK8: goto b4csO;
+goto siUHL;
+dD2E2: }
+goto MQXFU;
+vXZeh: CoOZG: goto dr_V1;
+dr_V1: }
+goto HJ_8g;
+KVfVY: $cek_soal = $this->cbt->getAllIdSoal($id_bank);
+goto mr6Vc;
+vjHFs: $this->load->model("Cbt_model", "cbt");
+goto KVfVY;
+wWBTq: goto tUKuu;
+goto pBaLX;
+VSTDK: moPwB: goto uKgsM;
+uKgsM: $opsis = $jadwal->opsi;
+goto fYD7j;
+DAVNu: suNGg: goto MU0CC;
+Hw0ZI: if (!($jadwal->acak_soal == "1")) {
+goto eLuvm;
+}
+goto NvC7J;
+rjR55: G9ZpR: goto GrgWq;
+GrgWq: $arrOpsi = ["A", "B"];
+goto Q0oB8;
+SaKcC: $num2 = isset($cek_soal["2"]) ? count($cek_soal["2"]) : 0;
+goto WmEYW;
+F5Ggy: $arrOpsi = ["A", "B", "C", "D", "E"];
+goto VpJhA;
+mr6Vc: $jadwal = $this->cbt->getInfoJadwal($id_bank, $id_jadwal);
+if (!$jadwal) {
+return [];
+}
+$limits = [1 => (int) $jadwal->tampil_pg, 2 => (int) $jadwal->tampil_kompleks, 3 => (int) $jadwal->tampil_jodohkan, 4 => (int) $jadwal->tampil_isian, 5 => (int) $jadwal->tampil_esai, 6 => (int) ($jadwal->tampil_bs ?? 0)];
+foreach ($limits as $jenis => $limit) {
+$pool = $cek_soal[$jenis] ?? [];
+if (count($pool) < $limit) {
+return [];
+}
+if ((string) $jadwal->acak_soal === '1') {
+shuffle($pool);
+}
+$cek_soal[$jenis] = array_slice($pool, 0, $limit);
+}
+goto DZTc1;
+pBaLX: UgvTD: goto hQ_Oq;
+MU0CC: }

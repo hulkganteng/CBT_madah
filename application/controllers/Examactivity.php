@@ -84,13 +84,18 @@ class Examactivity extends CI_Controller
     {
         $idJadwal = (int) $this->input->post('jadwal');
         $idSiswa = (int) $this->input->post('siswa');
+        $alasan = trim((string) $this->input->post('alasan', TRUE));
+        if ($alasan === '') {
+            $this->respond(array('status' => FALSE, 'message' => 'Alasan reset login / buka kunci wajib diisi.'), 422);
+        }
         $attempt = $this->exam_attempt_service->attempt($idSiswa, $idJadwal);
         if (!$attempt) {
             $this->respond(array('status' => FALSE, 'message' => 'Peserta belum memulai ujian.'), 404);
         }
-        $this->exam_attempt_service->unkick($attempt);
-        $this->log('Mengizinkan kembali ujian siswa id ' . $idSiswa);
-        $this->respond(array('status' => TRUE, 'message' => 'Peserta diizinkan melanjutkan.'));
+        $operator = $this->ion_auth->user()->row()->username ?? 'proctor';
+        $this->exam_attempt_service->unlockStudentExam($idSiswa, $operator, $alasan);
+        $this->log('Membuka kunci ujian dan reset login siswa id ' . $idSiswa . ' alasan: ' . $alasan);
+        $this->respond(array('status' => TRUE, 'message' => 'Login dan ujian peserta berhasil direset.'));
     }
 
     /**

@@ -1,0 +1,60 @@
+﻿function checkTimer()
+{
+    $this->load->model("Cbt_model", "cbt");
+    $id_durasi = $id_siswa . "0" . $id_jadwal;
+    $durasi = $this->cbt->getElapsed($id_durasi);
+    if ($durasi != null) {
+        // then -> SJUv_
+        $mulai = new DateTime($durasi->mulai);
+        $diff = $mulai->diff(new DateTime());
+        $elapsed = $diff->format("%H:%I:%S");
+        if ($durasi->reset == "0") {
+            // then -> txcVT
+            $this->db->set("lama_ujian", $elapsed);
+            $this->db->where("id_durasi", $id_durasi);
+            $this->db->update("cbt_durasi_siswa");
+            $durasi = $this->cbt->getElapsed($id_durasi);
+            return $durasi;
+            return;
+            // else -> VCrj9
+            if ($durasi->reset == "1") {
+                // then -> TmtDA
+                $this->db->set("lama_ujian", "00:00:00");
+                $this->db->set("reset", 0);
+                $this->db->where("id_durasi", $id_durasi);
+                $this->db->update("cbt_durasi_siswa");
+                $durasi = $this->cbt->getElapsed($id_durasi);
+                /* goto AcrWu (already emitted) */
+                return;
+                // else -> pAARG
+                if ($durasi->reset == "3") {
+                    // then -> yPfiD
+                    $durasi = false;
+                    /* goto aAQAB (already emitted) */
+                    return;
+                    // else -> oiwGI
+                    $this->db->set("lama_ujian", $elapsed);
+                    $this->db->set("reset", 0);
+                    $this->db->where("id_durasi", $id_durasi);
+                    $this->db->update("cbt_durasi_siswa");
+                    $durasi = $this->cbt->getElapsed($id_durasi);
+                    /* goto AcrWu (already emitted) */
+                    return;
+                }
+                /* goto SCsxA (already emitted) */
+                return;
+            }
+            /* goto AcrWu (already emitted) */
+            return;
+        }
+        $this->db->where("id_durasi", $id_durasi);
+        /* goto dxFcn (already emitted) */
+        return;
+        // else -> Fay9b
+        $durasi = false;
+        /* goto vuy_o (already emitted) */
+        return;
+    }
+    $durasi = false;
+    /* goto uZnwB (already emitted) */
+}

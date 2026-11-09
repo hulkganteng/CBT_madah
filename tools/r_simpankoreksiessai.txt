@@ -1,0 +1,50 @@
+﻿function simpanKoreksiEssai() {
+goto FuT3N;
+SYvVM: $jadwal = $this->input->post("jadwal", true);
+goto tkW01;
+PtP5B: $data["blm_selesai"] = count($blm_selesai);
+goto RykE9;
+FuT3N: $this->load->model("Cbt_model", "cbt");
+goto SYvVM;
+hvZf2: wshKG: goto B7rI7;
+mPLVO: $update = 0;
+goto z3CNP;
+B7rI7: $data["success"] = $update;
+goto EtWcK;
+z3CNP: $blm_selesai = [];
+goto Xj6Bg;
+Xj6Bg: foreach ($nilais as $nilai) {
+goto L4dpm;
+rC_VB: if ($nilai_siswa != null) {
+goto WTzvB;
+}
+goto SE7zP;
+GmqVh: $update++;
+goto wfNST;
+c56yE: h7CWi: goto SYxf3;
+SE7zP: array_push($blm_selesai, $nilai->id_siswa);
+goto b5SEz;
+eBMQB: if (!$up) {
+goto jCicV;
+}
+goto GmqVh;
+b5SEz: goto C8_1q;
+goto zt83P;
+wfNST: jCicV: goto w7FGH;
+N0fVx: $replace = ["id_nilai" => $nilai_siswa->id_nilai, "id_siswa" => $nilai_siswa->id_siswa, "id_jadwal" => $nilai_siswa->id_jadwal, "pg_benar" => $nilai_siswa->pg_benar, "pg_nilai" => $nilai_siswa->pg_nilai, "kompleks_nilai" => isset($nilai->kompleks_nilai) && $nilai->kompleks_nilai != null ? $nilai->kompleks_nilai : "0", "bs_nilai" => isset($nilai_siswa->bs_nilai) ? $nilai_siswa->bs_nilai : "0", "jodohkan_nilai" => isset($nilai->jodohkan_nilai) && $nilai->jodohkan_nilai != null ? $nilai->jodohkan_nilai : "0", "isian_nilai" => isset($nilai->isian_nilai) && $nilai->isian_nilai != null ? $nilai->isian_nilai : "0", "essai_nilai" => isset($nilai->essai_nilai) && $nilai->essai_nilai != null ? $nilai->essai_nilai : "0", "dikoreksi" => "1"];
+goto oZ1O6;
+oZ1O6: $up = $this->db->replace("cbt_nilai", $replace);
+goto eBMQB;
+zt83P: WTzvB: goto N0fVx;
+w7FGH: C8_1q: goto c56yE;
+L4dpm: $nilai_siswa = $this->cbt->getNilaiSiswaByJadwal($jadwal, $nilai->id_siswa);
+goto rC_VB;
+SYxf3: }
+goto hvZf2;
+EtWcK: $data["data"] = $nilais;
+goto PtP5B;
+RykE9: $this->output_json($data);
+goto wWpuJ;
+tkW01: $nilais = json_decode($this->input->post("nilai", true));
+goto mPLVO;
+wWpuJ: }

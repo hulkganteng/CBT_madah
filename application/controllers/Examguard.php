@@ -41,7 +41,9 @@ class Examguard extends CI_Controller
         if (!$schedule || !$attempt) {
             $this->respond(array('status' => FALSE, 'message' => 'Sesi ujian tidak ditemukan.'), 404);
         }
-        list($active, $reason) = $this->exam_attempt_service->validateActiveAttempt($attempt);
+        /* Auto-submit mendapat grace yang sama agar heartbeat paralel tidak
+           mengusir browser ketika pengumpulan sedang berjalan. */
+        list($active, $reason) = $this->exam_attempt_service->validateActiveAttempt($attempt, 120);
         $seb = $this->exam_attempt_service->verifySeb($schedule);
         if (!$active || !$seb['ok']) {
             $this->respond(array('status' => FALSE, 'message' => $reason ?: $seb['reason']), 403);
@@ -52,7 +54,10 @@ class Examguard extends CI_Controller
         if (!$bound) {
             $this->respond(array('status' => FALSE, 'message' => $bindReason), 409);
         }
-        $this->exam_attempt_service->heartbeat($attempt, $seb['verified']);
+        list($hbOk, $hbReason) = $this->exam_attempt_service->heartbeat($attempt, $seb['verified']);
+        if (!$hbOk) {
+            $this->respond(array('status' => FALSE, 'message' => $hbReason), 403);
+        }
         $this->respond(array(
             'status' => TRUE,
             'deadline_at' => $attempt->deadline_at,
