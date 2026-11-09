@@ -58,6 +58,40 @@
                         </div>
                         <?= form_close() ?>
                     </div>
+                    <div class="col-md-6">
+                        <?= form_open('useradmin/edit_level', array('id' => 'user_level'), array('id' => $users->id)) ?>
+                        <div class="card card-primary my-shadow">
+                            <div class="card-header">
+                                <h3 class="card-title">Level User</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label for="level">Pilih Role</label>
+                                    <?php
+                                    $userLevels = array();
+                                    if (isset($level)) {
+                                        if (is_array($level)) {
+                                            foreach ($level as $l) { $userLevels[] = is_object($l) ? (int)$l->id : (int)$l; }
+                                        } elseif (is_object($level)) {
+                                            $userLevels[] = (int)$level->id;
+                                        }
+                                    }
+                                    ?>
+                                    <select id="level" name="levels[]" class="form-control select2" multiple="multiple" style="width: 100%!important">
+                                        <?php foreach ($groups as $row) : ?>
+                                            <option <?= in_array((int)$row->id, $userLevels, TRUE) ? "selected" : "" ?>
+                                                    value="<?= $row->id ?>"><?= $row->name ?> (<?= $row->description ?>)</option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="help-block"></small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button type="submit" id="btn-level" class="btn btn-primary float-right">Simpan Level</button>
+                            </div>
+                        </div>
+                        <?= form_close() ?>
+                    </div>
                 <?php endif; ?>
                 <?php if ($user->id === $users->id || $this->ion_auth->is_admin()) : ?>
                     <div class="col-md-6">

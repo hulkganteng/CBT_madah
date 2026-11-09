@@ -11,7 +11,7 @@ class Datasiswaform extends CI_Controller
             redirect('auth');
         }
 
-        if (!$this->ion_auth->is_admin() && !$this->ion_auth->in_group('guru')) {
+        if (!$this->ion_auth->is_admin() && !$this->ion_auth->in_group('guru') && !$this->ion_auth->in_group('tu')) {
             show_error('Anda tidak memiliki hak untuk mengakses halaman ini.', 403, 'Akses Terlarang');
         }
 

@@ -70,7 +70,9 @@
                                     <div id="dropdown-action" class="dropdown-menu">
                                         <a class="dropdown-item" id="pindah" href="#">Set sebagai PINDAH</a>
                                         <a class="dropdown-item" id="keluar" href="#">Set sebagai KELUAR</a>
-                                        <a class="dropdown-item" id="hapus" href="#">HAPUS</a>
+                                        <?php if ($this->ion_auth->is_admin()) : ?>
+                                            <a class="dropdown-item" id="hapus" href="#">HAPUS</a>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <div class="d-flex flex-row align-items-center">

@@ -62,11 +62,20 @@
                 <div class="box-body pb-0">
                     <div class="form-group">
                         <label for="level">Level User</label>
-                        <select id="level" name="level" class="form-control select2" style="width: 100%!important">
-                            <option value="">Pilih Level</option>
+                        <?php
+                        $userLevels = array();
+                        if (isset($level)) {
+                            if (is_array($level)) {
+                                foreach ($level as $l) { $userLevels[] = is_object($l) ? (int)$l->id : (int)$l; }
+                            } elseif (is_object($level)) {
+                                $userLevels[] = (int)$level->id;
+                            }
+                        }
+                        ?>
+                        <select id="level" name="levels[]" class="form-control select2" multiple="multiple" style="width: 100%!important">
                             <?php foreach ($groups as $row) : ?>
-                                <option <?= $level->id === $row->id ? "selected" : "" ?>
-                                        value="<?= $row->id ?>"><?= $row->name ?></option>
+                                <option <?= in_array((int)$row->id, $userLevels, TRUE) ? "selected" : "" ?>
+                                        value="<?= $row->id ?>"><?= $row->name ?> (<?= $row->description ?>)</option>
                             <?php endforeach; ?>
                         </select>
                         <small class="help-block"></small>

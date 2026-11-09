@@ -20,9 +20,10 @@ $namaAplikasi = $settingSidebar == null || $settingSidebar->nama_aplikasi == nul
         /* Profil user boleh belum diisi (mis. instalasi baru). Sidebar tetap harus
            tampil, jadi nilai null diganti default. */
         $profile = isset($profile) ? $profile : null;
+        $isTuOnly = !$this->ion_auth->is_admin() && $this->ion_auth->in_group('tu');
         $avatar = ($profile == null || $profile->foto == null) ? base_url() . 'assets/adminlte/dist/img/avatar5.png' : base_url() . $profile->foto;
-        $namaSidebar = ($profile == null || $profile->nama_lengkap == null) ? 'NoName' : $profile->nama_lengkap;
-        $jabatanSidebar = ($profile == null || $profile->jabatan == null) ? 'Admin' : $profile->jabatan;
+        $namaSidebar = ($profile == null || $profile->nama_lengkap == null) ? ($isTuOnly ? 'Tata Usaha' : 'NoName') : $profile->nama_lengkap;
+        $jabatanSidebar = ($profile == null || $profile->jabatan == null) ? ($isTuOnly ? 'Tata Usaha' : 'Admin') : $profile->jabatan;
         ?>
         <!-- Sidebar user panel (optional) -->
         <div class="user-panel border-0 d-flex mt-3 mb-3">
@@ -54,7 +55,23 @@ $namaAplikasi = $settingSidebar == null || $settingSidebar->nama_aplikasi == nul
 <script>
     const page = '<?= $this->uri->segment(1)?>';
     const pageact = '<?= $this->uri->segment(2); ?>';
-    const menus = [
+    const isTuOnly = <?= $isTuOnly ? 'true' : 'false' ?>;
+    const menus = isTuOnly ? [
+        {
+            'header': 'TATA USAHA', 'cbt': '1',
+            'menu': [
+                {'name': 'Beranda', 'link': 'dashboard', 'icon': 'fas fa-desktop', 'cbt': '1'},
+                {
+                    'name': 'Data Siswa', 'icon': 'fas fa-users', 'cbt': '1',
+                    'submenu': [
+                        {'name': 'Kelola Siswa', 'link': 'datasiswa', 'icon': 'fa fa-users'},
+                        {'name': 'Akun Siswa', 'link': 'usersiswa', 'icon': 'fas fa-user-lock'}
+                    ]
+                }
+            ]
+        },
+        {'name': 'LOGOUT', 'link': 'auth/logout', 'icon': 'fas fa-sign-out-alt', 'cbt': '1'}
+    ] : [
         {
             'header': 'HOME', 'cbt': '1',
             'menu': [

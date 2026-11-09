@@ -136,6 +136,44 @@
                         </div>
                     </div>
                 <?php endif; ?>
+                <?php if ($this->ion_auth->is_admin() && !is_null($users)) : ?>
+                    <div class="col-md-6">
+                        <?= form_open('userguru/edit_level', array('id' => 'user_level'), array('id' => $users->id)) ?>
+                        <div class="card card-primary my-shadow mb-4">
+                            <div class="card-header">
+                                <h6 class="card-title">Level User / Role</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label for="level">Pilih Role</label>
+                                    <?php
+                                    $userLevels = array();
+                                    if (isset($level)) {
+                                        if (is_array($level)) {
+                                            foreach ($level as $l) { $userLevels[] = is_object($l) ? (int)$l->id : (int)$l; }
+                                        } elseif (is_object($level)) {
+                                            $userLevels[] = (int)$level->id;
+                                        }
+                                    }
+                                    ?>
+                                    <select id="level" name="levels[]" class="form-control select2" multiple="multiple" style="width: 100%!important">
+                                        <?php if (isset($groups) && is_array($groups)) : ?>
+                                            <?php foreach ($groups as $row) : ?>
+                                                <option <?= in_array((int)$row->id, $userLevels, TRUE) ? "selected" : "" ?>
+                                                        value="<?= $row->id ?>"><?= $row->name ?> (<?= $row->description ?>)</option>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </select>
+                                    <small class="help-block"></small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button type="submit" id="btn-level" class="btn btn-primary float-right">Simpan Level</button>
+                            </div>
+                        </div>
+                        <?= form_close() ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </section>

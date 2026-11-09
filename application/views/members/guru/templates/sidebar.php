@@ -47,6 +47,7 @@
     const page = '<?= $this->uri->segment(1)?>';
     const jabatan = '<?=$sidebar_jabatan?>';
     const pageact = '<?= $this->uri->segment(2); ?>';
+    const isTu = <?= $this->ion_auth->in_group('tu') ? 'true' : 'false' ?>;
     const menus = [
         {
             'header': 'HOME', 'cbt': '1',
@@ -59,6 +60,13 @@
                     'submenu': [
                         {'name': 'Siswa', 'link':"walisiswa", 'icon': 'fas fa-users'},
                         {'name': 'Struktur', 'link':"walistruktur", 'icon': 'far fa-circle'}
+                    ]
+                },
+                {
+                    'name': 'Data Siswa', 'icon': 'fas fa-users', 'cbt': '1', 'tu': true,
+                    'submenu': [
+                        {'name': 'Kelola Siswa', 'link':"datasiswa", 'icon': 'fa fa-users'},
+                        {'name': 'Akun Siswa', 'link':"usersiswa", 'icon': 'fas fa-user-lock'}
                     ]
                 },
                 {
@@ -96,6 +104,9 @@
                     return
                 }
                 if (jabatan !== '4' && menu.wali) {
+                    return
+                }
+                if (!isTu && menu.tu) {
                     return
                 }
                 if (menu.submenu) {

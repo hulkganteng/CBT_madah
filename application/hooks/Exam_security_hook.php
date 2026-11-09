@@ -630,21 +630,58 @@ class Exam_security_hook
      */
     private function guardRoleAccess($controller, $method)
     {
-        $protected = array('usersiswa', 'userguru', 'guruview', 'siswa');
-        if (!in_array($controller, $protected, TRUE)) {
-            return;
-        }
+        $protected = array('usersiswa', 'userguru', 'guruview', 'siswa', 'datasiswa', 'datasiswaform');
 
         $this->ci->load->library('ion_auth');
         if (!$this->ci->ion_auth->logged_in()) {
-            $this->deny('Sesi login telah berakhir.', 401);
+            if (in_array($controller, $protected, TRUE)) {
+                $this->deny('Sesi login telah berakhir.', 401);
+            }
+            return;
+        }
+
+        /* Akun Tata Usaha mandiri (bukan admin dan bukan guru) hanya boleh mengakses modul yang relevan */
+        $isPureTu = $this->ci->ion_auth->in_group('tu') && !$this->ci->ion_auth->is_admin() && !$this->ci->ion_auth->in_group('guru');
+        if ($isPureTu) {
+            $tuAllowedControllers = array('dashboard', 'auth', 'datasiswa', 'datasiswaform', 'usersiswa', 'pengumuman');
+            if (!in_array($controller, $tuAllowedControllers, TRUE)) {
+                $this->deny('Role Tata Usaha tidak memiliki hak untuk mengakses modul ini.', 403);
+            }
         }
 
         if ($controller === 'usersiswa') {
-            if (!$this->ci->ion_auth->is_admin()) {
-                $this->deny('Manajemen akun siswa hanya dapat diakses Administrator.', 403);
+            if ($this->ci->ion_auth->is_admin()) {
+                return;
             }
-            return;
+            if ($this->ci->ion_auth->in_group('tu')) {
+                $tuUsersiswaAllowed = array('index', 'data', 'list', 'registersiswa', 'aktifkan', 'activate', 'aktifkansemua', 'nonaktifkan', 'deactivate', 'reset_login');
+                if (!in_array(strtolower($method), $tuUsersiswaAllowed, TRUE)) {
+                    $this->deny('Aksi ini hanya dapat dilakukan Administrator.', 403);
+                }
+                return;
+            }
+            $this->deny('Manajemen akun siswa hanya dapat diakses Administrator dan Tata Usaha.', 403);
+        }
+
+        if ($controller === 'datasiswa') {
+            if ($this->ci->ion_auth->is_admin()) {
+                return;
+            }
+            if ($this->ci->ion_auth->in_group('tu') || $this->ci->ion_auth->in_group('guru')) {
+                $tuDatasiswaForbidden = array('delete', 'deletefile');
+                if (in_array(strtolower($method), $tuDatasiswaForbidden, TRUE)) {
+                    $this->deny('Penghapusan data siswa hanya dapat dilakukan Administrator.', 403);
+                }
+                return;
+            }
+            $this->deny('Anda tidak memiliki hak untuk mengakses halaman ini.', 403);
+        }
+
+        if ($controller === 'datasiswaform') {
+            if ($this->ci->ion_auth->is_admin() || $this->ci->ion_auth->in_group('tu') || $this->ci->ion_auth->in_group('guru')) {
+                return;
+            }
+            $this->deny('Anda tidak memiliki hak untuk mengakses halaman ini.', 403);
         }
 
         if ($controller === 'userguru') {
