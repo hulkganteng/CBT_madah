@@ -36,6 +36,19 @@ final class MasterDataFixTest extends TestCase
         );
     }
 
+    public function testSubjectImportSuppliesRequiredFieldsAndUsesStableFileEvents(): void
+    {
+        $controller = $this->source('application/controllers/Datamapel.php');
+        $javascript = $this->source('assets/app/js/master/mapel/import.js');
+
+        self::assertStringContainsString("'urutan' => \$maxUrutan", $controller);
+        self::assertStringContainsString("'jenjang' => \$jenjang", $controller);
+        self::assertStringContainsString("insert_batch('master_mapel', \$mapel)", $controller);
+        self::assertStringContainsString('$ext = strtolower($this->upload->data(', $controller);
+        self::assertStringContainsString(".on('change'", $javascript);
+        self::assertStringNotContainsString('DOMSubtreeModified', $javascript);
+    }
+
     public function testBrokenExtraImportFallsBackToTheWorkingPage(): void
     {
         self::assertStringContainsString(

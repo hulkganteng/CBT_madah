@@ -61,24 +61,27 @@ $(document).ready(function () {
         });
     });
 
-    $('#formPreviewExcel').find('.dropify-filename-inner').on('DOMSubtreeModified',function(e){
-        var form = new FormData($("#formPreviewExcel")[0]);
-        var filename = $(this).text();
-        preview(base_url + 'datamapel/previewExcel', form, filename);
+    $('#input-file-events-excel').on('change', function () {
+        previewSelectedFile(this, '#formPreviewExcel', base_url + 'datamapel/previewExcel');
     });
 
-    $('#formPreviewWord').find('.dropify-filename-inner').on('DOMSubtreeModified',function(e){
-        var form = new FormData($("#formPreviewWord")[0]);
-        var filename = $(this).text();
-        preview(base_url + 'datamapel/previewWord', form, filename);
+    $('#input-file-events-word').on('change', function () {
+        previewSelectedFile(this, '#formPreviewWord', base_url + 'datamapel/previewWord');
     });
 
     $('#formUpload').submit('click', function (e) {
         e.preventDefault();
         e.stopImmediatePropagation();
 
-        var dataPost = $(this).serialize() + "&mapel=" + JSON.stringify($('#tablePrev').tableToJSON());
-		console.log("data:", dataPost);
+        var rows = $('#tablePrev').tableToJSON();
+        if (!rows.length) {
+            showImportError('Tidak ada data mata pelajaran yang dapat diunggah.');
+            return false;
+        }
+
+        var button = $('#btn-upload-mapel');
+        button.prop('disabled', true).attr('aria-busy', 'true');
+        var dataPost = $(this).serialize() + "&mapel=" + encodeURIComponent(JSON.stringify(rows));
 
         $.ajax({
             url: base_url + "datamapel/do_import",
@@ -86,25 +89,33 @@ $(document).ready(function () {
             dataType: "JSON",
             data: dataPost,
             success: function (data) {
-                window.history.back();
+                if (data && data.status) {
+                    window.location.href = base_url + 'datamapel';
+                    return;
+                }
+                showImportError(data && data.message ? data.message : 'Data mata pelajaran gagal disimpan.');
             }, error: function (xhr, status, error) {
-                console.log("error", e.responseText);
-                $.toast({
-                    heading: "ERROR!!",
-                    text: "file tidak terbaca",
-                    icon: 'error',
-                    showHideTransition: 'fade',
-                    allowToastClose: true,
-                    hideAfter: 5000,
-                    position: 'top-right'
-                });
+                var response = xhr.responseJSON;
+                showImportError(response && response.message ? response.message : 'Data mata pelajaran gagal disimpan.');
+            }, complete: function () {
+                button.prop('disabled', $('#tablePrev tbody tr').length === 0).attr('aria-busy', 'false');
             }
         });
         return false;
     });
 });
 
+function previewSelectedFile(input, formSelector, action) {
+    if (!input.files || !input.files.length) {
+        clearPreview();
+        return;
+    }
+    preview(action, new FormData($(formSelector)[0]), input.files[0].name);
+}
+
 function preview(action, data, filename) {
+    $('#btn-upload-mapel').prop('disabled', true);
+    $('#file-preview').html('<span class="text-muted"><i class="fas fa-spinner fa-spin mr-2"></i>Membaca file...</span>');
     $.ajax({
         type: "POST",
         enctype: 'multipart/form-data',
@@ -122,8 +133,17 @@ function preview(action, data, filename) {
             if (filename == "") {
                 html = '<span class="text-center">Pastikan anda telah mengisi format yang telah disediakan.</span>';
             } else {
-                console.log(data);
-                var obj = JSON.parse(data);
+                var obj;
+                try {
+                    obj = typeof data === 'string' ? JSON.parse(data) : data;
+                } catch (error) {
+                    showImportError('Respons preview tidak valid. Pastikan file memakai template mapel.');
+                    return;
+                }
+                if (!Array.isArray(obj)) {
+                    showImportError(obj && obj.message ? obj.message : 'File tidak dapat dibaca.');
+                    return;
+                }
                 html = '<table id="tablePrev" class="table table-bordered">' +
                     '        <thead>' +
                     '        <tr>' +
@@ -134,35 +154,59 @@ function preview(action, data, filename) {
                     '        </thead>' +
                     '        <tbody>';
                 for (i = 0; i < obj.length; i++) {
-                	if (!obj[i].nama.trim() == "") {
-						html +=
-							'<tr>' +
-							'<td>' + no++ + '</td>' +
-							'<td>' + obj[i].nama + '</td>' +
-							'<td>' + obj[i].kode + '</td>' +
-							'</tr>';
-					}
+                    var nama = String(obj[i].nama || '').trim();
+                    var kode = String(obj[i].kode || '').trim();
+                    if (nama !== '' && kode !== '') {
+                        html +=
+                            '<tr>' +
+                            '<td>' + no++ + '</td>' +
+                            '<td>' + escapeHtml(nama) + '</td>' +
+                            '<td>' + escapeHtml(kode) + '</td>' +
+                            '</tr>';
+                    }
                 }
                 html +=  '</tbody></table>';
+                if (no === 1) {
+                    showImportError('Tidak ada baris valid. Nama dan kode mata pelajaran wajib diisi.');
+                    return;
+                }
             }
 
             $('#file-preview').html(html);
+            $('#btn-upload-mapel').prop('disabled', false);
         },
-        error: function (e) {
-            console.log("error", e.responseText);
-            $.toast({
-                heading: "ERROR!!",
-                text: "file tidak terbaca",
-                icon: 'error',
-                showHideTransition: 'fade',
-                allowToastClose: true,
-                hideAfter: 5000,
-                position: 'top-right'
-            });
+        error: function (xhr) {
+            var message = xhr.responseText ? $('<div>').html(xhr.responseText).text().trim() : '';
+            showImportError(message || 'File tidak terbaca. Gunakan template dan format yang didukung.');
         }
     });
 }
 
+function escapeHtml(value) {
+    return $('<div>').text(value).html();
+}
+
+function showImportError(message) {
+    $('#file-preview').html('<div class="alert alert-danger mb-0" role="alert"></div>');
+    $('#file-preview .alert').text(message);
+    $('#btn-upload-mapel').prop('disabled', true);
+    $.toast({
+        heading: 'Import gagal',
+        text: message,
+        icon: 'error',
+        showHideTransition: 'fade',
+        allowToastClose: true,
+        hideAfter: 5000,
+        position: 'top-right'
+    });
+}
+
+function clearPreview() {
+    $('#file-preview').html('<span class="text-center">Pastikan anda telah mengisi format yang telah disediakan.</span>');
+    $('#btn-upload-mapel').prop('disabled', true);
+}
+
 function onRemoved() {
     $(".dropify-filename-inner").text("");
+    clearPreview();
 }

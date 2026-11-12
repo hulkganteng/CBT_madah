@@ -38,7 +38,8 @@
                         <div class="card-body excel">
                             <div class="form-group pb-2">
                                 <label for="upload_file">Pilih file excel</label>
-                                <input type="file" id="input-file-events-excel" name="upload_file" class="dropify"/>
+                                <input type="file" id="input-file-events-excel" name="upload_file" class="dropify"
+                                       accept=".xlsx,.xls,.csv"/>
                             </div>
                         </div>
                         <?= form_close(); ?>
@@ -56,7 +57,8 @@
                         <div class="card-body word">
                             <div class="form-group pb-2">
                                 <label for="upload_file">Pilih file word</label>
-                                <input type="file" id="input-file-events-word" name="upload_file" class="dropify"/>
+                                <input type="file" id="input-file-events-word" name="upload_file" class="dropify"
+                                       accept=".docx"/>
                             </div>
                         </div>
                         <?= form_close(); ?>
@@ -67,12 +69,13 @@
                         <?= form_open('', array('id' => 'formUpload')); ?>
                         <div class="card-header">
                             <h6 class="card-title">Preview</h6>
-                            <button name="preview" type="submit" class="card-tools btn btn-sm btn-primary">
+                            <button name="preview" type="submit" id="btn-upload-mapel"
+                                    class="card-tools btn btn-sm btn-primary" disabled>
                                 <i class="fas fa-cloud-upload-alt mr-2"></i>Upload
                             </button>
                         </div>
                         <?= form_close(); ?>
-                        <div class="card-body" id="file-preview">
+                        <div class="card-body" id="file-preview" aria-live="polite">
                             <span class="text-center">Pastikan anda telah mengisi format yang telah disediakan.</span>
                         </div>
                     </div>
