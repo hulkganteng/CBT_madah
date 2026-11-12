@@ -90,4 +90,4 @@
 <script type="text/javascript" src="<?= base_url() ?>/assets/plugins/jquery-table2json/src/tabletojson-row.js"></script>
 <script type="text/javascript" src="<?= base_url() ?>/assets/plugins/jquery-table2json/src/tabletojson.js"></script>
 <script src="<?= base_url() ?>/assets/app/js/jquery.htmlparser.min.js"></script>
-<script src="<?= base_url() ?>/assets/app/js/master/mapel/import.js"></script>
+<script src="<?= base_url() ?>/assets/app/js/master/mapel/import.js?v=<?= filemtime(FCPATH . 'assets/app/js/master/mapel/import.js') ?>"></script>

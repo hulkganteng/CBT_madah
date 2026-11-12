@@ -83,4 +83,202 @@
         'skipped' => $skipped
     ));
 }
+
+public function previewExcelSafe()
+{
+    $file = $this->uploadMapelPreview('xls|xlsx|csv');
+    if ($file === null) {
+        return;
+    }
+
+    try {
+        $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        if ($extension === 'xlsx') {
+            $data = $this->readXlsxMapelPreview($file);
+        } elseif ($extension === 'csv') {
+            $data = $this->readCsvMapelPreview($file);
+        } else {
+            $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xls();
+            $rows = $reader->load($file)->getActiveSheet()->toArray();
+            $data = $this->mapMapelPreviewRows($rows);
+        }
+        $this->output_json($data);
+    } catch (\Throwable $exception) {
+        $this->output_json(array(
+            'status' => false,
+            'message' => 'File Excel tidak dapat dibaca. Gunakan template mapel yang tersedia.'
+        ));
+    } finally {
+        @unlink($file);
+    }
+}
+
+public function previewWordSafe()
+{
+    $file = $this->uploadMapelPreview('docx');
+    if ($file === null) {
+        return;
+    }
+
+    try {
+        $archive = new \PharData($file);
+        $xml = $archive['word/document.xml']->getContent();
+        preg_match_all('/<w:tr\b[^>]*>(.*?)<\/w:tr>/s', $xml, $rowMatches);
+        $rows = array();
+        foreach (array_slice($rowMatches[1], 1) as $rowXml) {
+            preg_match_all('/<w:tc\b[^>]*>(.*?)<\/w:tc>/s', $rowXml, $cellMatches);
+            $row = array();
+            foreach ($cellMatches[1] as $cellXml) {
+                $row[] = $this->mapelXmlText($cellXml);
+            }
+            $rows[] = $row;
+        }
+        $this->output_json($this->mapMapelPreviewRows($rows, false));
+    } catch (\Throwable $exception) {
+        $this->output_json(array(
+            'status' => false,
+            'message' => 'File Word tidak dapat dibaca. Gunakan template mapel yang tersedia.'
+        ));
+    } finally {
+        @unlink($file);
+    }
+}
+
+private function uploadMapelPreview($allowedTypes)
+{
+    $config = array(
+        'upload_path' => './uploads/import/',
+        'allowed_types' => $allowedTypes,
+        'max_size' => 2048,
+        'encrypt_name' => true
+    );
+    $this->load->library('upload');
+    $this->upload->initialize($config);
+    if (!$this->upload->do_upload('upload_file')) {
+        $message = trim(strip_tags($this->upload->display_errors('', '')));
+        $this->output_json(array(
+            'status' => false,
+            'message' => $message !== '' ? $message : 'File gagal diunggah.'
+        ));
+        return null;
+    }
+    return $this->upload->data('full_path');
+}
+
+private function readXlsxMapelPreview($file)
+{
+    $archive = new \PharData($file);
+    $sharedStrings = array();
+    if (isset($archive['xl/sharedStrings.xml'])) {
+        $sharedXml = $archive['xl/sharedStrings.xml']->getContent();
+        preg_match_all('/<si\b[^>]*>(.*?)<\/si>/s', $sharedXml, $stringMatches);
+        foreach ($stringMatches[1] as $stringXml) {
+            $sharedStrings[] = $this->mapelXmlText($stringXml);
+        }
+    }
+
+    for ($sheetNumber = 1; $sheetNumber <= 50; $sheetNumber++) {
+        $sheetPath = 'xl/worksheets/sheet' . $sheetNumber . '.xml';
+        if (!isset($archive[$sheetPath])) {
+            continue;
+        }
+        $sheetXml = $archive[$sheetPath]->getContent();
+        preg_match_all('/<(?:[a-z]+:)?row\b[^>]*>(.*?)<\/(?:[a-z]+:)?row>/s', $sheetXml, $rowMatches);
+        $rows = array();
+        foreach ($rowMatches[1] as $rowXml) {
+            $row = array();
+            preg_match_all('/<(?:[a-z]+:)?c\b([^>]*?)(?:\/\s*>|>(.*?)<\/(?:[a-z]+:)?c>)/s', $rowXml, $cellMatches, PREG_SET_ORDER);
+            foreach ($cellMatches as $cellMatch) {
+                if (!preg_match('/\br="([A-Z]+)[0-9]+"/i', $cellMatch[1], $referenceMatch)) {
+                    continue;
+                }
+                $type = preg_match('/\bt="([^"]+)"/', $cellMatch[1], $typeMatch) ? $typeMatch[1] : '';
+                $cellXml = isset($cellMatch[2]) ? $cellMatch[2] : '';
+                $value = preg_match('/<(?:[a-z]+:)?v>(.*?)<\/(?:[a-z]+:)?v>/s', $cellXml, $valueMatch)
+                    ? html_entity_decode($valueMatch[1], ENT_QUOTES | ENT_XML1, 'UTF-8')
+                    : $this->mapelXmlText($cellXml);
+                if ($type === 's') {
+                    $value = isset($sharedStrings[(int) $value]) ? $sharedStrings[(int) $value] : '';
+                }
+                $row[$this->mapelColumnIndex($referenceMatch[1])] = $value;
+            }
+            if ($row) {
+                $maxColumn = max(array_keys($row));
+                $rows[] = array_replace(array_fill(0, $maxColumn + 1, ''), $row);
+            }
+        }
+        $data = $this->mapMapelPreviewRows($rows);
+        if ($data) {
+            return $data;
+        }
+    }
+    return array();
+}
+
+private function readCsvMapelPreview($file)
+{
+    $rows = array();
+    $handle = fopen($file, 'rb');
+    if ($handle === false) {
+        throw new \RuntimeException('CSV tidak dapat dibuka.');
+    }
+    $sample = (string) fgets($handle);
+    rewind($handle);
+    $delimiterCounts = array(',' => substr_count($sample, ','), ';' => substr_count($sample, ';'), "\t" => substr_count($sample, "\t"));
+    arsort($delimiterCounts);
+    $delimiter = (string) key($delimiterCounts);
+    while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+        $rows[] = $row;
+    }
+    fclose($handle);
+    return $this->mapMapelPreviewRows($rows);
+}
+
+private function mapMapelPreviewRows(array $rows, $hasHeader = true)
+{
+    if (!$rows) {
+        return array();
+    }
+    $headerRow = $hasHeader ? $rows[0] : array('No', 'Mata Pelajaran', 'Kode');
+    $namaIndex = null;
+    $kodeIndex = null;
+    foreach ($headerRow as $index => $heading) {
+        $normalized = strtolower(trim(preg_replace('/\s+/', ' ', (string) $heading)));
+        if (in_array($normalized, array('nama', 'nama mapel', 'mata pelajaran', 'mapel'), true)) {
+            $namaIndex = $index;
+        }
+        if (in_array($normalized, array('kode', 'kode mapel', 'kode mata pelajaran'), true)) {
+            $kodeIndex = $index;
+        }
+    }
+    if ($namaIndex === null || $kodeIndex === null) {
+        $columnCount = count($headerRow);
+        $namaIndex = $columnCount >= 3 ? 1 : 0;
+        $kodeIndex = $columnCount >= 3 ? 2 : 1;
+    }
+    $data = array();
+    foreach (array_slice($rows, $hasHeader ? 1 : 0) as $row) {
+        $nama = trim(isset($row[$namaIndex]) ? (string) $row[$namaIndex] : '');
+        $kode = trim(isset($row[$kodeIndex]) ? (string) $row[$kodeIndex] : '');
+        if ($nama !== '' || $kode !== '') {
+            $data[] = array('nama' => $nama, 'kode' => $kode);
+        }
+    }
+    return $data;
+}
+
+private function mapelColumnIndex($letters)
+{
+    $index = 0;
+    foreach (str_split(strtoupper($letters)) as $letter) {
+        $index = ($index * 26) + (ord($letter) - 64);
+    }
+    return $index - 1;
+}
+
+private function mapelXmlText($xml)
+{
+    preg_match_all('/<(?:[a-z]+:)?t\b[^>]*>(.*?)<\/(?:[a-z]+:)?t>/s', $xml, $matches);
+    return trim(html_entity_decode(implode('', $matches[1]), ENT_QUOTES | ENT_XML1, 'UTF-8'));
+}
 }

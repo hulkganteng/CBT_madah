@@ -62,11 +62,11 @@ $(document).ready(function () {
     });
 
     $('#input-file-events-excel').on('change', function () {
-        previewSelectedFile(this, '#formPreviewExcel', base_url + 'datamapel/previewExcel');
+        previewSelectedFile(this, '#formPreviewExcel', base_url + 'datamapel/previewExcelSafe');
     });
 
     $('#input-file-events-word').on('change', function () {
-        previewSelectedFile(this, '#formPreviewWord', base_url + 'datamapel/previewWord');
+        previewSelectedFile(this, '#formPreviewWord', base_url + 'datamapel/previewWordSafe');
     });
 
     $('#formUpload').submit('click', function (e) {

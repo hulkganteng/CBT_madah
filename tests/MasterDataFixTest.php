@@ -45,6 +45,9 @@ final class MasterDataFixTest extends TestCase
         self::assertStringContainsString("'jenjang' => \$jenjang", $controller);
         self::assertStringContainsString("insert_batch('master_mapel', \$mapel)", $controller);
         self::assertStringContainsString('$ext = strtolower($this->upload->data(', $controller);
+        self::assertStringContainsString('previewExcelSafe', $controller);
+        self::assertStringContainsString('new \\PharData($file)', $controller);
+        self::assertStringContainsString('previewExcelSafe', $javascript);
         self::assertStringContainsString(".on('change'", $javascript);
         self::assertStringNotContainsString('DOMSubtreeModified', $javascript);
     }
