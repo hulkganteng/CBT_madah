@@ -18,12 +18,15 @@ mysqli_report(MYSQLI_REPORT_OFF);
 
 $base = 'http://localhost/garudacbt/';
 $jumlah = 50;
+$jumlahSoal = 30;
 $keep = false;
 foreach (array_slice($argv, 1) as $arg) {
     if (strpos($arg, '--base=') === 0) {
         $base = rtrim(substr($arg, 7), '/') . '/';
     } elseif (strpos($arg, '--peserta=') === 0) {
-        $jumlah = max(2, min(200, (int) substr($arg, 10)));
+        $jumlah = max(1, min(200, (int) substr($arg, 10)));
+    } elseif (strpos($arg, '--soal=') === 0) {
+        $jumlahSoal = max(1, min(200, (int) substr($arg, 7)));
     } elseif ($arg === '--keep') {
         $keep = true;
     }
@@ -192,11 +195,11 @@ q($dbh, "INSERT INTO master_kelas (id_tp, id_smt, nama_kelas, kode_kelas, jurusa
 $kelasId = (int) $dbh->insert_id;
 
 $bankKelas = serialize(array(array('kelas_id' => $kelasId)));
-q($dbh, "INSERT INTO cbt_bank_soal (bank_jenis_id, bank_kode, bank_level, bank_kelas, bank_mapel_id, bank_jurusan_id, bank_guru_id, bank_nama, jml_soal, jml_kompleks, jml_esai, tampil_pg, tampil_kompleks, tampil_bs, tampil_esai, tampil_jodohkan, tampil_isian, bobot_pg, bobot_kompleks, bobot_bs, opsi, status, status_soal, id_tp, id_smt) VALUES (1, ?, 'SMK', ?, ?, 0, ?, ?, 3, 0, 0, 3, 0, 0, 0, 0, 0, 100, 0, 0, 4, 1, 1, ?, ?)",
-    array('Q' . $tag, $bankKelas, $mapelId, (int) $guru['id_guru'], 'SMOKE Q BANK ' . $tag, (int) $tp['id_tp'], (int) $smt['id_smt']));
+q($dbh, "INSERT INTO cbt_bank_soal (bank_jenis_id, bank_kode, bank_level, bank_kelas, bank_mapel_id, bank_jurusan_id, bank_guru_id, bank_nama, jml_soal, jml_kompleks, jml_esai, tampil_pg, tampil_kompleks, tampil_bs, tampil_esai, tampil_jodohkan, tampil_isian, bobot_pg, bobot_kompleks, bobot_bs, opsi, status, status_soal, id_tp, id_smt) VALUES (1, ?, 'SMK', ?, ?, 0, ?, ?, ?, 0, 0, ?, 0, 0, 0, 0, 0, 100, 0, 0, 4, 1, 1, ?, ?)",
+    array('Q' . $tag, $bankKelas, $mapelId, (int) $guru['id_guru'], 'SMOKE Q BANK ' . $tag, $jumlahSoal, $jumlahSoal, (int) $tp['id_tp'], (int) $smt['id_smt']));
 $bankId = (int) $dbh->insert_id;
 
-for ($nomor = 1; $nomor <= 3; $nomor++) {
+for ($nomor = 1; $nomor <= $jumlahSoal; $nomor++) {
     q($dbh, "INSERT INTO cbt_soal (bank_id, jenis, nomor_soal, soal, deskripsi, opsi_a, opsi_b, opsi_c, opsi_d, opsi_e, jawaban, tampilkan, kesulitan) VALUES (?, 1, ?, ?, '', 'Opsi A', 'Opsi B', 'Opsi C', 'Opsi D', 'Opsi E', 'A', '1', '8')",
         array($bankId, $nomor, 'SMOKE Q SOAL ' . $nomor));
 }
@@ -205,11 +208,15 @@ q($dbh, "INSERT INTO cbt_jadwal (id_tp, id_smt, id_bank, id_jenis, tgl_mulai, tg
     array((int) $tp['id_tp'], (int) $smt['id_smt'], $bankId, $today, $today, $sebKey, date('Y-m-d H:i:s')));
 $jadwalId = (int) $dbh->insert_id;
 
+q($dbh, "INSERT INTO cbt_sesi (nama_sesi, kode_sesi, waktu_mulai, waktu_akhir, aktif) VALUES (?, ?, '00:00:00', '23:59:59', 1)",
+    array('SMOKE Q SESSION ' . $tag, substr($tag, -10)));
+$sesiId = (int) $dbh->insert_id;
+
 $kelasSiswaBase = (int) scalar($dbh, "SELECT COALESCE(MAX(id_kelas_siswa),0) FROM kelas_siswa");
 $hash = password_hash($password, PASSWORD_BCRYPT);
 $peserta = array();
 for ($i = 1; $i <= $jumlah; $i++) {
-    $username = 'q' . $i . '_' . strtolower($tag);
+    $username = 'TEST_STUDENT_' . str_pad((string) $i, 3, '0', STR_PAD_LEFT);
     $nisn = $tag . str_pad((string) $i, 3, '0', STR_PAD_LEFT);
     q($dbh, "INSERT INTO master_siswa (nisn, nis, nama, jenis_kelamin, username, password, kelas_awal, nik, warga_negara, uid) VALUES (?, ?, ?, 'L', ?, ?, ?, ?, 'WNI', ?)",
         array($nisn, 'N' . $nisn, 'SMOKE Q ' . $i, $username, $password, $kelasId, 'NIK' . $nisn, 'UID' . $nisn));
@@ -218,6 +225,8 @@ for ($i = 1; $i <= $jumlah; $i++) {
 
     q($dbh, "INSERT INTO kelas_siswa (id_kelas_siswa, id_tp, id_smt, id_siswa, id_kelas) VALUES (?, ?, ?, ?, ?)",
         array($kelasSiswaBase + $i, (int) $tp['id_tp'], (int) $smt['id_smt'], $siswaId, $kelasId));
+    q($dbh, "INSERT INTO cbt_sesi_siswa (siswa_id, kelas_id, ruang_id, sesi_id, tp_id, smt_id) VALUES (?, ?, 0, ?, ?, ?)",
+        array($siswaId, $kelasId, $sesiId, (int) $tp['id_tp'], (int) $smt['id_smt']));
 
     q($dbh, "INSERT INTO users (ip_address, username, password, email, created_on, active) VALUES ('127.0.0.1', ?, ?, ?, ?, 1)",
         array($username, $hash, $username . '@smoke.test', time()));
@@ -236,7 +245,7 @@ for ($i = 1; $i <= $jumlah; $i++) {
     );
 }
 
-function wipe(array $ids, int $jadwalId, int $bankId, int $kelasId, int $mapelId, array $peserta): void
+function wipe(array $ids, int $jadwalId, int $bankId, int $kelasId, int $mapelId, int $sesiId, array $peserta): void
 {
     global $dbh;
     $dbh->query("DELETE FROM cbt_exam_event WHERE attempt_id IN (SELECT attempt_id FROM cbt_exam_attempt WHERE id_jadwal=$jadwalId)");
@@ -248,6 +257,7 @@ function wipe(array $ids, int $jadwalId, int $bankId, int $kelasId, int $mapelId
     $dbh->query("DELETE FROM cbt_bank_soal WHERE id_bank=$bankId");
     if ($ids['siswa']) {
         $in = implode(',', array_map('intval', $ids['siswa']));
+        $dbh->query("DELETE FROM cbt_sesi_siswa WHERE siswa_id IN ($in)");
         foreach (array('cbt_nilai', 'cbt_soal_siswa', 'cbt_durasi_siswa', 'log_ujian', 'kelas_siswa') as $table) {
             $dbh->query("DELETE FROM `$table` WHERE id_siswa IN ($in)");
         }
@@ -262,6 +272,7 @@ function wipe(array $ids, int $jadwalId, int $bankId, int $kelasId, int $mapelId
     $dbh->query("DELETE FROM kelas_siswa WHERE id_kelas=$kelasId");
     $dbh->query("DELETE FROM master_kelas WHERE id_kelas=$kelasId");
     $dbh->query("DELETE FROM master_mapel WHERE id_mapel=$mapelId");
+    $dbh->query("DELETE FROM cbt_sesi WHERE id_sesi=$sesiId");
     foreach ($peserta as $row) {
         @unlink($row['jar']);
     }
@@ -275,7 +286,7 @@ try {
     /* 1. Ambil halaman login serentak untuk mendapat cookie CSRF per peserta. */
     $jobs = array();
     foreach ($peserta as $i => $row) {
-        $jobs[] = array('key' => (string) $i, 'jar' => $row['jar'], 'url' => $base . 'auth');
+        $jobs[] = array('key' => (string) $i, 'jar' => $row['jar'], 'url' => $base . 'login-siswa');
     }
     $res = multi($jobs);
     $loginPageOk = 0;
@@ -296,15 +307,21 @@ try {
             'url' => $base . 'auth/cek_login',
             'csrf' => $row['csrf'],
             'follow' => false,
-            'post' => array('identity' => $row['username'], 'password' => $password, 'remember' => '0'),
+            'post' => array('identity' => $row['username'], 'password' => $password, 'remember' => '0', 'portal' => 'siswa'),
         );
     }
     $res = multi($jobs);
     $loginOk = 0;
+    $loginFailure = null;
     foreach ($res as $info) {
         if ($info['code'] === 200 && $info['json'] && !empty($info['json']['status'])) {
             $loginOk++;
+        } elseif ($loginFailure === null) {
+            $loginFailure = 'HTTP ' . $info['code'] . ' ' . substr($info['body'], 0, 300) . ' ' . $info['error'];
         }
+    }
+    if ($loginFailure !== null) {
+        echo '   contoh gagal login: ', preg_replace('/\s+/', ' ', $loginFailure), PHP_EOL;
     }
     step('login serentak ' . $jumlah . ' peserta', $loginOk === $jumlah, "berhasil=$loginOk/$jumlah");
 
@@ -364,8 +381,8 @@ try {
     }
     step('buka halaman ujian serentak', $bukaOk === $jumlah, "berhasil=$bukaOk/$jumlah");
 
-    /* 5. Muat + simpan jawaban serentak, tiga gelombang (satu soal per gelombang). */
-    for ($nomor = 1; $nomor <= 3; $nomor++) {
+    /* 5. Muat + simpan jawaban serentak, satu soal per gelombang. */
+    for ($nomor = 1; $nomor <= $jumlahSoal; $nomor++) {
         $jobs = array();
         foreach ($peserta as $i => $row) {
             $jobs[] = array(
@@ -406,7 +423,7 @@ try {
                 'jawaban_siswa' => 'A',
                 'jenis' => 1,
                 'id_soal' => (int) $soal['soal_id'],
-                'id_soal_siswa' => (int) $soal['soal_siswa_id'],
+                'id_soal_siswa' => (string) $soal['soal_siswa_id'],
                 'id_jadwal' => $jadwalId,
                 'id_bank' => $bankId,
                 'id_siswa' => $row['id'],
@@ -430,13 +447,13 @@ try {
         step('simpan jawaban nomor ' . $nomor . ' serentak', $saveOk === count($jobs), "berhasil=$saveOk/" . count($jobs));
     }
 
-    /* 5c. Randomisasi: setiap peserta tetap menerima 3 soal dari bank yang
+    /* 5c. Randomisasi: setiap peserta tetap menerima seluruh soal dari bank yang
        sama, dan urutan soal berbeda antar peserta. */
     $urutan = array();
     $semuaSoal = array();
     foreach ($peserta as $row) {
         $soalIds = array();
-        for ($n = 1; $n <= 3; $n++) {
+        for ($n = 1; $n <= $jumlahSoal; $n++) {
             if (isset($row['soal'][$n]['soal_id'])) {
                 $soalIds[] = (int) $row['soal'][$n]['soal_id'];
             }
@@ -446,7 +463,7 @@ try {
             $semuaSoal[$id] = true;
         }
     }
-    $acakOk = count($urutan) > 1 && count($semuaSoal) === 3;
+    $acakOk = ($jumlah === 1 || count($urutan) > 1) && count($semuaSoal) === $jumlahSoal;
     step('randomisasi soal per peserta', $acakOk, 'urutan unik=' . count($urutan) . ' soal=' . count($semuaSoal));
 
     /* 5b. Resume: buka ulang halaman ujian dengan sesi yang sama. Attempt
@@ -505,7 +522,7 @@ try {
     $nilaiLengkap = count($nilaiRows) === $jumlah;
     $nilaiBenar = true;
     foreach ($harap as $idSiswa) {
-        if (!isset($nilaiRows[$idSiswa]) || (int) $nilaiRows[$idSiswa]['pg_benar'] !== 3) {
+        if (!isset($nilaiRows[$idSiswa]) || (int) $nilaiRows[$idSiswa]['pg_benar'] !== $jumlahSoal) {
             $nilaiBenar = false;
             break;
         }
@@ -522,7 +539,7 @@ try {
     step('durasi semua ditutup', $durasiOk === $jumlah, "ditutup=$durasiOk/$jumlah");
 
     $jawabOk = (int) scalar($dbh, "SELECT COUNT(*) FROM cbt_soal_siswa WHERE id_jadwal=? AND jawaban_siswa IS NOT NULL AND jawaban_siswa<>''", array($jadwalId));
-    step('jawaban tersimpan lengkap', $jawabOk === $jumlah * 3, "jawaban=$jawabOk/" . ($jumlah * 3));
+    step('jawaban tersimpan lengkap', $jawabOk === $jumlah * $jumlahSoal, "jawaban=$jawabOk/" . ($jumlah * $jumlahSoal));
 
     $soalSiswaOk = (int) scalar($dbh, "SELECT COUNT(DISTINCT id_siswa) FROM cbt_soal_siswa WHERE id_jadwal=?", array($jadwalId));
     step('kuota soal per peserta', $soalSiswaOk === $jumlah, "peserta=$soalSiswaOk/$jumlah");
@@ -536,7 +553,7 @@ try {
         $contoh = $peserta[1];
         echo "Data uji dipertahankan: username={$contoh['username']} password=$password jadwal=$jadwalId\n";
     } else {
-        wipe($ids, $jadwalId, $bankId, $kelasId, $mapelId, $peserta);
+        wipe($ids, $jadwalId, $bankId, $kelasId, $mapelId, $sesiId, $peserta);
         echo "Data uji dibersihkan.\n";
     }
 }

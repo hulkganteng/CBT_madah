@@ -83,12 +83,11 @@
                         <div class='col-6 col-md-3 mb-3'>
                             <div class='form-group'>
                                 <label>Durasi (menit)</label>
-                                <?php $this->config->load('exam_baku'); ?>
                                 <input type='number' id="durasi-ujian" name='durasi_ujian'
                                        class='form-control form-control-sm'
-                                       value="<?= $this->config->item('exam_baku_durasi') ?>"
-                                       readonly required='true'/>
-                                <small class="text-muted">Baku PRD Bab 4, tidak dapat diubah</small>
+                                       value="<?= (int) ($jadwal->durasi_ujian ?: 30) ?>"
+                                       min="1" required='true'/>
+                                <small class="text-muted">Atur sesuai kebutuhan ujian.</small>
                             </div>
                         </div>
                         <div class='col-6 col-md-3 mb-3'>

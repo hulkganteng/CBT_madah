@@ -325,7 +325,7 @@ try {
             'jawaban_siswa' => 'A',
             'jenis' => 1,
             'id_soal' => (int) $soal['soal_id'],
-            'id_soal_siswa' => (int) $soal['soal_siswa_id'],
+            'id_soal_siswa' => (string) $soal['soal_siswa_id'],
             'id_jadwal' => $jadwalId,
             'id_bank' => $bankId,
             'id_siswa' => $siswaId,

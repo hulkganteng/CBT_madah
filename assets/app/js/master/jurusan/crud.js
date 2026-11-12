@@ -232,6 +232,10 @@ $(document).ready(function () {
             data: $(this).serialize(),
             success: function (data) {
                 console.log("result", data);
+                if (!data.status) {
+                    showDangerToast(data.message || 'Data tidak tersimpan.');
+                    return;
+                }
                 $('#createJurusanModal').modal('hide').data('bs.modal', null);
                 $('#createJurusanModal').on('hidden', function () {
                     $(this).data('modal', null);  // destroys modal

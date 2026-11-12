@@ -142,7 +142,7 @@ DROP TABLE IF EXISTS `cbt_durasi_siswa`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cbt_durasi_siswa` (
-  `id_durasi` int(7) NOT NULL,
+  `id_durasi` bigint(20) NOT NULL,
   `id_siswa` int(7) DEFAULT NULL,
   `id_jadwal` int(7) DEFAULT NULL,
   `status` int(11) NOT NULL DEFAULT 0 COMMENT '0=belum ujian, 1=sedang ujian, 2=sudah ujian',
@@ -153,7 +153,8 @@ CREATE TABLE `cbt_durasi_siswa` (
   `time_create` datetime DEFAULT NULL ON UPDATE current_timestamp(),
   PRIMARY KEY (`id_durasi`) USING BTREE,
   KEY `Cbt_index_id_durasi` (`id_durasi`) USING BTREE COMMENT 'id durasi',
-  KEY `id_siswa` (`id_siswa`) USING BTREE
+  KEY `id_siswa` (`id_siswa`) USING BTREE,
+  KEY `idx_durasi_jadwal_siswa` (`id_jadwal`,`id_siswa`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci ROW_FORMAT=DYNAMIC;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `cbt_exam_attempt`;
@@ -318,7 +319,9 @@ CREATE TABLE `cbt_nilai` (
   `dikoreksi` int(11) NOT NULL DEFAULT 0,
   `time_create` datetime DEFAULT NULL ON UPDATE current_timestamp(),
   PRIMARY KEY (`id_nilai`) USING BTREE,
-  UNIQUE KEY `id_nilai_idx` (`id_nilai`) USING BTREE
+  UNIQUE KEY `id_nilai_idx` (`id_nilai`) USING BTREE,
+  KEY `idx_cbt_nilai_jadwal_siswa` (`id_jadwal`,`id_siswa`) USING BTREE,
+  KEY `idx_cbt_nilai_siswa` (`id_siswa`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci ROW_FORMAT=DYNAMIC;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `cbt_nomor_peserta`;
@@ -842,7 +845,7 @@ DROP TABLE IF EXISTS `log_ujian`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `log_ujian` (
-  `id_log` int(11) NOT NULL AUTO_INCREMENT,
+  `id_log` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `log_time` datetime NOT NULL DEFAULT current_timestamp(),
   `id_siswa` int(11) DEFAULT NULL,
   `id_jadwal` int(11) DEFAULT NULL,
@@ -853,7 +856,9 @@ CREATE TABLE `log_ujian` (
   `device` text NOT NULL,
   `reset` int(11) NOT NULL COMMENT '0=tidak reset, 1=reset',
   `finish_time` varchar(20) DEFAULT NULL,
-  PRIMARY KEY (`id_log`) USING BTREE
+  PRIMARY KEY (`id_log`) USING BTREE,
+  KEY `idx_log_siswa_jadwal` (`id_siswa`,`id_jadwal`) USING BTREE,
+  KEY `idx_log_jadwal` (`id_jadwal`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=1190153 DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci ROW_FORMAT=DYNAMIC;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `login_attempts`;

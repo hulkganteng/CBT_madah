@@ -410,7 +410,7 @@ $allBanksIds = [];
                                                     <li class="list-group-item p-1"> Jumlah Soal
                                                         <span class="float-right">
 											<b><?= $bank->total_soal == 0 ? 'Belum dibuat' : ($bank->total_soal < ($bank->tampil_pg + $bank->tampil_kompleks + (isset($bank->tampil_bs) ? $bank->tampil_bs : 0)) ? 'Belum selesai' : $bank->tampil_pg + $bank->tampil_kompleks + (isset($bank->tampil_bs) ? $bank->tampil_bs : 0)) ?></b>
-											<small class="text-muted">/ <?= $bank->tampil_pg + $bank->tampil_kompleks + (isset($bank->tampil_bs) ? $bank->tampil_bs : 0) ?> soal baku</small>
+											<small class="text-muted">/ <?= $bank->tampil_pg + $bank->tampil_kompleks + (isset($bank->tampil_bs) ? $bank->tampil_bs : 0) ?> soal dipilih</small>
 										</span>
                                                     </li>
                                                     <li class="list-group-item p-1"> Dibuat
@@ -520,7 +520,7 @@ $allBanksIds = [];
                                                     <li class="list-group-item p-1"> Jumlah Soal
                                                         <span class="float-right">
 											<b><?= $bank->total_soal == 0 ? 'Belum dibuat' : ($bank->total_soal < ($bank->tampil_pg + $bank->tampil_kompleks + (isset($bank->tampil_bs) ? $bank->tampil_bs : 0)) ? 'Belum selesai' : $bank->tampil_pg + $bank->tampil_kompleks + (isset($bank->tampil_bs) ? $bank->tampil_bs : 0)) ?></b>
-											<small class="text-muted">/ <?= $bank->tampil_pg + $bank->tampil_kompleks + (isset($bank->tampil_bs) ? $bank->tampil_bs : 0) ?> soal baku</small>
+											<small class="text-muted">/ <?= $bank->tampil_pg + $bank->tampil_kompleks + (isset($bank->tampil_bs) ? $bank->tampil_bs : 0) ?> soal dipilih</small>
 										</span>
                                                     </li>
                                                     <li class="list-group-item p-1"> Dibuat

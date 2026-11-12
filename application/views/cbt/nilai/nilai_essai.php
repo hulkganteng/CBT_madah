@@ -270,7 +270,7 @@
             }
 
             var item = {};
-            item['id_nilai'] = $(this).data('idsiswa') + '<?= $jadwal->id_jadwal ?>';
+            item['id_nilai'] = $(this).data('idsiswa') + '0' + '<?= $jadwal->id_jadwal ?>';
             item['id_siswa'] = $(this).data('idsiswa');
             item['id_jadwal'] = '<?= $jadwal->id_jadwal ?>';
             item['kompleks_nilai'] = npg2;

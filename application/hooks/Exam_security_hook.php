@@ -28,16 +28,12 @@ class Exam_security_hook
         $this->guardFileDeletion($controller, $method);
 
         if ($controller === 'cbtjadwal' && $method === 'savejadwal') {
-            $this->applyBakuSchedule();
+            $this->validateScheduleInput();
             $this->validateSebSettings();
             return;
         }
-        if ($controller === 'cbtsesisiswa') {
-            $this->applyBakuCapacity($method);
-            return;
-        }
         if ($controller === 'cbtbanksoal' && $method === 'savebank') {
-            $this->applyBakuBank();
+            $this->validateBankInput();
             return;
         }
         if ($controller === 'siswa') {
@@ -741,8 +737,11 @@ class Exam_security_hook
             }
             return;
         }
-        if (!$this->ci->ion_auth->in_group('siswa')) {
-            $this->deny('Halaman ini hanya dapat diakses akun Siswa.', 403);
+        if ($controller === 'siswa') {
+            if (!$this->ci->ion_auth->in_group('siswa')) {
+                $this->deny('Halaman ini hanya dapat diakses akun Siswa.', 403);
+            }
+            return;
         }
     }
 
@@ -1097,147 +1096,27 @@ class Exam_security_hook
         }
     }
 
-    /**
-     * PRD Bab 4 + FR-12 + Bab 10.3: sekolah mengunci jumlah soal (25 / 30)
-     * dan durasi 60 menit. Angka tidak diambil dari form, tapi dari
-     * kelompok mapel, supaya tidak bisa diakali lewat POST.
-     */
-    private function applyBakuSchedule()
+    private function validateScheduleInput()
     {
-        $this->ci->config->load('exam_baku', TRUE);
-        $durasi = (int) $this->ci->config->item('exam_baku_durasi', 'exam_baku');
-
-        $_POST['durasi_ujian'] = $durasi;
-
-        $bankId = (int) $this->ci->input->post('bank_id');
-        if ($bankId <= 0) {
-            return;
-        }
-        $bank = $this->ci->db->select('bank_mapel_id, tampil_pg, tampil_kompleks, tampil_bs')
-            ->get_where('cbt_bank_soal', array('id_bank' => $bankId))->row();
-        if (!$bank) {
-            return;
-        }
-        $mapel = $this->ci->db->select('kelompok_ujian')
-            ->get_where('master_mapel', array('id_mapel' => (int) $bank->bank_mapel_id))->row();
-        $eksata = $mapel && strtoupper($mapel->kelompok_ujian) === 'EKSATA';
-        $target = (int) $this->ci->config->item($eksata ? 'exam_baku_eksata' : 'exam_baku_non_eksata', 'exam_baku');
-
-        $jumlah = (int) $bank->tampil_pg + (int) $bank->tampil_kompleks + (int) ($bank->tampil_bs ?? 0);
-        if ($jumlah !== $target) {
-            $this->deny(
-                'Bank soal ini berisi ' . $jumlah . ' soal (PG + PG Kompleks + Benar/Salah), sedangkan ketentuan mapel '
-                . ($eksata ? 'Eksata' : 'Non-eksata') . ' adalah ' . $target . ' soal.',
-                422
-            );
+        $duration = $this->ci->input->post('durasi_ujian', TRUE);
+        if (filter_var($duration, FILTER_VALIDATE_INT) === FALSE || (int) $duration < 1) {
+            $this->deny('Durasi ujian harus berupa bilangan menit yang lebih dari nol.', 422);
         }
     }
 
-    /**
-     * PRD Bab 4 + FR-11: hanya PG, PG Kompleks, Benar/Salah. Tipe lain
-     * dinolkan supaya tidak bisa dipakai walau dikirim lewat POST langsung,
-     * dan jumlah soal wajib sama dengan ketentuan kelompok mapel.
-     */
-    private function applyBakuBank()
+    private function validateBankInput()
     {
-        $this->ci->config->load('exam_baku', TRUE);
-        foreach (array('tampil_jodohkan', 'tampil_isian', 'tampil_esai') as $field) {
-            $_POST[$field] = 0;
-        }
-        foreach (array('bobot_jodohkan', 'bobot_isian', 'bobot_esai') as $field) {
-            $_POST[$field] = 0;
-        }
-
-        $mapelId = (int) $this->ci->input->post('mapel');
-        if ($mapelId <= 0) {
-            return;
-        }
-        $mapel = $this->ci->db->select('kelompok_ujian')
-            ->get_where('master_mapel', array('id_mapel' => $mapelId))->row();
-        $eksata = $mapel && strtoupper($mapel->kelompok_ujian) === 'EKSATA';
-        $target = (int) $this->ci->config->item($eksata ? 'exam_baku_eksata' : 'exam_baku_non_eksata', 'exam_baku');
-
-        $pg = (int) $this->ci->input->post('tampil_pg');
-        $pg2 = (int) $this->ci->input->post('tampil_kompleks');
-        $bs = (int) $this->ci->input->post('tampil_bs');
-        if ($pg + $pg2 + $bs !== $target) {
-            $this->deny(
-                'Jumlah soal PG + PG Kompleks + Benar/Salah harus ' . $target . ' untuk mapel '
-                . ($eksata ? 'Eksata' : 'Non-eksata') . '.',
-                422
-            );
-        }
-    }
-
-    /**
-     * PRD FR-13: satu sesi menampung maksimal 25 peserta (kapasitas lab).
-     * Ditegakkan saat alokasi peserta ke sesi, bukan hanya di tampilan.
-     */
-    private function applyBakuCapacity($method)
-    {
-        if (!in_array($method, array('editsesisiswa', 'editsesikelas'), TRUE)) {
-            return;
-        }
-        if (!$this->ci->db->table_exists('cbt_sesi_siswa')) {
-            return;
-        }
-        $this->ci->config->load('exam_baku', TRUE);
-        $max = (int) $this->ci->config->item('exam_baku_kapasitas', 'exam_baku');
-        if ($max < 1) {
-            return;
-        }
-
-        /* Hitung hasil akhir per sesi. Baris yang dikirim menggantikan baris
-           lama (db->replace), jadi pakai set unik per (sesi, siswa) supaya
-           peserta yang hanya dipindah kelas tidak dihitung dobel. */
-        $baru = array();
-        if ($method === 'editsesisiswa') {
-            $rs = $this->ci->input->post('ruang-sesi', TRUE);
-            if (!is_array($rs)) {
-                return;
+        $fields = array('tampil_pg', 'tampil_kompleks', 'tampil_bs', 'tampil_jodohkan', 'tampil_isian', 'tampil_esai');
+        $total = 0;
+        foreach ($fields as $field) {
+            $count = $this->ci->input->post($field, TRUE);
+            if (filter_var($count, FILTER_VALIDATE_INT) === FALSE || (int) $count < 0) {
+                $this->deny('Jumlah setiap tipe soal harus berupa bilangan nol atau lebih.', 422);
             }
-            foreach ($rs as $idSiswa => $kelas) {
-                if (!is_array($kelas)) {
-                    continue;
-                }
-                foreach ($kelas as $isi) {
-                    if (is_array($isi) && isset($isi['sesi'])) {
-                        $baru[(int) $isi['sesi']][(int) $idSiswa] = TRUE;
-                    }
-                }
-            }
-        } else {
-            $input = $this->ci->input->post('data');
-            $input = is_string($input) ? json_decode($input) : $input;
-            if (!is_array($input) && !is_object($input)) {
-                return;
-            }
-            foreach ((array) $input as $d) {
-                if (!isset($d->kelas_id) || !isset($d->sesi_id)) {
-                    continue;
-                }
-                $siswa = $this->ci->db->select('id_siswa')
-                    ->get_where('kelas_siswa', array('id_kelas' => (int) $d->kelas_id))->result();
-                foreach ($siswa as $s) {
-                    $baru[(int) $d->sesi_id][(int) $s->id_siswa] = TRUE;
-                }
-            }
+            $total += (int) $count;
         }
-
-        foreach ($baru as $idSesi => $siswaBaru) {
-            $gabung = $siswaBaru;
-            $lain = $this->ci->db->select('siswa_id')
-                ->get_where('cbt_sesi_siswa', array('sesi_id' => $idSesi))->result();
-            foreach ($lain as $row) {
-                $gabung[(int) $row->siswa_id] = TRUE;
-            }
-            if (count($gabung) > $max) {
-                $this->deny(
-                    'Sesi ' . $idSesi . ' akan berisi ' . count($gabung)
-                    . ' peserta, melebihi kapasitas lab ' . $max . ' PC. Kurangi peserta atau pecah ke sesi lain.',
-                    422
-                );
-            }
+        if ($total < 1) {
+            $this->deny('Bank soal harus menampilkan minimal satu soal.', 422);
         }
     }
 

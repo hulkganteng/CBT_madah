@@ -42,9 +42,9 @@ $dbCommon = array(
     'swap_pre' => '',
     'encrypt' => FALSE,
     'compress' => FALSE,
-    'stricton' => FALSE,
+    'stricton' => (bool) $dbValue('DB_STRICT_ON', FALSE),
     'failover' => array(),
-    'save_queries' => TRUE
+    'save_queries' => in_array(ENVIRONMENT, array('development', 'testing'), TRUE)
 );
 
 $db['development'] = array_merge($dbCommon, array(

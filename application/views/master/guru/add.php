@@ -81,7 +81,7 @@
                                         <div class="input-group-prepend">
                                             <span class="input-group-text"><i class="fas fa-id-card"></i></span>
                                         </div>
-                                        <input id="password" class="form-control" name="password" placeholder="Password"
+                                        <input id="password" type="password" class="form-control" name="password" placeholder="Password"
                                                required>
                                     </div>
                                 </div>

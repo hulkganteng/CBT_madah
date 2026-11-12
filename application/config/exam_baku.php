@@ -1,19 +1,6 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-/*
-| -------------------------------------------------------------------
-| Konfigurasi baku ujian (PRD Bab 4)
-| -------------------------------------------------------------------
-| Nilai hasil rapat sekolah 28 Oktober 2026. Ubah di sini bila sekolah
-| menetapkan angka baru lewat rapat; perubahan wajib dicatat di berita
-| acara. Jangan menyebar angka ini ke controller / view.
-*/
-$config['exam_baku_eksata']     = 25; // jumlah soal mapel Eksata
-$config['exam_baku_non_eksata'] = 30; // jumlah soal mapel Non-eksata
-$config['exam_baku_durasi']     = 60; // menit per mata pelajaran
-$config['exam_baku_kapasitas']  = 25; // maksimal peserta per sesi (lab)
-
 /* Kebijakan SEB global. Rahasia wajib diprovisikan di environment server;
  * jangan menaruh key di repository atau input per jadwal. */
 $sebGlobal = array();

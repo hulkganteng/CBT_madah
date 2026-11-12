@@ -438,6 +438,10 @@ $(document).ready(function () {
 			data: $(this).serialize(),
 			success: function (data) {
 				console.log("result", data);
+				if (data && data.status === false) {
+					showDangerToast(data.message || 'Data tidak tersimpan.');
+					return;
+				}
 				$('#createMapelModal').modal('hide').data('bs.modal', null);
 				$('#createMapelModal').on('hidden', function () {
 					$(this).data('modal', null);  // destroys modal

@@ -100,6 +100,10 @@ $(document).ready(function () {
 			dataType: "JSON",
 			data: $(this).serialize(),
 			success: function (data) {
+				if (data && data.status === false) {
+					showDangerToast(data.message || 'Data tidak tersimpan.');
+					return;
+				}
 				location.href = base_url + 'datatahun';
 			}, error: function (xhr, status, error) {
 				$('#createTahunModal').modal('hide').data('bs.modal', null);

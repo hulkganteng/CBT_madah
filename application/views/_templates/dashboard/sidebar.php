@@ -128,10 +128,12 @@ $namaAplikasi = $settingSidebar == null || $settingSidebar->nama_aplikasi == nul
             'header': 'PENGATURAN',  'cbt': '1',
             'menu': [
                 {'name': 'Profile Sekolah', 'link': 'settings', 'icon': 'fas fa-university', 'cbt': '1',},
+                {'name': 'Generator SEB', 'link': 'sebconfig', 'icon': 'fas fa-shield-alt', 'cbt': '1'},
                 {
                     'name': 'User Management', 'icon': 'fa fa-users-cog', 'cbt': '1',
                     'submenu': [
                         {'name': 'Administrator', 'link':"useradmin", 'icon': 'fas fa-cog'},
+                        {'name': 'Tata Usaha', 'link':"usertu", 'icon': 'fas fa-user-shield'},
                         {'name': 'Guru', 'link':"userguru", 'icon': 'fas fa-user-tie'},
                         {'name': 'Siswa', 'link':"usersiswa", 'icon': 'fas fa-users'}
                     ]

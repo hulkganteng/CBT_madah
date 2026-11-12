@@ -208,9 +208,10 @@ class Exam_attempt_service
     public function validateAnswer($data, $idSiswa, $idJadwal, $idBank)
     {
         foreach (array('id_soal_siswa', 'id_soal', 'id_siswa', 'id_jadwal', 'id_bank', 'jenis') as $field) {
+            $pattern = ($field === 'id_soal_siswa') ? '/^[0-9A-Za-z_-]+$/D' : '/^[1-9][0-9]*$/D';
             if (!is_object($data) || !isset($data->$field)
                 || (!is_int($data->$field) && !is_string($data->$field))
-                || !preg_match('/^[1-9][0-9]*$/D', (string) $data->$field)) {
+                || !preg_match($pattern, (string) $data->$field)) {
                 throw new InvalidArgumentException('Identitas jawaban tidak valid.');
             }
         }
@@ -432,11 +433,11 @@ class Exam_attempt_service
         $this->ci->db->where('id_siswa', $idSiswa)->update('master_siswa', array(
             'exam_locked_at' => $now,
             'exam_locked_reason' => (string) $reason,
-            'exam_locked_attempt_id' => !empty($attemptId) ? (int) $attemptId : NULL
+            'exam_locked_attempt_id' => !empty($attemptId) ? (string) $attemptId : NULL
         ));
 
         if (!empty($attemptId)) {
-            $this->ci->db->where('attempt_id', (int) $attemptId)
+            $this->ci->db->where('attempt_id', (string) $attemptId)
                 ->where('status', 'IN_PROGRESS')
                 ->where('kicked_at IS NULL', NULL, FALSE)
                 ->update('cbt_exam_attempt', array(
@@ -472,7 +473,7 @@ class Exam_attempt_service
         // Cari attempt yang sedang berjalan atau terkait
         $attempt = NULL;
         if (!empty($siswa->exam_locked_attempt_id)) {
-            $attempt = $this->ci->db->get_where('cbt_exam_attempt', array('attempt_id' => (int) $siswa->exam_locked_attempt_id))->row();
+            $attempt = $this->ci->db->get_where('cbt_exam_attempt', array('attempt_id' => (string) $siswa->exam_locked_attempt_id))->row();
         }
         if (!$attempt) {
             $attempt = $this->ci->db->where('id_siswa', $idSiswa)

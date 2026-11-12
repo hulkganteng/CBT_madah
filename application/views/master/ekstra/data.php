@@ -342,6 +342,10 @@
                 data: $(this).serialize(),
                 success: function (data) {
                     console.log("result", data);
+                    if (data && data.status === false) {
+                        showDangerToast(data.message || 'Data tidak tersimpan.');
+                        return;
+                    }
                     window.location.href = base_url + 'dataekstra';
                     /*
                     $('#createEkstraModal').modal('hide').data('bs.modal', null);

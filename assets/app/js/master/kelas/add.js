@@ -98,7 +98,7 @@ $(document).ready(function () {
 			dataType: "JSON",
 			data: $(this).serialize() + s,
 			success: function (data) {
-				var msg = data.status ? 'Data kelas berhasil disimpan' : 'Data kelas gagal disimpan';
+			var msg = data.status ? 'Data kelas berhasil disimpan' : (data.message || 'Data kelas gagal disimpan');
                 swal.fire({
                     text: msg,
                     icon: data.status ? "success" : "warning",

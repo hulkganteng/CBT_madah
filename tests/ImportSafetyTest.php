@@ -19,6 +19,10 @@ final class ImportSafetyTest extends TestCase
         self::assertStringContainsString('import_draft', $source);
         self::assertStringNotContainsString('uploadSoal', $source);
 
+        $guruSource = file_get_contents(dirname(__DIR__) . '/application/views/members/guru/cbt/banksoal/import.php');
+        self::assertStringNotContainsString('uploadSoal', $guruSource);
+        self::assertStringNotContainsString('formPreviewWord', $guruSource);
+
         $hook = file_get_contents(dirname(__DIR__) . '/application/hooks/Exam_security_hook.php');
         self::assertStringContainsString("'doimport'", strtolower($hook));
         self::assertStringContainsString("'uploadsoal'", strtolower($hook));

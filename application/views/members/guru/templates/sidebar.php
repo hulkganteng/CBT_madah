@@ -63,7 +63,7 @@
                     ]
                 },
                 {
-                    'name': 'Data Siswa', 'icon': 'fas fa-users', 'cbt': '1', 'tu': true,
+                    'name': 'Tata Usaha (TU)', 'icon': 'fas fa-users-cog', 'cbt': '1', 'tu': true,
                     'submenu': [
                         {'name': 'Kelola Siswa', 'link':"datasiswa", 'icon': 'fa fa-users'},
                         {'name': 'Akun Siswa', 'link':"usersiswa", 'icon': 'fas fa-user-lock'}
