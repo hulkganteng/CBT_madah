@@ -12,6 +12,8 @@ class Exam_security_hook
         $controller = strtolower($this->ci->router->fetch_class());
         $method = strtolower($this->ci->router->fetch_method());
 
+        $this->checkStaffSessionTimeout($controller);
+
         /* Restore database menahan transaksi ujian selama proses berjalan.
            Marker dibuat dan dihapus oleh Db_restore. */
         if ($this->maintenanceActive()
@@ -1033,6 +1035,51 @@ class Exam_security_hook
             return;
         }
         show_error('Modul ini tidak termasuk dalam lingkup CBT.', 403, 'Modul Dinonaktifkan');
+    }
+
+    /**
+     * Auto-logout staf (admin/tu/guru) setelah 10 menit tidak aktif.
+     * Siswa tidak terpengaruh — mereka punya mekanisme sesi ujian sendiri.
+     */
+    private function checkStaffSessionTimeout($controller)
+    {
+        $skipControllers = array('auth', 'install', 'update', 'migrate', 'portal');
+        if (in_array($controller, $skipControllers, TRUE)) {
+            return;
+        }
+
+        $this->ci->load->library('ion_auth');
+        if (!$this->ci->ion_auth->logged_in()) {
+            return;
+        }
+        if ($this->ci->ion_auth->in_group('siswa') && !$this->ci->ion_auth->is_admin()) {
+            return;
+        }
+
+        $isStaff = $this->ci->ion_auth->is_admin()
+            || $this->ci->ion_auth->in_group('guru')
+            || $this->ci->ion_auth->in_group('tu');
+        if (!$isStaff) {
+            return;
+        }
+
+        $timeout = 10 * 60; // 10 menit dalam detik
+        $lastActivity = $this->ci->session->userdata('staff_last_activity');
+
+        if ($lastActivity === NULL) {
+            $this->ci->session->set_userdata('staff_last_activity', time());
+            return;
+        }
+
+        if ((time() - $lastActivity) > $timeout) {
+            $this->ci->ion_auth->logout();
+            $this->ci->session->set_flashdata('message', 'Sesi Anda telah berakhir karena tidak aktif selama 10 menit.');
+            $this->ci->load->helper('url');
+            redirect('auth?timeout=1', 'refresh');
+            exit;
+        }
+
+        $this->ci->session->set_userdata('staff_last_activity', time());
     }
 
     public function afterController()

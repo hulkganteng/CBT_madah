@@ -25,6 +25,11 @@
         $url = "dashboard";
         $data = array("status" => true, "url" => $url, "role" => $role);
         $this->output_json($data);
+    } public function ping_session() {
+        if ($this->ion_auth->logged_in()) {
+            $this->session->set_userdata('staff_last_activity', time());
+        }
+        $this->output_json(array('ok' => true));
     } public function logout() {
         $grupPeserta = $this->ion_auth->in_group("siswa");
         if ($grupPeserta) {

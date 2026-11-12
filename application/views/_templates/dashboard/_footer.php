@@ -166,6 +166,71 @@
         });
     }
 
+    /* Auto-logout staf setelah 10 menit tidak ada aktivitas */
+    (function () {
+        var TIMEOUT_MS   = 10 * 60 * 1000;  // 10 menit
+        var WARNING_MS   = 9 * 60 * 1000;   // peringatan di menit ke-9
+        var lastActivity = Date.now();
+        var warnShown    = false;
+        var warnTimer, logoutTimer;
+
+        function resetTimers() {
+            lastActivity = Date.now();
+            warnShown    = false;
+            clearTimeout(warnTimer);
+            clearTimeout(logoutTimer);
+
+            warnTimer = setTimeout(showWarning, WARNING_MS);
+            logoutTimer = setTimeout(function () {
+                location.href = base_url + 'logout';
+            }, TIMEOUT_MS);
+        }
+
+        function showWarning() {
+            if (warnShown) return;
+            warnShown = true;
+            var countdown = 60;
+            swal.fire({
+                title: 'Sesi Hampir Berakhir',
+                html: 'Anda akan otomatis logout dalam <strong id="swal-countdown">60</strong> detik karena tidak aktif.',
+                icon: 'warning',
+                showCancelButton: false,
+                confirmButtonText: 'Tetap Login',
+                allowOutsideClick: false,
+                timer: 60000,
+                timerProgressBar: true,
+                didOpen: function () {
+                    var interval = setInterval(function () {
+                        countdown--;
+                        var el = document.getElementById('swal-countdown');
+                        if (el) el.textContent = countdown;
+                        if (countdown <= 0) clearInterval(interval);
+                    }, 1000);
+                }
+            }).then(function (result) {
+                if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+                    if (!result.isConfirmed) {
+                        location.href = base_url + 'logout';
+                    } else {
+                        /* User klik "Tetap Login" — reset timer */
+                        resetTimers();
+                        /* Ping server agar staff_last_activity diperbarui */
+                        $.post(base_url + 'auth/ping_session');
+                    }
+                }
+            });
+        }
+
+        /* Aktivitas pengguna reset timer */
+        ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function (evt) {
+            document.addEventListener(evt, function () {
+                if (!warnShown) resetTimers();
+            }, { passive: true });
+        });
+
+        resetTimers();
+    })();
+
 </script>
 
 </body>
