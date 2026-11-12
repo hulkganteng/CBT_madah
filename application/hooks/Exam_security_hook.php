@@ -997,7 +997,7 @@ class Exam_security_hook
 
     private function denyRetiredModules($controller)    {
         $retired = array(
-            'rapor', 'bukurapor', 'bukuinduk', 'dataalumni',
+            'rapor', 'bukurapor', 'bukuinduk', 'dataalumni', 'dataekstra',
             'kelasmateri', 'kelasmaterijadwal', 'kelascatatan', 'kelasjadwal',
             'kelasstatus', 'kelasnilai',
             'kelasabsensiharian', 'kelasabsensibulanan',

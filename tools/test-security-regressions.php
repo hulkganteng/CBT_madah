@@ -123,6 +123,7 @@ $examActivitySource = file_get_contents(BASEPATH . 'application/controllers/Exam
 $authSource = file_get_contents(BASEPATH . 'application/controllers/Auth.php');
 $loginSiswaSource = file_get_contents(BASEPATH . 'application/views/auth/login_siswa.php');
 $guruSidebarSource = file_get_contents(BASEPATH . 'application/views/members/guru/templates/sidebar.php');
+$adminSidebarSource = file_get_contents(BASEPATH . 'application/views/_templates/dashboard/sidebar.php');
 
 assertTrue(strpos($serviceSource, 'HTTP_X_FORWARDED_PROTO') !== false, 'hash SEB mengabaikan HTTPS di balik reverse proxy');
 assertTrue(strpos($hookSource, "'detail' => array('attempt_uri' => 3)") !== false, 'guard IDOR detail hilang');
@@ -144,6 +145,8 @@ assertTrue(strpos($hookSource, "'template' => 'bank_id'") !== false, 'template b
 assertTrue(strpos($hookSource, "\$controller === 'examactivity'") !== false, 'guru masih dapat membuka pemantauan aktivitas ujian');
 assertTrue(strpos($examActivitySource, "Hanya Administrator yang dapat memantau aktivitas ujian") !== false, 'controller aktivitas ujian masih menerima guru');
 assertTrue(strpos($guruSidebarSource, "link\":\"examactivity") === false, 'menu aktivitas ujian masih tampil untuk guru');
+assertTrue(strpos($hookSource, "'dataalumni', 'dataekstra'") !== false, 'modul ekstrakurikuler masih dapat diakses langsung');
+assertTrue(strpos($adminSidebarSource, "'link':\"dataekstra\"") === false, 'menu ekstrakurikuler masih tampil di sidebar admin');
 assertTrue(strpos($excelSource, "array('jenis' => 1, 'total' => (int) \$bank->tampil_pg)") !== false, 'template tidak mengikuti kuota bank dari admin');
 assertTrue(strpos($hookSource, "\$this->guardFileDeletion(\$controller, \$method)") !== false, 'pemeriksaan hapus berkas tidak dipanggil');
 assertTrue(strpos($hookSource, "'siswa' => array('deletefile' => 'uploads/file_siswa/')") !== false, 'siswa masih dapat menghapus berkas di luar folder unggahannya');
