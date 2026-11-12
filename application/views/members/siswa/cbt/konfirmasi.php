@@ -145,9 +145,12 @@
 <script src="<?= base_url() ?>/assets/app/js/redirect.js"></script>
 <script src="<?= base_url() ?>/assets/app/js/exam-guard.js"></script>
 <script>
+    var examGuardReady = false;
+    var confirmationSubmitting = false;
     ExamGuard.init({scheduleId: <?= (int) $bank->id_jadwal ?>, active: false, startButton: '#load-soal'});
     $(document).on('examguard:status', function (event, result) {
         var box = $('#seb-status');
+        examGuardReady = !!result.status;
         if (result.status) {
             var label = result.seb_verified ? 'Safe Exam Browser terverifikasi.' :
                 (result.seb_mode === 'OPTIONAL' ? 'SEB opsional; browser belum terverifikasi.' : 'Pemeriksaan browser selesai.');
@@ -160,6 +163,9 @@
     $('#konfir').submit(function (e) {
         e.stopPropagation();
         e.preventDefault();
+        if (confirmationSubmitting || !examGuardReady) return;
+        confirmationSubmitting = true;
+        $('#load-soal').prop('disabled', true).attr('aria-busy', 'true');
 
         swal.fire({
             title: "Membuka Soal",
@@ -249,6 +255,9 @@
                     "icon": "error"
                 });
                 console.log(xhr.responseText);
+            }, complete: function () {
+                confirmationSubmitting = false;
+                $('#load-soal').prop('disabled', !examGuardReady).attr('aria-busy', 'false');
             }
         });
     });

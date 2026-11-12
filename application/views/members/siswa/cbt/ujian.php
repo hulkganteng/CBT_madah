@@ -53,7 +53,8 @@
     #exam-navigator-content > * { margin: 0 !important; }
     #exam-navigator-content .grid-nomor-pg { display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; width: 100%; }
     #exam-navigator-content .grid-nomor-pg > * { margin: 0 !important; }
-    #exam-navigator-content .btn { position: relative; width: 100%; min-height: 38px; padding: 7px 4px; border-radius: 7px; font-size: 14px; }
+    #exam-navigator-content .btn { position: relative; width: 100%; min-width: 44px; min-height: 44px; padding: 7px 4px; border-radius: 7px; font-size: 14px; }
+    #konten-modal .btn { min-width: 44px; min-height: 44px; }
     .exam-legend { display: grid; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(35,48,68,.1); color: #68788d; font-size: 13px; }
     .exam-legend span { display: flex; align-items: center; gap: 8px; }
     .exam-legend i { width: 12px; height: 12px; display: inline-block; border-radius: 50%; border: 1px solid #b9c8d9; background: #fff; }
@@ -80,7 +81,7 @@
         .exam-main-card .card-tools { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
         .exam-main-card .card-tools > button { margin: 0 !important; }
         .exam-footer { padding: 12px; }
-        .exam-footer .btn { min-height: 38px; }
+        .exam-footer .btn { min-height: 44px; }
     }
 </style>
 <div class="content-wrapper cbt-exam-shell" style="margin-top: -1px;">
@@ -109,7 +110,7 @@
                     <div class="card-title">Soal <span id="nomor-soal" class="btn bg-primary no-hover ml-2 text-lg"></span></div>
                     <div class="card-tools">
                         <button type="button" data-toggle="modal" data-target="#daftarModal" class="btn btn-primary btn-oval-sm"><span class="mr-2"><b>Daftar Soal</b></span><i class="fa fa-th"></i></button>
-                        <button type="button" class="btn btn-outline-warning btn-oval-sm" id="btn-ragu" title="Tandai ragu-ragu"><span class="mr-2"><b>Ragu-ragu</b></span><i class="fa fa-flag"></i></button>
+                        <button type="button" class="btn btn-outline-warning btn-oval-sm" id="btn-ragu" title="Tandai ragu-ragu" aria-pressed="false"><span class="mr-2"><b>Ragu-ragu</b></span><i class="fa fa-flag"></i></button>
                     </div>
                 </div>
                         <div class="card-body p-3">
@@ -244,7 +245,12 @@
     let questionRequestSequence = 0;
     let answerRequest = null;
     let answerSaving = false;
+    let answerRevision = 0;
+    let savedAnswerRevision = 0;
+    let autosaveTimer = null;
+    let saveIsForNavigation = false;
     let pendingNavigation = null;
+    let raguSaving = false;
     let examExpired = false;
     let timeoutSubmissionInFlight = false;
     let heartbeatWarningShown = false;
@@ -293,6 +299,105 @@
         });
     }
 
+    function hasUnsavedAnswer() {
+        return answerRevision > savedAnswerRevision;
+    }
+
+    function scheduleAutosave(delay) {
+        if (autosaveTimer) clearTimeout(autosaveTimer);
+        autosaveTimer = setTimeout(function () {
+            autosaveTimer = null;
+            saveCurrentAnswer(null, false);
+        }, typeof delay === 'number' ? delay : 700);
+    }
+
+    function markAnswerDirty() {
+        answerRevision++;
+        $('#save-state').removeClass('is-saved is-error').text('Belum tersimpan');
+        scheduleAutosave(700);
+    }
+
+    function saveCurrentAnswer(destination, forNavigation) {
+        if (examExpired || !jsonJawaban || !jsonJawaban.jenis) return;
+        if (destination !== null && destination !== undefined) pendingNavigation = destination;
+        saveIsForNavigation = saveIsForNavigation || !!forNavigation;
+        if (autosaveTimer) {
+            clearTimeout(autosaveTimer);
+            autosaveTimer = null;
+        }
+        if (saveIsForNavigation) setExamBusy(true);
+        if (answerSaving) return;
+
+        if (!hasUnsavedAnswer()) {
+            if (pendingNavigation !== null) {
+                var cleanDestination = pendingNavigation;
+                pendingNavigation = null;
+                saveIsForNavigation = false;
+                loadSoalNomor(cleanDestination);
+            }
+            return;
+        }
+
+        var siswa = $('#up').find('input[name="siswa"]').val();
+        var bank = $('#up').find('input[name="bank"]').val();
+        var savingRevision = answerRevision;
+        var savedValue = JSON.parse(JSON.stringify(jawabanBaru));
+        var formData = new FormData($('#jawab')[0]);
+        formData.append('siswa', siswa);
+        formData.append('bank', bank);
+        formData.append('data', JSON.stringify(jsonJawaban));
+
+        answerSaving = true;
+        $('#save-state').removeClass('is-saved is-error').text('Menyimpan...');
+        answerRequest = $.ajax({
+            url: base_url + 'siswa/savejawaban',
+            method: 'POST',
+            processData: false,
+            contentType: false,
+            data: formData
+        }).done(function (response) {
+            soalTerjawab = response.soal_terjawab;
+            savedAnswerRevision = Math.max(savedAnswerRevision, savingRevision);
+            jawabanSiswa = savedValue;
+            answerSaving = false;
+            $('#save-state').removeClass('is-error').addClass('is-saved').text('✓ Tersimpan');
+            if (examExpired) return;
+            if (hasUnsavedAnswer()) {
+                saveCurrentAnswer(pendingNavigation, saveIsForNavigation);
+                return;
+            }
+            if (pendingNavigation !== null) {
+                var nextDestination = pendingNavigation;
+                pendingNavigation = null;
+                saveIsForNavigation = false;
+                loadSoalNomor(nextDestination);
+            } else {
+                saveIsForNavigation = false;
+            }
+        }).fail(function (xhr) {
+            answerSaving = false;
+            if (examExpired) return;
+            var blockedNavigation = saveIsForNavigation;
+            recoverExamUi();
+            $('#save-state').removeClass('is-saved').addClass('is-error').text('Jawaban belum tersimpan');
+            console.warn('Gagal menyimpan jawaban:', xhr.status);
+            if (blockedNavigation) {
+                var retryDestination = pendingNavigation;
+                pendingNavigation = null;
+                saveIsForNavigation = false;
+                showRequestRetry(
+                    'Jawaban belum tersimpan',
+                    'Periksa koneksi, lalu coba lagi. Jawaban Anda masih ada di layar ini.',
+                    function () { saveCurrentAnswer(retryDestination, true); }
+                );
+            } else {
+                scheduleAutosave(3000);
+            }
+        }).always(function () {
+            answerRequest = null;
+        });
+    }
+
     function escapeHtml(value) {
         return String(value == null ? '' : value)
             .replace(/&/g, '&amp;')
@@ -329,53 +434,7 @@
         $('#jawab').on('submit', function (e) {
             e.preventDefault();
             e.stopImmediatePropagation();
-
-            if (answerSaving) {
-                pendingNavigation = nav;
-                return;
-            }
-
-            var siswa = $('#up').find('input[name="siswa"]').val();
-            var bank = $('#up').find('input[name="bank"]').val();
-            var targetQuestion = nav;
-
-            let formData = new FormData($('#jawab')[0]);
-            formData.append('siswa', siswa)
-            formData.append('bank', bank)
-            formData.append('data', JSON.stringify(jsonJawaban))
-
-            answerSaving = true;
-            $('#save-state').removeClass('is-saved is-error').text('Menyimpan...');
-            setExamBusy(true);
-            answerRequest = $.ajax({
-                url: base_url + 'siswa/savejawaban',
-                method: 'POST',
-                processData: false,
-                contentType: false,
-                data: formData
-            }).done(function (response) {
-                soalTerjawab = response.soal_terjawab;
-                $('#save-state').removeClass('is-error').addClass('is-saved').text('✓ Tersimpan');
-                answerSaving = false;
-                if (examExpired) return;
-                var destination = pendingNavigation === null ? targetQuestion : pendingNavigation;
-                pendingNavigation = null;
-                loadSoalNomor(destination);
-            }).fail(function (xhr) {
-                answerSaving = false;
-                pendingNavigation = null;
-                if (examExpired) return;
-                recoverExamUi();
-                $('#save-state').removeClass('is-saved').addClass('is-error').text('Jawaban belum tersimpan');
-                console.warn('Gagal menyimpan jawaban:', xhr.status);
-                showRequestRetry(
-                    'Jawaban belum tersimpan',
-                    'Periksa koneksi, lalu coba lagi. Jawaban Anda masih ada di layar ini.',
-                    function () { $('#jawab').trigger('submit'); }
-                );
-            }).always(function () {
-                answerRequest = null;
-            });
+            saveCurrentAnswer(nav > 0 ? nav : null, nav > 0);
         });
 
         $("#plus").click(function () {
@@ -464,16 +523,7 @@
         });
 
         nav = $(datas).data('nomorsoal');
-        var jwb1 = jawabanSiswa;
-        var jwb2 = jawabanBaru;
-        if ($.isArray(jwb1) || jwb1 instanceof jQuery) {
-            jwb1 = JSON.stringify(jwb1)
-        }
-        if (jwb2 != null && ($.isArray(jwb2) || jwb2 instanceof jQuery)) {
-            jwb2 = JSON.stringify(jwb2)
-        }
-
-        if (jawabanBaru != null && jwb1 !== jwb2) {
+        if (hasUnsavedAnswer() || answerSaving) {
             $('#jawab').submit();
         } else {
             loadSoalNomor(nav);
@@ -489,10 +539,18 @@
         soalTerjawab = data.soal_terjawab;
         soalTotal = data.soal_total;
 
+        if (autosaveTimer) {
+            clearTimeout(autosaveTimer);
+            autosaveTimer = null;
+        }
+        answerRevision = 0;
+        savedAnswerRevision = 0;
+        saveIsForNavigation = false;
         jsonJawaban = {};
         jawabanBaru = null;
         jawabanSiswa = data.soal_jawaban_siswa != null ? data.soal_jawaban_siswa : '';
         if ($.isArray(jawabanSiswa)) jawabanSiswa.sort();
+        $('#save-state').removeClass('is-error').addClass('is-saved').text('✓ Jawaban tersinkron');
 
         if (nomorSoal === 1) {
             $('#prev').attr('disabled', 'disabled');
@@ -506,6 +564,7 @@
         if (raguSoal) {
             $('#btn-ragu').removeClass('btn-outline-warning').addClass('btn-warning');
         }
+        $('#btn-ragu').attr('aria-pressed', raguSoal ? 'true' : 'false');
         $('#konten-soal').html(data.soal_soal);
         var stimulus = data.soal_stimulus == null ? '' : $.trim(data.soal_stimulus);
         if (stimulus !== '') {
@@ -636,6 +695,8 @@
             return 'id=' + quote + 'side-' + prefix + number + quote;
         });
         $('#exam-navigator-content').html(sidebarSoal);
+        decorateNavigator($('#konten-modal'));
+        decorateNavigator($('#exam-navigator-content'));
 
         var $imgs = $('.konten-soal-jawab').find('img');
         $.each($imgs, function () {
@@ -719,11 +780,15 @@
 
     function setElapsed(durasi) {
         elapsed = durasi.lama_ujian == null || durasi.lama_ujian == '0' ? "00:00:00" : durasi.lama_ujian;
+        startExamCountdown(null);
+    }
+
+    function startExamCountdown(serverRemainingSeconds) {
         createTimerCountdown(durasiUjian, elapsed.split(':'), function (isOver, remaining, onGoing) {
             $('#timer').html(remaining);
             elapsed = onGoing;
             if (isOver) submitExpiredExam();
-        })
+        }, serverRemainingSeconds);
     }
 
     function showExpiredRetry(message) {
@@ -796,19 +861,10 @@
     }
 
     function nextSoal() {
-        if (answerSaving || examExpired) return;
+        if (raguSaving || examExpired) return;
         setExamBusy(true);
         nav = (nomorSoal + 1);
-        var jwb1 = jawabanSiswa;
-        var jwb2 = jawabanBaru;
-        if ($.isArray(jwb1) || jwb1 instanceof jQuery) {
-            jwb1 = JSON.stringify(jwb1)
-        }
-        if (jwb2 != null && ($.isArray(jwb2) || jwb2 instanceof jQuery)) {
-            jwb2 = JSON.stringify(jwb2)
-        }
-
-        if (jawabanBaru != null && jwb1 !== jwb2) {
+        if (hasUnsavedAnswer() || answerSaving) {
             $('#jawab').submit();
         } else {
             loadSoalNomor(nav);
@@ -866,23 +922,33 @@
     }
 
     function prevSoal() {
-        if (answerSaving || examExpired) return;
+        if (raguSaving || examExpired) return;
         setExamBusy(true);
         nav = (nomorSoal - 1);
-        var jwb1 = jawabanSiswa;
-        var jwb2 = jawabanBaru;
-        if ($.isArray(jwb1) || jwb1 instanceof jQuery) {
-            jwb1 = JSON.stringify(jwb1)
-        }
-        if (jwb2 != null && ($.isArray(jwb2) || jwb2 instanceof jQuery)) {
-            jwb2 = JSON.stringify(jwb2)
-        }
-
-        if (jawabanBaru != null && jwb1 !== jwb2) {
+        if (hasUnsavedAnswer() || answerSaving) {
             $('#jawab').submit();
         } else {
             loadSoalNomor(nav);
         }
+    }
+
+    function decorateNavigator(root) {
+        root.find('.btn').each(function () {
+            var button = $(this);
+            var idMatch = String(button.attr('id') || '').match(/btn(\d+)$/);
+            var number = button.data('nomorsoal') || (idMatch ? idMatch[1] : $.trim(button.text()));
+            var isFlagged = button.hasClass('btn-warning');
+            var isAnswered = button.hasClass('btn-success') || button.closest('[id*="box"]').find('[id*="badge"]').length > 0;
+            var status = isFlagged ? 'ragu-ragu' : (isAnswered ? 'terjawab' : 'belum dijawab');
+            button.find('.navigator-status-icon').remove();
+            if (isFlagged) {
+                button.append('<i class="fas fa-flag navigator-status-icon ml-1" aria-hidden="true"></i>');
+            }
+            button.attr({
+                'aria-label': 'Soal ' + number + ', ' + status,
+                'aria-pressed': isFlagged ? 'true' : 'false'
+            });
+        });
     }
 
     function updateModal(jwb) {
@@ -911,6 +977,7 @@
                     ' style="font-size:12pt; width: 30px; height: 30px; margin-top: -60px; margin-left: 30px;">&check;</div>';
                 root.find('#' + boxId + nomorSoal).append(badge);
             }
+            decorateNavigator(root);
         });
     }
 
@@ -961,6 +1028,7 @@
 
         updateModal(jawaban_Alias);
         jsonJawaban = createJsonJawaban(jawaban_Alias, jawaban_Siswa);
+        markAnswerDirty();
     }
 
     function createJsonJawaban(jawab_Alias, jawab_Siswa) {
@@ -1235,56 +1303,48 @@
         return {h: endTime.getHours(), m: endTime.getMinutes(), s: endTime.getSeconds()}
     }
 
-    function createTimerCountdown(durasi, elapsed, func) {
-        const perdetik = 1000;
-        const permenit = 60 * perdetik;
-        const perjam = 60 * permenit;
-        const t_dur = durasi * (1000 * 60);
+    function createTimerCountdown(durasi, elapsedParts, func, serverRemainingSeconds) {
+        const durationSeconds = Number(durasi) * 60;
+        const elapsedAtStart = ((Number(elapsedParts[0]) || 0) * 3600) +
+            ((Number(elapsedParts[1]) || 0) * 60) + (Number(elapsedParts[2]) || 0);
+        const hasServerRemaining = serverRemainingSeconds !== null && serverRemainingSeconds !== undefined &&
+            serverRemainingSeconds !== '' && Number.isFinite(Number(serverRemainingSeconds));
+        const remainingAtStart = hasServerRemaining
+            ? Math.max(0, Number(serverRemainingSeconds))
+            : Math.max(0, durationSeconds - elapsedAtStart);
+        const startedAt = Date.now();
+        const deadlineAt = startedAt + (remainingAtStart * 1000);
 
-        let t_jam = Number(elapsed[0]);
-        let t_mnt = Number(elapsed[1]);
-        let t_dtk = Number(elapsed[2]);
+        tickTimer();
 
-        testTimer();
-
-        function testTimer() {
+        function tickTimer() {
             if (timerOut) {
                 clearTimeout(timerOut);
                 timerOut = null;
             }
 
-            const elapsedMicro = (t_jam * perjam) + (t_mnt * permenit) + (t_dtk * perdetik);
-            const t_remaining = t_dur - elapsedMicro;
-            if (t_remaining <= 0) {
+            const remainingSeconds = Math.max(0, Math.ceil((deadlineAt - Date.now()) / 1000));
+            const elapsedSeconds = Math.max(0, elapsedAtStart + Math.floor((Date.now() - startedAt) / 1000));
+            const elapsedFormatted = secondsToClock(elapsedSeconds);
+            if (remainingSeconds <= 0) {
                 if (func && (typeof func == "function")) {
-                    func(true, 'Waktu habis', zeroPad(t_jam) + ':' + zeroPad(t_mnt) + ':' + zeroPad(t_dtk));
+                    func(true, 'Waktu habis', elapsedFormatted);
                 }
             } else {
-                // elapsed
-                t_dtk++;
-                if (t_dtk > 59) {
-                    t_dtk = 0;
-                    t_mnt++;
-                }
-                if (t_mnt > 59) {
-                    t_mnt = 0;
-                    t_jam++;
-                }
-
-                // remaining
-                const r_jam = Math.floor(t_remaining / perjam);
-                const r_mnt = Math.floor((t_remaining % perjam) / permenit);
-                const r_dtk = Math.floor((t_remaining % permenit) / perdetik);
-
                 if (func && (typeof func == "function")) {
-                    func(false,
-                        zeroPad(r_jam) + ':' + zeroPad(r_mnt) + ':' + zeroPad(r_dtk),
-                        zeroPad(t_jam) + ':' + zeroPad(t_mnt) + ':' + zeroPad(t_dtk)
-                    );
+                    func(false, secondsToClock(remainingSeconds), elapsedFormatted);
                 }
-                timerOut = setTimeout(testTimer, 1000);
+                timerOut = setTimeout(tickTimer, Math.min(1000, Math.max(100, deadlineAt - Date.now())));
             }
         }
+    }
+
+    function secondsToClock(totalSeconds) {
+        totalSeconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return zeroPad(hours) + ':' + zeroPad(minutes) + ':' + zeroPad(seconds);
     }
 
     function zeroPad(no) {
@@ -1329,41 +1389,54 @@
         }
     });
 
-    $(document).on('examguard:heartbeat-ok', function () {
+    $(document).on('examguard:heartbeat-ok', function (event, result) {
         heartbeatWarningShown = false;
+        if (result && result.sisa_detik !== null && result.sisa_detik !== undefined &&
+            Number.isFinite(Number(result.sisa_detik))) {
+            startExamCountdown(Number(result.sisa_detik));
+        }
     });
 
     /* PRD FR-18: penanda ragu-ragu tersimpan di server, ikut saat pindah PC. */
     $(document).on('click', '#btn-ragu', function () {
-        if (!idSoalSiswa || examExpired) return;
+        if (!idSoalSiswa || examExpired || raguSaving || answerSaving) return;
         var button = $(this);
         var target = !raguSoal;
-        button.prop('disabled', true);
+        var questionNumber = nomorSoal;
+        var questionStudentId = idSoalSiswa;
+        raguSaving = true;
+        setExamBusy(true);
         $.post(base_url + 'examguard/ragu', {
             jadwal: $('#jawab input[name="jadwal"]').val(),
             bank: $('#jawab input[name="bank"]').val(),
-            id_soal_siswa: idSoalSiswa,
+            id_soal_siswa: questionStudentId,
             ragu: target ? 1 : 0
         }, function (res) {
             if (!res.status) {
                 showDangerToast(res.message || 'Penanda ragu-ragu gagal disimpan.');
                 return;
             }
-            raguSoal = res.ragu === 1;
-            button.toggleClass('btn-warning', raguSoal)
-                .toggleClass('btn-outline-warning', !raguSoal);
+            var savedAsDoubtful = res.ragu === 1;
+            if (idSoalSiswa === questionStudentId) {
+                raguSoal = savedAsDoubtful;
+                button.toggleClass('btn-warning', raguSoal)
+                    .toggleClass('btn-outline-warning', !raguSoal)
+                    .attr('aria-pressed', raguSoal ? 'true' : 'false');
+            }
             $('#konten-modal, #exam-navigator-content').each(function () {
                 var root = $(this);
-                var targetBtn = root.find('[id$="btn' + nomorSoal + '"]');
-                var answered = root.find('[id$="badge' + nomorSoal + '"]').length > 0;
+                var targetBtn = root.find('[id$="btn' + questionNumber + '"]');
+                var answered = root.find('[id$="badge' + questionNumber + '"]').length > 0;
                 targetBtn.removeClass('btn-warning btn-success btn-light');
-                targetBtn.addClass(raguSoal ? 'btn-warning' : (answered ? 'btn-success' : 'btn-light'));
+                targetBtn.addClass(savedAsDoubtful ? 'btn-warning' : (answered ? 'btn-success' : 'btn-light'));
+                decorateNavigator(root);
             });
         }, 'json').fail(function (xhr) {
             console.warn('Gagal menyimpan ragu-ragu:', xhr.status);
             showDangerToast('Penanda ragu-ragu belum tersimpan. Periksa koneksi.');
         }).always(function () {
-            button.prop('disabled', examExpired);
+            raguSaving = false;
+            recoverExamUi();
         });
     });
 </script>
