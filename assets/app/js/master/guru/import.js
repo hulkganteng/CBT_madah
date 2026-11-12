@@ -132,37 +132,79 @@ $(document).ready(function () {
         });
     });
 
-    $('#formPreviewExcel').find('.dropify-filename-inner').on('DOMSubtreeModified',function(e){
+    $('#input-file-events-excel').on('change', function(e){
+        var file = this.files[0];
+        if (!file) return;
         var form = new FormData($("#formPreviewExcel")[0]);
-        var filename = $(this).text();
-        preview(base_url + 'dataguru/previewExcel', form, filename);
+        preview(base_url + 'dataguru/previewExcel', form, file.name);
     });
 
-    $('#formPreviewWord').find('.dropify-filename-inner').on('DOMSubtreeModified',function(e){
+    $('#input-file-events-word').on('change', function(e){
+        var file = this.files[0];
+        if (!file) return;
         var form = new FormData($("#formPreviewWord")[0]);
-        var filename = $(this).text();
-        preview(base_url + 'dataguru/previewWord', form, filename);
+        preview(base_url + 'dataguru/previewWord', form, file.name);
     });
 
     $('#formUpload').submit('click', function (e) {
         e.preventDefault();
         e.stopImmediatePropagation();
 
-        console.log("data:", $(this).serialize());
+        var guruData = $('#formInput').val();
+        if (!guruData || guruData.trim() === '') {
+            $.toast({
+                heading: "Perhatian",
+                text: "Pilih file dan tunggu preview muncul sebelum upload.",
+                icon: 'warning',
+                showHideTransition: 'fade',
+                allowToastClose: true,
+                hideAfter: 5000,
+                position: 'top-right'
+            });
+            return false;
+        }
+
+        var parsed;
+        try {
+            parsed = JSON.parse(guruData);
+        } catch (ex) {
+            $.toast({
+                heading: "ERROR!!",
+                text: "Data preview tidak valid, ulangi pilih file.",
+                icon: 'error',
+                showHideTransition: 'fade',
+                allowToastClose: true,
+                hideAfter: 5000,
+                position: 'top-right'
+            });
+            return false;
+        }
+
+        if (!parsed || parsed.length === 0) {
+            $.toast({
+                heading: "Perhatian",
+                text: "Tidak ada data guru yang bisa diimport.",
+                icon: 'warning',
+                showHideTransition: 'fade',
+                allowToastClose: true,
+                hideAfter: 5000,
+                position: 'top-right'
+            });
+            return false;
+        }
 
         $.ajax({
             url: base_url + "dataguru/do_import",
             type: "POST",
-            dataType: "JSON",
             data: $(this).serialize(),
             success: function (data) {
                 window.history.back();
             },
             error: function (xhr, status, error) {
-                console.log("error", e.responseText);
+                console.log("error", xhr.responseText);
                 $.toast({
                     heading: "ERROR!!",
-                    text: "file tidak terbaca",
+                    text: "Gagal menyimpan data, periksa format file.",
                     icon: 'error',
                     showHideTransition: 'fade',
                     allowToastClose: true,
@@ -242,7 +284,18 @@ function preview(action, data, filename) {
             }
             $('#file-preview').html(html);
             var attrId = document.getElementById("formInput");
-            attrId.setAttribute("value", data);
+            // Normalize NIP: PHP may return float for long numeric strings
+            try {
+                var normalized = JSON.parse(data);
+                normalized.forEach(function(row) {
+                    if (row.nip !== undefined && row.nip !== null) {
+                        row.nip = String(Math.round(Number(row.nip)));
+                    }
+                });
+                attrId.setAttribute("value", JSON.stringify(normalized));
+            } catch (ex) {
+                attrId.setAttribute("value", data);
+            }
         },
         error: function (e) {
             console.log("error", e.responseText);

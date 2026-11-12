@@ -62,15 +62,33 @@ $(document).ready(function () {
         });
     });
 
-    $('#formPreviewExcel').find('.dropify-filename-inner').on('DOMSubtreeModified',function(e){
+    $('#input-file-events-excel').on('change', function (e) {
+        var file = this.files[0];
+        if (!file) return;
+        dataSiswa = [];
+        $('#submit-excel').attr('disabled', 'disabled');
+        $('#file-preview').html('<span class="text-muted"><i class="fas fa-spinner fa-spin mr-2"></i>Membaca file...</span>');
         var form = new FormData($("#formPreviewExcel")[0]);
-        var filename = $(this).text();
-        preview(base_url + 'datasiswa/previewExcel', form, filename);
+        preview(base_url + 'datasiswa/previewExcel', form, file.name);
     });
 
-    $('#formUpload').submit('click', function (e) {
+    $('#formUpload').on('submit', function (e) {
         e.preventDefault();
         e.stopImmediatePropagation();
+
+        if (!dataSiswa || !dataSiswa.length) {
+            $.toast({
+                heading: "Perhatian",
+                text: "Pilih file dan tunggu preview muncul sebelum upload.",
+                icon: 'warning',
+                showHideTransition: 'fade',
+                allowToastClose: true,
+                hideAfter: 5000,
+                position: 'top-right'
+            });
+            return false;
+        }
+
 		var dataPost = $(this).serialize() + "&siswa=" + JSON.stringify(dataSiswa);
 		console.log("data:", dataPost);
 
@@ -90,10 +108,16 @@ $(document).ready(function () {
         $.ajax({
             url: base_url + url,
             type: "POST",
-            dataType: "JSON",
             data: dataPost,
             success: function (data) {
 				console.log("response:", data);
+                try {
+                    data = typeof data === 'string' ? JSON.parse(data) : data;
+                } catch (ex) {
+                    $('#file-preview').html(data);
+                    swal.fire({ title: "Gagal", html: 'Respons server tidak valid', icon: "error" });
+                    return;
+                }
                 //window.history.back();
                 if (data.status) {
                     swal.fire({
@@ -175,14 +199,30 @@ function preview(action, data, filename) {
             let arrNisnDup = [];
             let arrNisDup = [];
             let arrUserDup = [];
+            let arrUserEmpty = [];
             let arrSiswaDup = [];
             if (filename === "") {
                 html = '<span class="text-center">Pastikan anda telah mengisi format yang telah disediakan.</span>';
             } else {
 				try {
-                    dataResult = JSON.parse(data);
-					dataSiswa = dataResult.siswa;
-                    dataExists = dataResult.exist;
+                    var dataResult = typeof data === 'string' ? JSON.parse(data) : data;
+
+                    if (!dataResult.status) {
+                        dataSiswa = [];
+                        $('#submit-excel').attr('disabled', 'disabled');
+                        $('#file-preview').html(
+                            '<div class="alert alert-default-danger mb-0" role="alert">' +
+                            (dataResult.message || 'File Excel tidak dapat dibaca.') +
+                            '</div>'
+                        );
+                        return;
+                    }
+
+					dataSiswa = normalizeRows(dataResult.siswa);
+                    var dataExists = normalizeRows(dataResult.exist);
+                    if (!dataSiswa.length) {
+                        throw new Error('Respons server tidak berisi data siswa.');
+                    }
                     console.log("data", dataResult);
 					html = '<table id="tableprev" class="table table-sm table-striped table-bordered nowrap w-100">' +
 						'        <thead>' +
@@ -200,25 +240,29 @@ function preview(action, data, filename) {
 					for (i = 0; i < dataSiswa.length; i++) {
                         const siswa = dataSiswa[i];
                         if (dataExists.length) {
-                            const siswaDup = dataExists.find(function (obj) {
-                                return obj.nisn === siswa.nisn || obj.nis === siswa.nis || obj.username === siswa.username
-                            })
+                            var siswaDup = findDuplicateStudent(dataExists, siswa);
                             if (siswaDup) arrSiswaDup.push(siswaDup.nama);
                         }
-					    if (arrNisn.includes(siswa.nisn)) {
+                        var nisn = String(siswa.nisn || '').trim();
+                        var nis = String(siswa.nis || '').trim();
+                        var username = String(siswa.username || '').trim();
+
+					    if (nisn && arrNisn.indexOf(nisn) !== -1) {
                             arrNisnDup.push(siswa.nisn)
-                        } else {
-                            arrNisn.push(siswa.nisn)
+                        } else if (nisn) {
+                            arrNisn.push(nisn)
                         }
-                        if (arrNis.includes(siswa.nis)) {
+                        if (nis && arrNis.indexOf(nis) !== -1) {
                             arrNisDup.push(siswa.nis)
-                        } else {
-                            arrNis.push(siswa.nis)
+                        } else if (nis) {
+                            arrNis.push(nis)
                         }
-                        if (arrUser.includes(siswa.username)) {
-                            arrUserDup.push(siswa.username)
+                        if (!username) {
+                            arrUserEmpty.push((i + 1) + '. ' + (siswa.nama || '(nama kosong)'));
+                        } else if (arrUser.indexOf(username) !== -1) {
+                            arrUserDup.push(username)
                         } else {
-                            arrUser.push(siswa.username)
+                            arrUser.push(username)
                         }
 
 						html +=
@@ -235,8 +279,14 @@ function preview(action, data, filename) {
 					html +=  '</tbody></table>';
 				} catch (e) {
                     console.log('error', e)
-					html +=  '<p>Gagal menampilkan data, periksa format file yang diimport</p>' + data;
-					showDangerToast(data);
+					dataSiswa = [];
+                    $('#submit-excel').attr('disabled', 'disabled');
+                    var renderMessage = e && e.message
+                        ? e.message
+                        : 'Gagal menampilkan data, periksa format file yang diimpor.';
+                    $('#file-preview').html('<div class="alert alert-default-danger mb-0" role="alert">' + escapeHtml(renderMessage) + '</div>');
+					showDangerToast(renderMessage);
+                    return;
 				}
             }
             //console.log("duplikatNisn", arrNisnDup);
@@ -255,6 +305,10 @@ function preview(action, data, filename) {
             if (arrUserDup.length) {
                 invalidTemp = true;
                 htmlError.append($(`<li>Ada ${arrUserDup.length} duplikat USERNAME, silakan cek kembali USERNAME berikut: <br /><b>${arrUserDup.join(", ")}</b></li>`))
+            }
+            if (arrUserEmpty.length) {
+                invalidTemp = true;
+                htmlError.append($(`<li>Ada ${arrUserEmpty.length} siswa dengan USERNAME kosong. Kolom USERNAME wajib diisi dan harus berbeda untuk setiap siswa:<br /><b>${formatPreviewList(arrUserEmpty)}</b></li>`))
             }
 
             let invalidDb = false;
@@ -292,9 +346,52 @@ function preview(action, data, filename) {
 		},
         error: function (e) {
             console.log("error", e.responseText);
-            showDangerToast(e.responseText);
+            dataSiswa = [];
+            $('#submit-excel').attr('disabled', 'disabled');
+            var message = e.responseJSON && e.responseJSON.message
+                ? e.responseJSON.message
+                : 'Preview gagal diproses oleh server.';
+            $('#file-preview').html('<div class="alert alert-default-danger mb-0" role="alert">' + message + '</div>');
+            showDangerToast(message);
         }
     });
+}
+
+function normalizeRows(rows) {
+    if (Array.isArray(rows)) return rows;
+    if (!rows || typeof rows !== 'object') return [];
+
+    return Object.keys(rows).map(function (key) {
+        return rows[key];
+    });
+}
+
+function findDuplicateStudent(rows, siswa) {
+    var nisn = String(siswa.nisn || '').trim();
+    var nis = String(siswa.nis || '').trim();
+    var username = String(siswa.username || '').trim();
+
+    for (var i = 0; i < rows.length; i++) {
+        var row = rows[i] || {};
+        if ((nisn && String(row.nisn || '').trim() === nisn) ||
+            (nis && String(row.nis || '').trim() === nis) ||
+            (username && String(row.username || '').trim() === username)) {
+            return row;
+        }
+    }
+    return null;
+}
+
+function escapeHtml(value) {
+    return $('<div>').text(value == null ? '' : String(value)).html();
+}
+
+function formatPreviewList(items) {
+    var visible = items.slice(0, 20).map(escapeHtml);
+    if (items.length > 20) {
+        visible.push('... dan ' + (items.length - 20) + ' siswa lainnya');
+    }
+    return visible.join('<br>');
 }
 
 function parse(data) {
