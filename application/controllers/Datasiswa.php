@@ -133,6 +133,9 @@
                 'nohp_wali' => $value($row, 41, true),
                 'alamat_wali' => $value($row, 42),
                 'id_siswa' => $value($row, 43),
+                'peminatan_id' => $value($row, 44),
+                'program_mak' => strtoupper($value($row, 45)),
+                'id_kelas' => $value($row, 46),
             ];
         }
 

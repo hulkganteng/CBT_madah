@@ -29,6 +29,29 @@ class Exam_security_hook
         $this->guardScheduleAccess($controller, $method);
         $this->guardFileDeletion($controller, $method);
 
+        if ($controller === 'datakelas' && $method === 'save') {
+            $this->saveClassWithoutStudents();
+        }
+        if ($controller === 'datakelas' && $method === 'hapus') {
+            $this->guardClassDeletion();
+        }
+        if ($controller === 'datakelas' && in_array($method, array('update_kelas', 'copyfromsmt1', 'copysiswafromsmt1', 'naikkelas'), TRUE)) {
+            $this->deny('Penempatan siswa hanya dapat diubah melalui menu Rombel / Penempatan Siswa.', 410);
+        }
+
+        if ($controller === 'datasiswa' && $method === 'create') {
+            $this->createStudentMaster();
+        }
+        if ($controller === 'datasiswa' && $method === 'do_import') {
+            $this->importStudentsWithPlacement();
+        }
+        if ($controller === 'datasiswa' && $method === 'updatedata') {
+            $this->validateStudentSpecializationUpdate();
+        }
+        if ($controller === 'datasiswa' && $method === 'delete') {
+            $this->beginStudentDelete();
+        }
+
         if ($controller === 'cbtjadwal' && $method === 'savejadwal') {
             $this->validateScheduleInput();
             $this->validateSebSettings();
@@ -83,7 +106,7 @@ class Exam_security_hook
             return;
         }
 
-        $guarded = array('cbt', 'konfirmasi', 'validasisiswa', 'penilaian', 'checktimer', 'loadsoal', 'loadnomorsoal', 'savejawaban', 'selesaiujian', 'leavecbt', 'gettimer', 'savesoalsiswa', 'savelogujian');
+        $guarded = array('cbt', 'konfirmasi', 'validasisiswa', 'penilaian', 'checktimer', 'loadsoal', 'loadnomorsoal', 'savejawaban', 'selesaiujian', 'ulangiujian', 'leavecbt', 'gettimer', 'savesoalsiswa', 'savelogujian');
         if (!in_array($method, $guarded, TRUE)) {
             return;
         }
@@ -115,6 +138,11 @@ class Exam_security_hook
         }
         $_POST['jadwal'] = (string) $schedule->id_jadwal;
         $_POST['bank'] = (string) $schedule->id_bank;
+        $this->ci->load->library('Student_exam_eligibility');
+        list($eligible, $eligibilityReason) = $this->ci->student_exam_eligibility->check($student->id_siswa, $idJadwal);
+        if (!$eligible) {
+            $this->deny($eligibilityReason, 403);
+        }
         if (!$this->withinScheduleDate($schedule)) {
             $this->deny('Ujian berada di luar rentang jadwal.', 403);
         }
@@ -1088,6 +1116,37 @@ class Exam_security_hook
         $controller = strtolower($this->ci->router->fetch_class());
         $method = strtolower($this->ci->router->fetch_method());
 
+        if ($controller === 'datasiswa' && $method === 'updatedata') {
+            $this->persistStudentSpecializationUpdate();
+            return;
+        }
+        if ($controller === 'datasiswa' && $method === 'delete') {
+            $this->finishStudentDelete();
+            return;
+        }
+
+        if ($controller === 'cbtbanksoal' && $method === 'savebank') {
+            $payload = json_decode($this->ci->output->get_output());
+            if ($payload && !empty($payload->status)
+                && $this->ci->db->field_exists('bank_program_mak', 'cbt_bank_soal')) {
+                $id = (int) $this->ci->input->post('id_bank', TRUE);
+                if ($id <= 0) {
+                    $bank = $this->ci->db->select('id_bank')->order_by('id_bank', 'DESC')->get_where(
+                        'cbt_bank_soal',
+                        array('bank_kode' => trim((string) $this->ci->input->post('kode', TRUE)))
+                    )->row();
+                    $id = $bank ? (int) $bank->id_bank : 0;
+                }
+                if ($id > 0) {
+                    $this->ci->db->where('id_bank', $id)->update('cbt_bank_soal', array(
+                        'bank_jurusan_id' => (int) $this->ci->input->post('peminatan', TRUE),
+                        'bank_program_mak' => $this->ci->input->post('program_mak', TRUE) ?: NULL,
+                    ));
+                }
+            }
+            return;
+        }
+
         if ($controller === 'siswa' && in_array($method, array('loadsoal', 'loadnomorsoal'), TRUE)) {
             $payload = json_decode($this->ci->output->get_output(), TRUE);
             if (is_array($payload)) {
@@ -1165,6 +1224,176 @@ class Exam_security_hook
         if ($total < 1) {
             $this->deny('Bank soal harus menampilkan minimal satu soal.', 422);
         }
+        $majorId = (int) $this->ci->input->post('peminatan', TRUE);
+        $program = strtoupper(trim((string) $this->ci->input->post('program_mak', TRUE)));
+        if ($majorId > 0 && !$this->ci->db->where('id_jurusan', $majorId)->count_all_results('master_jurusan')) {
+            $this->deny('Peminatan peserta tidak valid.', 422);
+        }
+        if ($program !== '' && !in_array($program, array('TAHFIDZ', 'KITAB'), TRUE)) {
+            $this->deny('Program MAK tidak valid.', 422);
+        }
+        $major = $majorId > 0
+            ? $this->ci->db->select('kode_jurusan')->get_where('master_jurusan', array('id_jurusan' => $majorId))->row()
+            : NULL;
+        if ($program !== '' && (!$major || strtoupper((string) $major->kode_jurusan) !== 'MAK')) {
+            $this->deny('Program MAK hanya boleh dipilih untuk peminatan MAK.', 422);
+        }
+        $_POST['peminatan'] = (string) $majorId;
+        $_POST['program_mak'] = $program;
+    }
+
+    private function createStudentMaster()
+    {
+        if (!$this->ci->db->field_exists('peminatan_id', 'master_siswa')) {
+            $this->deny('Migrasi peminatan siswa belum dijalankan.', 503);
+        }
+        try {
+            $this->ci->load->library('Student_specialization_service');
+            $this->ci->student_specialization_service->createFromPost();
+            $this->jsonAndExit(array('insert' => TRUE, 'text' => 'Siswa berhasil disimpan dengan status Tanpa Kelas.'));
+        } catch (InvalidArgumentException $error) {
+            $this->jsonAndExit(array('insert' => FALSE, 'text' => $error->getMessage()));
+        } catch (Throwable $error) {
+            log_message('error', 'Tambah siswa gagal: ' . $error->getMessage());
+            $this->jsonAndExit(array('insert' => FALSE, 'text' => 'Siswa gagal disimpan. Periksa data dan coba lagi.'), 500);
+        }
+    }
+
+    private function saveClassWithoutStudents()
+    {
+        foreach (array('nama_kelas', 'kode_kelas', 'level_id') as $field) {
+            if (trim((string) $this->ci->input->post($field, TRUE)) === '') {
+                $this->jsonAndExit(array('status' => FALSE, 'message' => 'Nama, kode, dan level rombel wajib diisi.'));
+            }
+        }
+        $tp = $this->ci->db->select('id_tp')->get_where('master_tp', array('active' => 1))->row();
+        $smt = $this->ci->db->select('id_smt')->get_where('master_smt', array('active' => 1))->row();
+        if (!$tp || !$smt) $this->jsonAndExit(array('status' => FALSE, 'message' => 'Periode aktif belum ditentukan.'));
+        $id = (int) $this->ci->input->post('id_kelas', TRUE);
+        $code = trim((string) $this->ci->input->post('kode_kelas', TRUE));
+        $duplicate = $this->ci->db->where(array('id_tp' => $tp->id_tp, 'id_smt' => $smt->id_smt, 'kode_kelas' => $code));
+        if ($id) $duplicate->where('id_kelas !=', $id);
+        if ($duplicate->count_all_results('master_kelas')) {
+            $this->jsonAndExit(array('status' => FALSE, 'message' => 'Kode rombel sudah digunakan.'));
+        }
+        $data = array(
+            'nama_kelas' => trim((string) $this->ci->input->post('nama_kelas', TRUE)),
+            'kode_kelas' => $code, 'jurusan_id' => (int) $this->ci->input->post('jurusan_id', TRUE),
+            'level_id' => (int) $this->ci->input->post('level_id', TRUE),
+            'id_tp' => (int) $tp->id_tp, 'id_smt' => (int) $smt->id_smt,
+        );
+        $this->ci->db->trans_begin();
+        if ($id) $this->ci->db->where('id_kelas', $id)->update('master_kelas', $data);
+        else {
+            $data += array('guru_id' => NULL, 'siswa_id' => NULL, 'jumlah_siswa' => serialize(array()));
+            $this->ci->db->insert('master_kelas', $data);
+        }
+        if ($this->ci->db->trans_status() === FALSE) {
+            $this->ci->db->trans_rollback();
+            $this->jsonAndExit(array('status' => FALSE, 'message' => 'Rombel gagal disimpan.'));
+        }
+        $this->ci->db->trans_commit();
+        $this->jsonAndExit(array('status' => TRUE, 'message' => 'Rombel berhasil disimpan.'));
+    }
+
+    private function guardClassDeletion()
+    {
+        $id = (int) $this->ci->uri->segment(3);
+        if ($id && $this->ci->db->where('id_kelas', $id)->count_all_results('kelas_siswa')) {
+            $this->jsonAndExit(array('status' => FALSE, 'message' => 'Rombel masih berisi siswa. Pindahkan atau keluarkan seluruh siswa terlebih dahulu.'));
+        }
+    }
+
+    private function validateStudentSpecializationUpdate()
+    {
+        try {
+            $this->ci->load->library('Student_specialization_service');
+            $data = $this->ci->student_specialization_service->normalizeForUpdate(
+                (int) $this->ci->input->post('id_siswa', TRUE)
+            );
+            $_POST['peminatan_id'] = $data['peminatan_id'];
+            $_POST['program_mak'] = $data['program_mak'];
+            $this->ci->db->trans_begin();
+        } catch (InvalidArgumentException $error) {
+            $this->jsonAndExit(array('insert' => FALSE, 'text' => $error->getMessage()), 422);
+        }
+    }
+
+    private function importStudentsWithPlacement()
+    {
+        if (!$this->ci->db->field_exists('peminatan_id', 'master_siswa')) {
+            $this->deny('Migrasi peminatan siswa belum dijalankan.', 503);
+        }
+        try {
+            $this->ci->load->library('Student_specialization_service');
+            $result = $this->ci->student_specialization_service->importRows($this->ci->input->post('siswa'));
+            $this->jsonAndExit(array('status' => TRUE, 'total' => $result['total'], 'without_class' => $result['without_class'], 'errors' => array()));
+        } catch (InvalidArgumentException $error) {
+            $this->jsonAndExit(array('status' => FALSE, 'message' => $error->getMessage(), 'errors' => array()));
+        } catch (RuntimeException $error) {
+            $this->jsonAndExit(array('status' => FALSE, 'message' => $error->getMessage(), 'errors' => array()));
+        } catch (Throwable $error) {
+            log_message('error', 'Impor siswa gagal: ' . $error->getMessage());
+            $this->jsonAndExit(array('status' => FALSE, 'message' => 'Impor siswa gagal; seluruh perubahan dibatalkan.', 'errors' => array()), 500);
+        }
+    }
+
+    private function persistStudentSpecializationUpdate()
+    {
+        $payload = json_decode($this->ci->output->get_output());
+        if (!$payload || !isset($payload->insert) || $payload->insert === FALSE) {
+            if ($this->ci->db->trans_status() !== NULL) {
+                $this->ci->db->trans_rollback();
+            }
+            return;
+        }
+        $this->ci->db->where('id_siswa', (int) $this->ci->input->post('id_siswa', TRUE))
+            ->update('master_siswa', array(
+                'peminatan_id' => $this->ci->input->post('peminatan_id', TRUE) ?: NULL,
+                'program_mak' => $this->ci->input->post('program_mak', TRUE) ?: NULL,
+            ));
+        if ($this->ci->db->trans_status() === FALSE) {
+            $this->ci->db->trans_rollback();
+            $this->ci->output->set_output(json_encode(array('insert' => FALSE, 'text' => 'Perubahan siswa gagal; seluruh perubahan dibatalkan.')));
+            return;
+        }
+        $this->ci->db->trans_commit();
+    }
+
+    private function beginStudentDelete()
+    {
+        $ids = $this->ci->input->post('checked');
+        if (!is_array($ids) || !$ids) {
+            return;
+        }
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if (!$ids) {
+            return;
+        }
+        $this->ci->db->trans_begin();
+        $this->ci->db->where_in('id_siswa', $ids)->delete('kelas_siswa');
+    }
+
+    private function finishStudentDelete()
+    {
+        if (!$this->ci->db->trans_status()) {
+            $this->ci->db->trans_rollback();
+            $this->ci->output->set_output(json_encode(array('status' => FALSE, 'text' => 'Siswa masih dipakai oleh data lain; penghapusan dibatalkan.')));
+            return;
+        }
+        $payload = json_decode($this->ci->output->get_output());
+        if (!$payload || empty($payload->status)) {
+            $this->ci->db->trans_rollback();
+            return;
+        }
+        $this->ci->db->trans_commit();
+    }
+
+    private function jsonAndExit($payload, $status = 200)
+    {
+        $this->ci->output->set_status_header($status)->set_content_type('application/json')
+            ->set_output(json_encode($payload))->_display();
+        exit;
     }
 
     /**
@@ -1211,6 +1440,13 @@ class Exam_security_hook
         }
         if ($method === 'gettimer' || $method === 'checktimer') {
             return (int) $this->ci->uri->segment(4);
+        }
+        if ($method === 'ulangiujian') {
+            $duration = $this->ci->db->select('id_jadwal')->get_where(
+                'cbt_durasi_siswa',
+                array('id_durasi' => $this->ci->uri->segment(3))
+            )->row();
+            return $duration ? (int) $duration->id_jadwal : 0;
         }
         return (int) $this->ci->input->post('jadwal');
     }

@@ -4,6 +4,7 @@ if (!file_exists(FCPATH . $siswa->foto)) {
     $fotoSiswa = str_replace('profiles', 'foto_siswa', $siswa->foto);
 }
 ?>
+<?php $peminatanSiswa = $this->db->where('status', 1)->order_by('nama_jurusan')->get('master_jurusan')->result(); ?>
 <div class="content-wrapper bg-white pt-4">
     <section class="content-header">
         <div class="container-fluid">
@@ -104,6 +105,27 @@ if (!file_exists(FCPATH . $siswa->foto)) {
                         <div class="card-body">
                             <div class="tab-content">
                                 <div class="tab-pane active" id="datasiswa">
+                                    <div class="form-group row">
+                                        <div class="col-md-4"><label for="peminatan_id">Peminatan</label></div>
+                                        <div class="col-md-8">
+                                            <select class="form-control" id="peminatan_id" name="peminatan_id" required>
+                                                <option value="">Pilih peminatan</option>
+                                                <?php foreach ($peminatanSiswa as $major) : ?>
+                                                    <option value="<?= (int) $major->id_jurusan ?>" data-code="<?= html_escape(strtoupper($major->kode_jurusan)) ?>" <?= (int) $siswa->peminatan_id === (int) $major->id_jurusan ? 'selected' : '' ?>><?= html_escape($major->nama_jurusan) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row" id="program-mak-row">
+                                        <div class="col-md-4"><label for="program_mak">Program MAK</label></div>
+                                        <div class="col-md-8">
+                                            <select class="form-control" id="program_mak" name="program_mak">
+                                                <option value="">Pilih program MAK</option>
+                                                <option value="TAHFIDZ" <?= $siswa->program_mak === 'TAHFIDZ' ? 'selected' : '' ?>>Tahfidz</option>
+                                                <option value="KITAB" <?= $siswa->program_mak === 'KITAB' ? 'selected' : '' ?>>Kitab</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                     <?php foreach ($input_data as $data) :
                                         $req = $data->name == 'nisn' || $data->name == 'sekolah_asal' ? '' : ' required' ?>
                                         <?php if ($data->name == 'jenis_kelamin'): ?>
@@ -373,6 +395,18 @@ if (!file_exists(FCPATH . $siswa->foto)) {
         </div>
     </section>
 </div>
+<script>
+    $(function () {
+        function syncProgramMak() {
+            var mak = $('#peminatan_id option:selected').data('code') === 'MAK';
+            $('#program-mak-row').toggle(mak);
+            $('#program_mak').prop('required', mak);
+            if (!mak) $('#program_mak').val('');
+        }
+        $('#peminatan_id').change(syncProgramMak);
+        syncProgramMak();
+    });
+</script>
 
 <div class="modal fade" id="editFotoModal" tabindex="-1" role="dialog" aria-labelledby="editFotoLabel"
      aria-hidden="true">

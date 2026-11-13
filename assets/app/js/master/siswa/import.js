@@ -122,7 +122,7 @@ $(document).ready(function () {
                 if (data.status) {
                     swal.fire({
                         title: "Berhasil",
-                        text: "Data siswa berhasil diimpor",
+                        text: "Data siswa berhasil diimpor. Tanpa Kelas: " + (data.without_class || 0),
                         icon: "success"
                     }).then(result => {
                         if (result.value) {
@@ -144,7 +144,7 @@ $(document).ready(function () {
                     err += arrUserDup.length ? `<br /><b>${arrUserDup.join("' ")}</b>` : '';
                     swal.fire({
                         title: "Gagal",
-                        html: 'cek kembali siswa berikut: <br />'+err+'',
+                        html: data.message || ('cek kembali siswa berikut: <br />'+err+''),
                         icon: "error"
                     }).then(result => {});
                 }

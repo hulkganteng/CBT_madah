@@ -42,26 +42,6 @@
                                 <label for="nama_kelas" class="col-md-3 col-form-label">Nama Kelas</label>
                                 <div class="col-md-9">
                                     <?php
-                                    $siswas = [];
-                                    if (isset($siswa)) {
-                                        foreach ($siswa as $key => $row) {
-                                            if ($row->id_kelas == null || $row->id_kelas == 0) {
-                                                $siswas [$row->id_siswa] = $row->nama .' - '.$row->nis;
-                                            }
-                                        }
-                                    }
-                                    if (isset($siswakelas)) {
-                                        foreach ($siswakelas as $key => $row) {
-                                            $siswas [$row->id_siswa] = $row->nama .' - '.$row->nis;
-                                        }
-                                    }
-                                    $oj = json_decode(json_encode($kelas->jumlah_siswa));
-                                    $jumlahSiswa = json_decode(json_encode(unserialize($oj ?? '')));
-                                    $jjs = [];
-                                    foreach ($jumlahSiswa as $js) {
-                                        array_push($jjs, $js->id);
-                                    }
-
                                     echo form_input(
                                         array(
                                             'name' => 'nama_kelas',
@@ -131,42 +111,6 @@
                                 -->
                         </div>
                     </div>
-                    <hr>
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="card border">
-                                <div class="card-body">
-                                    <div class="form-group row">
-                                        <label for="jumlah_siswa" class="col-md-12 control-label">Daftar Siswa</label>
-                                        <div class="col-md-12">
-                                            <select name="siswa[]" class="form-control" id="jumlah_siswa" multiple="multiple" required="" style="position: absolute; left: -9999px;">
-                                            <?php foreach ($siswas as $id=>$siswa) :?>
-                                            <option value="<?= $id ?>" <?= in_array($id, $jjs) ? 'selected="selected"' : '';?>><?=$siswa?></option>
-                                            <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card border">
-                                <div class="card-body">
-                                    <div class="form-group row">
-                                        <label for="siswa_id" class="control-label">Ketua Kelas</label>
-                                        <?php
-                                        echo form_dropdown(
-                                            'siswa_id',
-                                            $siswas,
-                                            $kelas->siswa_id,
-                                            'class="select2 form-control" id="siswa_id" required'
-                                        );
-                                        ?>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     <!--
                     <hr>
                     <div class="row">
@@ -209,8 +153,8 @@
 </div>
 
 <script>
-    const arrAllSiswa = JSON.parse(JSON.stringify(<?= json_encode($siswas)?>));
-    const arrSelSiswa = JSON.parse(JSON.stringify(<?= json_encode($jjs)?>));
+    const arrAllSiswa = {};
+    const arrSelSiswa = [];
     $(document).ready(function () {
         $("#guru_id option:first").attr('disabled', 'disabled');
         $("#jurusan_id option:first").attr('disabled', 'disabled');

@@ -36,6 +36,7 @@
                                    class="btn btn-success mr-2 mb-3">
                                     <i class="fas fa-plus mr-1"></i> Rombel Baru
                                 </a>
+                                <a href="<?= base_url('penempatansiswa') ?>" type="button" class="btn btn-primary mr-2 mb-3"><i class="fas fa-random mr-1"></i>Penempatan Siswa</a>
                             </span>
                             <?php if ($smt_active->id_smt == '2') : ?>
                                 <span data-toggle="tooltip" title="Manajemen Kelas">

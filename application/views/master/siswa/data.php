@@ -1,3 +1,6 @@
+<?php
+$peminatanSiswa = $this->db->where('status', 1)->order_by('nama_jurusan')->get('master_jurusan')->result();
+?>
 <div class="content-wrapper bg-white pt-4">
     <section class="content-header">
         <div class="container-fluid">
@@ -83,6 +86,12 @@
                                         <option value="3">Pindah</option>
                                         <option value="4">Keluar</option>
                                     </select>
+                                    <select id="major-filter" class="ml-2 form-control form-control-sm">
+                                        <option value="">Semua peminatan</option>
+                                        <?php foreach ($peminatanSiswa as $major) : ?>
+                                            <option value="<?= (int) $major->id_jurusan ?>"><?= html_escape($major->nama_jurusan) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                             </div>
                             <div class="col-12 mb-3">
@@ -97,6 +106,7 @@
                                             <th class="align-middle text-center p-0">No.</th>
                                             <th>NAMA & KELAS</th>
                                             <th>NIS & NISN</th>
+                                            <th>PEMINATAN</th>
                                             <th class="align-middle text-center p-0">Aksi</th>
                                         </tr>
                                         </thead>
@@ -146,6 +156,27 @@
                             <input id="nama_siswa" type="text" class="form-control" name="nama_siswa"
                                    placeholder="Nama Siswa" required>
                         </div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4"><label for="peminatan_id">Peminatan :</label></div>
+                    <div class="col-md-8">
+                        <select class="form-control" id="peminatan_id" name="peminatan_id" required>
+                            <option value="">Pilih peminatan</option>
+                            <?php foreach ($peminatanSiswa as $major) : ?>
+                                <option value="<?= (int) $major->id_jurusan ?>" data-code="<?= html_escape(strtoupper($major->kode_jurusan)) ?>"><?= html_escape($major->nama_jurusan) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mb-3" id="program-mak-row">
+                    <div class="col-md-4"><label for="program_mak">Program MAK :</label></div>
+                    <div class="col-md-8">
+                        <select class="form-control" id="program_mak" name="program_mak">
+                            <option value="">Pilih program MAK</option>
+                            <option value="TAHFIDZ">Tahfidz</option>
+                            <option value="KITAB">Kitab</option>
+                        </select>
                     </div>
                 </div>
                 <div class="row mb-3">
@@ -325,6 +356,9 @@
             currentPage = 1;
             loadSiswa();
         });
+        $('#major-filter').change(function () { currentPage = 1; loadSiswa(); });
+        $('#kelas_awal, #peminatan_id').change(syncSpecializationForm);
+        syncSpecializationForm();
 
         $('#input-search').on('change keyup', function () {
             var val = $(this).val();
@@ -479,7 +513,7 @@
         $('#loading').removeClass('d-none');
         var cari = query != null ? '&search=' + query : ''
         var filter = '&filter=' + $('#users-filter').val();
-        var dataPost = $('#pager').serialize() + cari + filter;
+        var dataPost = $('#pager').serialize() + cari + filter + '&peminatan_id=' + $('#major-filter').val();
         console.log('post', dataPost);
         $.ajax({
             url: base_url + 'datasiswa/list',
@@ -513,6 +547,8 @@
                 } else {
                     $pagination.addClass('d-none');
                 }
+                var major = $('#major-filter').val();
+                if (major) data.lists = data.lists.filter(function (s) { return String(s.peminatan_id || '') === major; });
                 previewData(data);
             }, error: function (xhr, status, error) {
                 $('#loading').addClass('d-none')
@@ -534,8 +570,10 @@
 
         if (data.lists.length > 0) {
             $.each(data.lists, function (idx, siswa) {
-                const kls = siswa.nama_kelas != null ? '<span class="badge badge-info">'+siswa.nama_kelas+'</span>' : '';
+                const kls = siswa.nama_kelas != null ? '<span class="badge badge-info">'+siswa.nama_kelas+'</span>' : '<span class="badge badge-warning">Tanpa Kelas</span>';
                 const status = siswa.aktif == "0" ? '<span class="badge badge-danger">Nonaktif</span>' : '<span class="badge badge-success">Aktif</span>';
+                const majorNames = <?= json_encode(array_column($peminatanSiswa, 'nama_jurusan', 'id_jurusan')) ?>;
+                const major = majorNames[siswa.peminatan_id] || 'Belum diisi';
                 html += '<tr>' +
                     '   <td class="text-center align-middle">' +
                     '       <input name="checked[]" class="check" value="'+siswa.id_siswa+'" type="checkbox">' +
@@ -554,6 +592,7 @@
                     '       <span class="badge badge-light">'+siswa.nis+'</span><br>' +
                     '       <span class="badge badge-light">'+siswa.nisn+'</span>' +
                     '   </td>' +
+                    '   <td class="align-middle"><span class="badge badge-primary">'+major+'</span><br>'+(siswa.program_mak || '')+'</td>' +
                     '   <td class=" align-middle">' +
                     '       <div class="text-center">' +
                     '           <a class="btn btn-xs btn-warning" href="'+base_url+'datasiswa/edit/'+siswa.id_siswa+'">' +
@@ -565,7 +604,7 @@
             });
         } else {
             var filterLabel = $('#users-filter option:selected').text();
-            html += '<tr><td colspan="5" class="text-center align-middle py-4">Tidak ada data siswa untuk filter "'+filterLabel+'"</td></tr>';
+            html += '<tr><td colspan="6" class="text-center align-middle py-4">Tidak ada data siswa untuk filter "'+filterLabel+'"</td></tr>';
         }
         $('#table-body').html(html);
         $(`.avatar`).each(function () {
@@ -579,9 +618,26 @@
         });
     }
 
+    function syncSpecializationForm() {
+        var level = Number($('#kelas_awal').val());
+        var $major = $('#peminatan_id');
+        if (level === 10) {
+            var umum = $major.find('option[data-code="UM"], option[data-code="NON"]').first().val();
+            $major.val(umum).prop('disabled', true);
+        } else {
+            $major.prop('disabled', false);
+        }
+        var mak = $major.find('option:selected').data('code') === 'MAK';
+        $('#program-mak-row').toggle(mak);
+        $('#program_mak').prop('required', mak);
+        if (!mak) $('#program_mak').val('');
+        $('.major-hidden').remove();
+        if ($major.prop('disabled')) $('<input>', {type:'hidden', name:'peminatan_id', value:$major.val(), class:'major-hidden'}).appendTo('#formsiswa');
+    }
+
     function showTableError(message) {
         $('#pagination').addClass('d-none');
-        $('#table-body').html('<tr><td colspan="5" class="text-center text-danger align-middle py-4">'+message+'</td></tr>');
+        $('#table-body').html('<tr><td colspan="6" class="text-center text-danger align-middle py-4">'+message+'</td></tr>');
     }
 
     function applySearch() {

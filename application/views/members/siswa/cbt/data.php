@@ -10,6 +10,7 @@ $arrGuru = [];
 foreach ($guru as $g) {
     $arrGuru[$g->id_guru] = $g->nama_guru;
 }
+$this->load->library('Student_exam_eligibility');
 
 $jam_pertama = null;
 $jadwal_selesai = [];
@@ -122,6 +123,7 @@ $jadwal_selesai = [];
                                     $jamSesi = $cbt_info == null ? '0' : (isset($cbt_info->sesi_id) ? $cbt_info->sesi_id : $cbt_info->id_sesi);
                                     if (isset($cbt_jadwal[date('Y-m-d')]) && count($cbt_jadwal[date('Y-m-d')]) > 0) :
                                         foreach ($cbt_jadwal[date('Y-m-d')] as $key => $jadwal)  :
+                                            if (!$this->student_exam_eligibility->isEligible($siswa->id_siswa, $jadwal->id_jadwal)) continue;
                                             $kk = unserialize($jadwal->bank_kelas ?? '');
                                             $arrKelasCbt = [];
                                             foreach ($kk as $k) {
@@ -298,6 +300,7 @@ $jadwal_selesai = [];
                                             </tr>
                                             <?php
                                             foreach ($jadwals as $key => $jadwal)  :
+                                                if (!$this->student_exam_eligibility->isEligible($siswa->id_siswa, $jadwal->id_jadwal)) continue;
                                                 $jam_ke = $jadwal->jam_ke == '0' ? '1' : $jadwal->jam_ke;
                                                 $kk = unserialize($jadwal->bank_kelas ?? '');
                                                 $arrKelasCbt = [];

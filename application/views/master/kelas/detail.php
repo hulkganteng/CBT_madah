@@ -1,3 +1,4 @@
+<?php $majorNames = array_column($this->db->get('master_jurusan')->result_array(), 'nama_jurusan', 'id_jurusan'); ?>
 <div class="content-wrapper bg-white pt-4">
     <section class="content-header">
         <div class="container-fluid">
@@ -90,6 +91,8 @@
                                     <th class="text-center align-middle">No</th>
                                     <th class="text-center align-middle">N I S</th>
                                     <th class="text-center align-middle">Nama</th>
+                                    <th class="text-center align-middle">Peminatan</th>
+                                    <th class="text-center align-middle">Program MAK</th>
                                 </tr>
                                 <?php
                                 $no = 1;
@@ -104,6 +107,8 @@
                                         <td>
                                             <?= $siswa->nama ?>
                                         </td>
+                                        <td><?= html_escape(isset($majorNames[$siswa->peminatan_id]) ? $majorNames[$siswa->peminatan_id] : 'Belum diisi') ?></td>
+                                        <td><?= html_escape($siswa->program_mak ?: '-') ?></td>
                                     </tr>
                                     <?php $no++; endforeach; ?>
                             </table>

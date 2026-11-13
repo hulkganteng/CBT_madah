@@ -1,3 +1,6 @@
+<?php
+$peminatanSiswa = $this->db->where('status', 1)->order_by('nama_jurusan')->get('master_jurusan')->result();
+?>
 <div class="content-wrapper bg-white pt-4">
     <section class="content-header">
         <div class="container-fluid">
@@ -52,6 +55,12 @@
                                 <i class="fas fa-cloud-upload-alt mr-2"></i>Upload
                             </button>
                         </div>
+                        <div class="card-body pb-0">
+                            <div class="form-row">
+                                <div class="col-md-6"><label>Peminatan default (opsional)</label><select class="form-control" id="peminatan_id" name="peminatan_id"><option value="">Gunakan kolom Excel</option><?php foreach ($peminatanSiswa as $major) : ?><option value="<?= (int) $major->id_jurusan ?>" data-code="<?= html_escape(strtoupper($major->kode_jurusan)) ?>"><?= html_escape($major->nama_jurusan) ?></option><?php endforeach; ?></select><small class="text-muted">Dipakai hanya bila kolom PEMINATAN_ID kosong.</small></div>
+                                <div class="col-md-6" id="program-mak-row"><label>Program MAK default</label><select class="form-control" id="program_mak" name="program_mak"><option value="">Pilih program</option><option value="TAHFIDZ">Tahfidz</option><option value="KITAB">Kitab</option></select></div>
+                            </div>
+                        </div>
                         <?= form_close(); ?>
                         <div class="card-body" id="file-preview">
                             <span class="text-center">Pastikan anda telah mengisi format yang telah disediakan.</span>
@@ -72,3 +81,16 @@
 <script type="text/javascript" src="<?= base_url() ?>/assets/plugins/jquery-table2json/src/tabletojson.js"></script>
 <script src="<?= base_url() ?>/assets/app/js/jquery.htmlparser.min.js"></script>
 <script src="<?= base_url() ?>/assets/app/js/master/siswa/import.js?v=<?= filemtime(FCPATH . 'assets/app/js/master/siswa/import.js') ?>"></script>
+<script>
+$(function () {
+    function syncImportSpecialization() {
+        var $major = $('#peminatan_id');
+        $('#import-major-hidden').remove();
+        if ($major.prop('disabled')) $('<input>', {id:'import-major-hidden', type:'hidden', name:'peminatan_id', value:$major.val()}).appendTo('#formUpload');
+        var mak = $major.find('option:selected').data('code') === 'MAK';
+        $('#program-mak-row').toggle(mak); $('#program_mak').prop('required', mak);
+        if (!mak) $('#program_mak').val('');
+    }
+    $('#peminatan_id').change(syncImportSpecialization); syncImportSpecialization();
+});
+</script>

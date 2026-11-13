@@ -92,6 +92,24 @@ $kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
                                         required=""></select>
                             </div>
                         </div>
+                        <?php
+                        $peminatan = [0 => 'Semua Peminatan'];
+                        foreach ($this->db->order_by('nama_jurusan')->get_where('master_jurusan', ['status' => 1])->result() as $major) {
+                            $peminatan[$major->id_jurusan] = $major->nama_jurusan;
+                        }
+                        ?>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Peminatan Peserta</label>
+                                <?= form_dropdown('peminatan', $peminatan, $bank->bank_jurusan_id ?? 0, 'id="select-peminatan" class="select2 form-control form-control-sm"') ?>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Program MAK</label>
+                                <?= form_dropdown('program_mak', ['' => 'Semua program MAK', 'TAHFIDZ' => 'Tahfidz', 'KITAB' => 'Kitab'], $bank->bank_program_mak ?? '', 'id="select-program-mak" class="select2 form-control form-control-sm"') ?>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row">
@@ -250,6 +268,17 @@ $kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
         selMapel.select2();
         selKelas.select2();
         selGuru.select2();
+
+        const peminatan = $('#select-peminatan');
+        const programMak = $('#select-program-mak');
+        function toggleProgramMak() {
+            const kode = peminatan.find(':selected').text().trim().toUpperCase();
+            const isMak = kode === 'MAK';
+            programMak.prop('disabled', !isMak);
+            if (!isMak) programMak.val('').trigger('change');
+        }
+        peminatan.on('change', toggleProgramMak);
+        toggleProgramMak();
 
         var as = [];
         for (let i = 0; i < kelasSelect.length; i++) {

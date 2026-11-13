@@ -48,6 +48,7 @@
     const jabatan = '<?=$sidebar_jabatan?>';
     const pageact = '<?= $this->uri->segment(2); ?>';
     const isTu = <?= $this->ion_auth->in_group('tu') ? 'true' : 'false' ?>;
+    const isAdmin = <?= $this->ion_auth->is_admin() ? 'true' : 'false' ?>;
     const menus = [
         {
             'header': 'HOME', 'cbt': '1',
@@ -66,6 +67,8 @@
                     'name': 'Tata Usaha (TU)', 'icon': 'fas fa-users-cog', 'cbt': '1', 'tu': true,
                     'submenu': [
                         {'name': 'Kelola Siswa', 'link':"datasiswa", 'icon': 'fa fa-users'},
+                        {'name': 'Rombel', 'link':"datakelas", 'icon': 'fas fa-school', 'admin': true},
+                        {'name': 'Penempatan Siswa', 'link':"penempatansiswa", 'icon': 'fas fa-random', 'admin': true},
                         {'name': 'Akun Siswa', 'link':"usersiswa", 'icon': 'fas fa-user-lock'}
                     ]
                 },
@@ -106,7 +109,7 @@
                 if (jabatan !== '4' && menu.wali) {
                     return
                 }
-                if (!isTu && menu.tu) {
+                if (!isTu && !isAdmin && menu.tu) {
                     return
                 }
                 if (menu.submenu) {
@@ -121,6 +124,7 @@
                         <p>${menu.name}<i class="fas fa-angle-left right"></i></p>
                     </a><ul class="nav nav-treeview">`;
                     menu.submenu.forEach(function (sub) {
+                        if (sub.admin && !isAdmin) return;
                         htmlMenu += `<li class="nav-item">
                             <a href="${base_url + sub.link}"
                                class="nav-link ${page+'/'+pageact === sub.link || page === sub.link ? "active" : ""}">
