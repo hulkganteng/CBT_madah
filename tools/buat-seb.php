@@ -231,9 +231,14 @@ $seb_presets = array(
         'file' => 'SEB-Online.seb',
     ),
     'madah' => array(
+        'startURL' => 'https://cbtmadah.web.id/login-siswa',
+        'host' => 'cbtmadah.web.id',
+        'file' => 'SEB-Simulasi-CBT.seb',
+    ),
+    'development' => array(
         'startURL' => 'https://cbtmadah.bhydev.my.id/login-siswa',
         'host' => 'cbtmadah.bhydev.my.id',
-        'file' => 'SEB-Simulasi-CBT.seb',
+        'file' => 'SEB-Development.seb',
     ),
     'lokal' => array(
         'startURL' => 'http://192.168.1.10/garudacbt/login-siswa',

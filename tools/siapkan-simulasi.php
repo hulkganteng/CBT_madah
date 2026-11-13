@@ -21,7 +21,7 @@ define('ENVIRONMENT', 'development');
 mysqli_report(MYSQLI_REPORT_OFF);
 
 $root = dirname(__DIR__);
-$base = 'https://cbtmadah.bhydev.my.id/';
+$base = 'https://cbtmadah.web.id/';
 $out = $root . DIRECTORY_SEPARATOR . 'SEB-Simulasi-CBT.seb';
 foreach (array_slice($argv, 1) as $arg) {
     if (strpos($arg, '--base=') === 0) {

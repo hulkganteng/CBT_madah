@@ -41,5 +41,17 @@ final class SebConfigTest extends TestCase
         self::assertStringContainsString("['http', 'https']", $source);
         self::assertStringContainsString('strlen($adminPassword) < 8', $source);
         self::assertStringContainsString("Cache-Control: no-store", $source);
+        self::assertStringContainsString("saveGlobalPolicy(\$result['startURL'], \$result['configKey'])", $source);
+        self::assertStringContainsString("file_put_contents(\$path, \$php, LOCK_EX)", $source);
+    }
+
+    public function testMadahPresetUsesProductionDomain(): void
+    {
+        require dirname(__DIR__) . '/tools/buat-seb.php';
+
+        self::assertSame('https://cbtmadah.web.id/login-siswa', $seb_presets['madah']['startURL']);
+        self::assertSame('cbtmadah.web.id', $seb_presets['madah']['host']);
+        self::assertSame('https://cbtmadah.bhydev.my.id/login-siswa', $seb_presets['development']['startURL']);
+        self::assertSame('cbtmadah.bhydev.my.id', $seb_presets['development']['host']);
     }
 }

@@ -1,7 +1,7 @@
 <?php
 /**
  * Smoke test simulasi ujian SATU peserta DENGAN Safe Exam Browser (SEB).
- * Default target: domain aktif https://cbtmadah.bhydev.my.id/
+ * Default target: domain aktif https://cbtmadah.web.id/
  *
  * Yang diuji:
  *   - jadwal seb_mode=REQUIRED menolak permintaan tanpa ConfigKeyHash
@@ -21,7 +21,7 @@ define('BASEPATH', dirname(__DIR__) . DIRECTORY_SEPARATOR . 'system' . DIRECTORY
 define('ENVIRONMENT', 'development');
 mysqli_report(MYSQLI_REPORT_OFF);
 
-$base = 'https://cbtmadah.bhydev.my.id/';
+$base = 'https://cbtmadah.web.id/';
 $keep = false;
 foreach (array_slice($argv, 1) as $arg) {
     if (strpos($arg, '--base=') === 0) {

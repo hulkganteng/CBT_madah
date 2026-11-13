@@ -79,9 +79,10 @@ class Sebconfig extends CI_Controller
             if ($contents === false) {
                 throw new RuntimeException('Berkas SEB tidak dapat dibaca.');
             }
+            $this->saveGlobalPolicy($result['startURL'], $result['configKey']);
         } catch (Throwable $error) {
             log_message('error', 'Generator SEB: ' . $error->getMessage());
-            return $this->invalid('Konfigurasi SEB gagal dibuat.');
+            return $this->invalid('Konfigurasi SEB gagal dibuat atau kebijakan server tidak dapat disimpan.');
         } finally {
             if (is_file($temporary)) {
                 unlink($temporary);
@@ -93,6 +94,36 @@ class Sebconfig extends CI_Controller
             ->set_header('Content-Disposition: attachment; filename="' . $filename . '"')
             ->set_header('Cache-Control: no-store, no-cache, must-revalidate')
             ->set_output($contents);
+    }
+
+    private function saveGlobalPolicy($startUrl, $configKey)
+    {
+        if (getenv('GARUDACBT_SEB_START_URL') || getenv('GARUDACBT_SEB_CONFIG_KEY')) {
+            throw new RuntimeException('Kebijakan SEB dikelola oleh environment server.');
+        }
+
+        $path = APPPATH . 'config/.seb_global.php';
+        $browserKeys = '';
+        $configKeys = array();
+        if (is_file($path)) {
+            $current = require $path;
+            $browserKeys = is_array($current) && isset($current['browser_exam_keys'])
+                ? (string) $current['browser_exam_keys'] : '';
+            if (is_array($current) && isset($current['config_key'])) {
+                $configKeys = preg_split('/[\s,;]+/', strtolower((string) $current['config_key']), -1, PREG_SPLIT_NO_EMPTY);
+            }
+        }
+        $configKeys[] = strtolower($configKey);
+        $settings = array(
+            'start_url' => $startUrl,
+            'config_key' => implode("\n", array_values(array_unique($configKeys))),
+            'browser_exam_keys' => $browserKeys,
+        );
+        $php = "<?php\ndefined('BASEPATH') OR exit('No direct script access allowed');\n\nreturn "
+            . var_export($settings, TRUE) . ";\n";
+        if (file_put_contents($path, $php, LOCK_EX) === FALSE) {
+            throw new RuntimeException('Kebijakan SEB server tidak dapat ditulis.');
+        }
     }
 
     private function invalid($message)

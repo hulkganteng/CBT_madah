@@ -141,7 +141,7 @@ function http(string $url, ?array $post = null, bool $seb = true): array
 
 if ($base === '') {
     $base = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== '') ? 'https' : 'http') . '://';
-    $base = 'https://cbtmadah.bhydev.my.id/';
+    $base = 'https://cbtmadah.web.id/';
 }
 
 try {
