@@ -69,7 +69,11 @@ if (!function_exists('seb_json')) {
     function seb_json($value)
     {
         if ($value instanceof SebData) {
-            return json_encode($value->base64);
+            /* DataProcessor SEB menulis Base64 apa adanya ke JSON. Opsi ini
+               penting karena json_encode() bawaan mengubah "/" menjadi
+               "\/", sehingga Config Key server berbeda dari key yang
+               dihitung ulang oleh aplikasi SEB setelah membaca plist. */
+            return json_encode($value->base64, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         }
         if (is_array($value)) {
             if ($value && array_keys($value) === range(0, count($value) - 1)) {
@@ -163,7 +167,11 @@ if (!function_exists('buat_seb_config')) {
             'originatorVersion' => 'SEB_Windows_3.10.1',
             'quitURL' => '',
             'quitURLConfirm' => true,
-            'sebConfigPurpose' => 1,
+            /* File ini dibagikan kepada peserta untuk memulai ujian.
+               Nilai 1 berarti "Configuring Client" dan dapat membuat SEB
+               mencoba memasang konfigurasi ke client alih-alih membuka
+               Start URL. */
+            'sebConfigPurpose' => 0,
             'sebMode' => 0,
             'sebServicePolicy' => 1,
             'sendBrowserExamKey' => true,

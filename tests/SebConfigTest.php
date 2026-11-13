@@ -6,6 +6,13 @@ use PHPUnit\Framework\TestCase;
 
 final class SebConfigTest extends TestCase
 {
+    public function testConfigKeyJsonDoesNotEscapeSlashesInBase64Data(): void
+    {
+        require_once dirname(__DIR__) . '/tools/buat-seb.php';
+
+        self::assertSame('"/w=="', seb_json(new SebData('/w==')));
+    }
+
     public function testGeneratorCreatesDownloadableSebFile(): void
     {
         require_once dirname(__DIR__) . '/tools/buat-seb.php';
@@ -25,6 +32,7 @@ final class SebConfigTest extends TestCase
             self::assertStringStartsWith('plnd', $outer);
             $xml = gzdecode(substr($outer, 4));
             self::assertStringContainsString('https://cbt.example.test/login-siswa', $xml);
+            self::assertStringContainsString('<key>sebConfigPurpose</key><integer>0</integer>', $xml);
             self::assertStringContainsString(hash('sha256', 'admin-test-123'), $xml);
             self::assertStringNotContainsString('admin-test-123', $xml);
             self::assertStringNotContainsString('keluar-test-123', $xml);
