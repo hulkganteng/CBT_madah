@@ -43,6 +43,7 @@ final class SebConfigTest extends TestCase
         self::assertStringContainsString("Cache-Control: no-store", $source);
         self::assertStringContainsString("saveGlobalPolicy(\$result['startURL'], \$result['configKey'])", $source);
         self::assertStringContainsString("file_put_contents(\$path, \$php, LOCK_EX)", $source);
+        self::assertStringNotContainsString("getenv('GARUDACBT_SEB_START_URL') ||", $source);
     }
 
     public function testMadahPresetUsesProductionDomain(): void

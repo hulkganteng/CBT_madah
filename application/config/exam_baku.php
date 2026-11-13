@@ -18,10 +18,12 @@ $config['exam_seb_browser_exam_keys'] = strtolower(trim((string) getenv('GARUDAC
 if ($config['exam_seb_start_url'] === '' && isset($sebGlobal['start_url'])) {
     $config['exam_seb_start_url'] = trim((string) $sebGlobal['start_url']);
 }
-if ($config['exam_seb_config_key'] === '' && isset($sebGlobal['config_key'])) {
-    $config['exam_seb_config_key'] = strtolower(trim((string) $sebGlobal['config_key']));
+if (isset($sebGlobal['config_key'])) {
+    $config['exam_seb_config_key'] = trim($config['exam_seb_config_key'] . "\n"
+        . strtolower(trim((string) $sebGlobal['config_key'])));
 }
-if ($config['exam_seb_browser_exam_keys'] === '' && isset($sebGlobal['browser_exam_keys'])) {
-    $config['exam_seb_browser_exam_keys'] = strtolower(trim((string) $sebGlobal['browser_exam_keys']));
+if (isset($sebGlobal['browser_exam_keys'])) {
+    $config['exam_seb_browser_exam_keys'] = trim($config['exam_seb_browser_exam_keys'] . "\n"
+        . strtolower(trim((string) $sebGlobal['browser_exam_keys'])));
 }
 unset($sebGlobal, $sebGlobalPath, $localSeb);

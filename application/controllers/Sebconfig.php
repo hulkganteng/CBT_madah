@@ -82,7 +82,7 @@ class Sebconfig extends CI_Controller
             $this->saveGlobalPolicy($result['startURL'], $result['configKey']);
         } catch (Throwable $error) {
             log_message('error', 'Generator SEB: ' . $error->getMessage());
-            return $this->invalid('Konfigurasi SEB gagal dibuat atau kebijakan server tidak dapat disimpan.');
+            return $this->invalid('Konfigurasi SEB gagal: ' . $error->getMessage());
         } finally {
             if (is_file($temporary)) {
                 unlink($temporary);
@@ -98,10 +98,6 @@ class Sebconfig extends CI_Controller
 
     private function saveGlobalPolicy($startUrl, $configKey)
     {
-        if (getenv('GARUDACBT_SEB_START_URL') || getenv('GARUDACBT_SEB_CONFIG_KEY')) {
-            throw new RuntimeException('Kebijakan SEB dikelola oleh environment server.');
-        }
-
         $path = APPPATH . 'config/.seb_global.php';
         $browserKeys = '';
         $configKeys = array();
