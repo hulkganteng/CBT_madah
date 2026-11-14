@@ -181,6 +181,17 @@ class Question_import
 
     private function html($value)
     {
-        return nl2br(htmlspecialchars(trim((string) $value), ENT_QUOTES, 'UTF-8'));
+        $html = nl2br(htmlspecialchars(trim((string) $value), ENT_QUOTES, 'UTF-8'));
+        // Skema lama memakai charset utf8 MySQL (maksimal 3 byte). Ubah
+        // karakter 4-byte menjadi numeric entity; tampilannya tetap sama di
+        // browser dan query tidak gagal dengan "Incorrect string value".
+        return preg_replace_callback('/[\x{10000}-\x{10FFFF}]/u', function ($match) {
+            $bytes = unpack('C*', $match[0]);
+            $codepoint = (($bytes[1] & 0x07) << 18)
+                | (($bytes[2] & 0x3F) << 12)
+                | (($bytes[3] & 0x3F) << 6)
+                | ($bytes[4] & 0x3F);
+            return '&#' . $codepoint . ';';
+        }, $html);
     }
 }

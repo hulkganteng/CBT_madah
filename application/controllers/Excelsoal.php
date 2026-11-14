@@ -201,15 +201,19 @@ class Excelsoal extends CI_Controller
 
         $now = date('Y-m-d H:i:s');
         $this->db->trans_begin();
-        $this->db->insert('cbt_soal_import', array(
+        $draftSaved = $this->db->insert('cbt_soal_import', array(
             'bank_id' => (int) $bankId,
             'user_id' => (int) $this->ion_auth->user()->row()->id,
             'source_type' => 'excel',
-            'original_filename' => basename($_FILES['excel_file']['name']),
+            'original_filename' => $this->databaseSafeFilename($_FILES['excel_file']['name']),
             'status' => 'draft',
             'created_at' => $now,
             'updated_at' => $now,
         ));
+        if (!$draftSaved) {
+            $this->failDraftTransaction('header');
+            return;
+        }
         $importId = (int) $this->db->insert_id();
         $existing = $this->existingQuestionKeys($bankId);
         $rows = array();
@@ -222,10 +226,10 @@ class Excelsoal extends CI_Controller
                 'import_id' => $importId,
                 'row_number' => $item['row_number'],
                 'question_type' => $item['normalized_data']['type'],
-                'raw_data' => json_encode($item['raw_data'], JSON_UNESCAPED_UNICODE),
-                'normalized_data' => json_encode($item['normalized_data'], JSON_UNESCAPED_UNICODE),
+                'raw_data' => $this->jsonForDatabase($item['raw_data']),
+                'normalized_data' => $this->jsonForDatabase($item['normalized_data']),
                 'is_valid' => $item['errors'] ? 0 : 1,
-                'validation_errors' => json_encode(array('errors' => $item['errors'], 'warnings' => $item['warnings']), JSON_UNESCAPED_UNICODE),
+                'validation_errors' => $this->jsonForDatabase(array('errors' => $item['errors'], 'warnings' => $item['warnings'])),
                 'imported' => 0,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -235,13 +239,12 @@ class Excelsoal extends CI_Controller
                 $existing[$questionKey] = true;
             }
         }
-        foreach (array_chunk($rows, 200) as $batch) {
-            $this->db->insert_batch('cbt_soal_import_item', $batch);
+        if (!$this->insertRowsInSafeBatches('cbt_soal_import_item', $rows)) {
+            $this->failDraftTransaction('items');
+            return;
         }
-        $this->refreshCounts($importId);
-        if ($this->db->trans_status() === false) {
-            $this->db->trans_rollback();
-            $this->json(array('message' => 'Draft import gagal disimpan. Silakan coba lagi.'), 500);
+        if (!$this->refreshCounts($importId) || $this->db->trans_status() === false) {
+            $this->failDraftTransaction('counts');
             return;
         }
         $this->db->trans_commit();
@@ -347,10 +350,10 @@ class Excelsoal extends CI_Controller
         }
         $this->db->where('id', $itemId)->update('cbt_soal_import_item', array(
             'question_type' => $normalized['type'],
-            'raw_data' => json_encode($raw, JSON_UNESCAPED_UNICODE),
-            'normalized_data' => json_encode($normalized, JSON_UNESCAPED_UNICODE),
+            'raw_data' => $this->jsonForDatabase($raw),
+            'normalized_data' => $this->jsonForDatabase($normalized),
             'is_valid' => $errors ? 0 : 1,
-            'validation_errors' => json_encode(array('errors' => $errors, 'warnings' => $warnings), JSON_UNESCAPED_UNICODE),
+            'validation_errors' => $this->jsonForDatabase(array('errors' => $errors, 'warnings' => $warnings)),
             'updated_at' => date('Y-m-d H:i:s'),
         ));
         $this->refreshCounts($import->id);
@@ -442,8 +445,11 @@ class Excelsoal extends CI_Controller
             return;
         }
 
-        foreach (array_chunk($rows, 200) as $batch) {
-            $this->db->insert_batch('cbt_soal', $batch);
+        if (!$this->insertRowsInSafeBatches('cbt_soal', $rows)) {
+            $this->db->trans_rollback();
+            $this->logDatabaseError('commit-items');
+            $this->json(array('message' => 'Soal gagal disimpan. Draft tetap tersedia untuk dicoba kembali.'), 500);
+            return;
         }
         $this->db->where_in('id', $itemIds)->update('cbt_soal_import_item', array('imported' => 1, 'updated_at' => date('Y-m-d H:i:s')));
         $remaining = $this->db->where(array('import_id' => $import->id, 'imported' => 0))->count_all_results('cbt_soal_import_item');
@@ -568,12 +574,70 @@ class Excelsoal extends CI_Controller
         $total = $this->db->where('import_id', $importId)->count_all_results('cbt_soal_import_item');
         $valid = $this->db->where(array('import_id' => $importId, 'is_valid' => 1, 'imported' => 0))->count_all_results('cbt_soal_import_item');
         $invalid = $this->db->where(array('import_id' => $importId, 'is_valid' => 0, 'imported' => 0))->count_all_results('cbt_soal_import_item');
-        $this->db->where('id', $importId)->update('cbt_soal_import', array(
+        return $this->db->where('id', $importId)->update('cbt_soal_import', array(
             'total_items' => $total,
             'valid_items' => $valid,
             'invalid_items' => $invalid,
             'updated_at' => date('Y-m-d H:i:s'),
         ));
+    }
+
+    /**
+     * Jangan mengandalkan jumlah baris tetap untuk insert_batch. Instalasi
+     * XAMPP umumnya memakai max_allowed_packet 1 MB, sedangkan dua kolom JSON
+     * pada draft dapat membuat 200 soal melewati batas tersebut.
+     */
+    private function insertRowsInSafeBatches($table, $rows, $maxBytes = 262144)
+    {
+        $batch = array();
+        $batchBytes = 0;
+        foreach ($rows as $row) {
+            $rowBytes = strlen(serialize($row));
+            if ($batch && $batchBytes + $rowBytes > $maxBytes) {
+                if (!$this->db->insert_batch($table, $batch)) {
+                    $this->logDatabaseError($table);
+                    return false;
+                }
+                $batch = array();
+                $batchBytes = 0;
+            }
+            $batch[] = $row;
+            $batchBytes += $rowBytes;
+        }
+        if ($batch && !$this->db->insert_batch($table, $batch)) {
+            $this->logDatabaseError($table);
+            return false;
+        }
+        return true;
+    }
+
+    private function jsonForDatabase($value)
+    {
+        // Simpan Unicode sebagai escape JSON ASCII agar tabel utf8 MySQL lama
+        // tetap dapat menampung karakter 4-byte tanpa mengubah isi soal.
+        return json_encode($value);
+    }
+
+    private function databaseSafeFilename($filename)
+    {
+        $filename = basename((string) $filename);
+        $safe = preg_replace('/[\x{10000}-\x{10FFFF}]/u', '_', $filename);
+        return $safe === NULL ? 'import_soal.xlsx' : $safe;
+    }
+
+    private function failDraftTransaction($stage)
+    {
+        $this->logDatabaseError('draft-' . $stage);
+        $this->db->trans_rollback();
+        $this->json(array('message' => 'Draft import gagal disimpan. Silakan coba lagi.'), 500);
+    }
+
+    private function logDatabaseError($stage)
+    {
+        $error = $this->db->error();
+        $code = isset($error['code']) ? (int) $error['code'] : 0;
+        $message = isset($error['message']) ? $error['message'] : 'unknown database error';
+        log_message('error', 'Import soal Excel gagal pada ' . $stage . ' [DB ' . $code . ']: ' . $message);
     }
 
     private function itemForResponse($item)
