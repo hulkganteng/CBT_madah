@@ -323,10 +323,16 @@ $kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
                     });
                 }, error: function (xhr, status, error) {
                     console.log("error", xhr.responseText);
-                    const err = JSON.parse(xhr.responseText)
+                    let message = 'Bank soal gagal disimpan. Periksa data dan coba lagi.';
+                    try {
+                        const err = JSON.parse(xhr.responseText);
+                        message = err.message || err.Message || message;
+                    } catch (e) {
+                        console.error('Respons error bukan JSON yang valid', e);
+                    }
                     swal.fire({
                         title: "Error",
-                        text: err.Message,
+                        text: message,
                         icon: "error"
                     });
                 }

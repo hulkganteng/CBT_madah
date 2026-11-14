@@ -1216,6 +1216,12 @@ class Exam_security_hook
         $total = 0;
         foreach ($fields as $field) {
             $count = $this->ci->input->post($field, TRUE);
+            // Form bank soal saat ini tidak menampilkan semua tipe soal lama.
+            // Field yang tidak dikirim berarti jumlahnya nol, bukan input invalid.
+            if ($count === NULL) {
+                $count = 0;
+                $_POST[$field] = '0';
+            }
             if (filter_var($count, FILTER_VALIDATE_INT) === FALSE || (int) $count < 0) {
                 $this->deny('Jumlah setiap tipe soal harus berupa bilangan nol atau lebih.', 422);
             }
