@@ -83,6 +83,7 @@ $namaAplikasi = $settingSidebar == null || $settingSidebar->nama_aplikasi == nul
                         {'name':"Mata Pelajaran", 'link':"datamapel", 'icon': 'fa fa-book'},
                         {'name':"Jurusan", 'link':"datajurusan", 'icon': 'fa fa-flask'},
                         {'name':"Siswa", 'link':"datasiswa", 'icon': 'fa fa-users'},
+                        {'name':"Peminatan Siswa", 'link':"peminatansiswa", 'icon': 'fas fa-user-graduate'},
                         {'name':"Kelas / Rombel", 'link':"datakelas", 'icon': 'fa fa-school'},
                         {'name':"Guru", 'link':"dataguru", 'icon': 'fa fa-chalkboard-teacher'}
                     ]
