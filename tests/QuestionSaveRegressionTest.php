@@ -29,6 +29,9 @@ final class QuestionSaveRegressionTest extends TestCase
 
         self::assertStringContainsString('if (!$saved) { goto dbSaveFailed; }', $source);
         self::assertStringContainsString('dbSaveFailed:', $source);
+        self::assertStringContainsString('set_status_header(500)', $source);
+        self::assertStringContainsString('$result["soal_id"] = $this->db->insert_id()', $source);
+        self::assertStringContainsString("$('#method').val('edit')", $javascript);
         self::assertStringContainsString('data.error || "Soal gagal disimpan ke database."', $javascript);
     }
 }

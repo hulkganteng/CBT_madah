@@ -175,6 +175,11 @@ $(document).ready(function() {
                                 showCancelButton: false
                             });
                         } else {
+                            if (data.soal_id) {
+                                idSoal = data.soal_id;
+                                $('#soal-id').val(data.soal_id);
+                                $('#method').val('edit');
+                            }
                             showSuccessToast("Soal berhasil disimpan.");
                             if (jenis==='1' || jenis==='2') {
                                 $('#btn-'+jenis+nomor_soal).removeClass('btn-outline-danger');
@@ -193,7 +198,8 @@ $(document).ready(function() {
                     }, error: function (xhr, status, error) {
                         $('#loading').addClass('d-none');
                         console.log("error", xhr.responseText);
-                        showDangerToast();
+                        var response = xhr.responseJSON || {};
+                        showDangerToast(response.error || 'Soal gagal disimpan ke database.');
                     }
                 });
             }, 500);
