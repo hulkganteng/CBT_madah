@@ -170,7 +170,7 @@ $(document).ready(function() {
                         if (data.status === 'error') {
                             swal.fire({
                                 title: "ERROR",
-                                text: "SOAL atau JAWABAN tidak boleh kosong",
+                                text: data.error || "Soal gagal disimpan ke database.",
                                 icon: "warning",
                                 showCancelButton: false
                             });
