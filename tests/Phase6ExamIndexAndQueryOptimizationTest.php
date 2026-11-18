@@ -22,9 +22,9 @@ class Phase6ExamIndexAndQueryOptimizationTest extends TestCase
 
         $content = file_get_contents($configFile);
         $this->assertMatchesRegularExpression(
-            "/\\\$config\\['migration_version'\\]\\s*=\\s*20261111000400;/",
+            "/\\\$config\\['migration_version'\\]\\s*=\\s*20261118000100;/",
             $content,
-            'Migration version must be bumped to 20261111000400'
+            'Migration version must match the latest migration'
         );
     }
 

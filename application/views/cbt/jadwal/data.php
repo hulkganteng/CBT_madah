@@ -26,6 +26,11 @@ if (isset($jadwal_ujian)) {
                 <div class="card-header">
                     <h6 class="card-title">Jadwal Ujian/Ulangan</h6>
                     <div class="card-tools">
+                        <?php if ($this->ion_auth->is_admin()) : ?>
+                            <a href="<?= base_url('cbtjadwalimport') ?>" class="btn btn-success btn-sm mr-1">
+                                <i class="fas fa-file-import"></i> <span class="d-none d-sm-inline-block ml-1">Impor Jadwal</span>
+                            </a>
+                        <?php endif; ?>
                         <a href="<?= base_url('cbtjadwal?mode=' . $mode) ?>" type="button" onclick=""
                            class="btn btn-sm btn-default">
                             <i class="fa fa-sync"></i> <span class="d-none d-sm-inline-block ml-1">Reload</span>
