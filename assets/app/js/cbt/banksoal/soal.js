@@ -804,7 +804,7 @@ function getSoalById(id_bank, number, id, jenis_soal) {
                                     '          <input class="check-pg2" type="checkbox" style="width: 24px; height: 24px; margin-left: 8px;" name="jawaban_benar_pg2[]" value="' + k + '" ' + checked + '>' +
                                     '       </div>' +
                                     '    </div>' +
-                                    '    <textarea class="textjawaban2" id="textjawaban2_' + k + '" name="jawaban2_' + k + '" placeholder="Buat jawaban" style="width:100%;">' + pv.html(pv.clone()).html() + '</textarea>\n' +
+                                    '    <textarea class="textjawaban2" id="textjawaban2_' + k + '" name="jawaban2_' + k + '" placeholder="Buat jawaban" style="width:100%;">' + $('<div>').append(pv.clone()).html() + '</textarea>\n' +
                                     '</div>';
                             });
                         } else {
