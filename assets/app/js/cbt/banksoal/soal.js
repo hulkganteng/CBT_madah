@@ -428,15 +428,18 @@ function inputKosong() {
     if ($('.textsoal').summernote('isEmpty')) return true;
     var kosong = true;
     if (jenis === '1') {
+        var jumlahOpsiTerisi = 0;
         $('.textjawaban').each(function () {
-            if ($(this).summernote('isEmpty')) {
-                kosong = true;
-                return false;
-            } else {
-                kosong = false;
+            if (!$(this).summernote('isEmpty')) {
+                jumlahOpsiTerisi++;
             }
         });
-        if (!$('[name="jawaban_pg"]:checked').length) kosong = true;
+
+        var jawabanBenar = $('[name="jawaban_pg"]:checked').val();
+        kosong = jumlahOpsiTerisi < 2 || !jawabanBenar;
+        if (!kosong) {
+            kosong = $('#textjawaban_' + jawabanBenar).summernote('isEmpty');
+        }
     } else if (jenis === '2') {
         $('.textjawaban2').each(function () {
             if ($(this).summernote('isEmpty')) {

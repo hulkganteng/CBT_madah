@@ -1138,7 +1138,15 @@ class Exam_security_hook
                     $id = $bank ? (int) $bank->id_bank : 0;
                 }
                 if ($id > 0) {
+                    $classes = $this->ci->input->post('kelas', TRUE);
+                    $classes = is_array($classes) ? array_values($classes) : array();
+                    $bankClasses = array_map(function ($classId) {
+                        return array('kelas_id' => (int) $classId);
+                    }, $classes);
                     $this->ci->db->where('id_bank', $id)->update('cbt_bank_soal', array(
+                        // Timpa hasil loop model lama yang memakai <= dan selalu
+                        // menambahkan satu kelas kosong di akhir.
+                        'bank_kelas' => serialize($bankClasses),
                         'bank_jurusan_id' => (int) $this->ci->input->post('peminatan', TRUE),
                         'bank_program_mak' => $this->ci->input->post('program_mak', TRUE) ?: NULL,
                     ));
@@ -1212,6 +1220,19 @@ class Exam_security_hook
 
     private function validateBankInput()
     {
+        // Model lama memanggil count() langsung pada POST kelas. Di PHP 8,
+        // field yang tidak dikirim menghasilkan TypeError dan respons HTML,
+        // sehingga AJAX melaporkannya sebagai JSON tidak valid.
+        $classes = $this->ci->input->post('kelas', TRUE);
+        $classes = is_array($classes) ? $classes : array();
+        $classes = array_values(array_unique(array_filter(array_map('intval', $classes), function ($id) {
+            return $id > 0;
+        })));
+        $_POST['kelas'] = $classes;
+        if (!$classes) {
+            $this->deny('Pilih minimal satu kelas untuk bank soal.', 422);
+        }
+
         $fields = array('tampil_pg', 'tampil_kompleks', 'tampil_bs', 'tampil_jodohkan', 'tampil_isian', 'tampil_esai');
         $total = 0;
         foreach ($fields as $field) {

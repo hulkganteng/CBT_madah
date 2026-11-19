@@ -326,7 +326,7 @@ $kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
                     let message = 'Bank soal gagal disimpan. Periksa data dan coba lagi.';
                     try {
                         const err = JSON.parse(xhr.responseText);
-                        message = err.message || err.Message || message;
+                        message = err.message || err.error || err.Message || message;
                     } catch (e) {
                         console.error('Respons error bukan JSON yang valid', e);
                     }
