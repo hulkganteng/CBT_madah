@@ -211,6 +211,12 @@ class Exam_security_hook
         }
 
         $attempt = $this->service->attempt($student->id_siswa, $idJadwal);
+        if ($method === 'selesaiujian' && $attempt && $attempt->status === 'SUBMITTED') {
+            $nonce = (string) $this->ci->session->userdata('exam_nonce_' . $attempt->attempt_id);
+            if ($nonce !== '' && hash_equals((string) $attempt->session_nonce, $nonce)) {
+                return;
+            }
+        }
         /* FR-21: auto-submit terjadi tepat saat waktu habis, jadi pengumpulan
            diberi kelonggaran lebih panjang daripada endpoint biasa. */
         $grace = $method === 'selesaiujian' ? 120 : 10;
@@ -370,7 +376,7 @@ class Exam_security_hook
             'savebank' => 'id_bank',
             'savesoal' => 'bank_id',
             'tambahsoal' => 'bank',
-            'import' => 'id_bank',
+            'import' => 'bank_id',
             'saveselected' => 'id_bank',
             'preview' => 'bank_id',
             'create' => 'bank_id',
@@ -380,7 +386,7 @@ class Exam_security_hook
         $byQuery = array(
             'deletebank' => 'id_bank',
             'editbank' => 'id_bank',
-            'getsoalnomor' => 'bank_id',
+            'getsoalbynomor' => 'bank_id',
             'template' => 'bank_id',
             'latest' => 'bank_id',
         );
@@ -436,7 +442,11 @@ class Exam_security_hook
             return;
         }
 
-        foreach ($this->bankIds($bankId) as $id) {
+        $ids = $this->bankIds($bankId);
+        if (!$ids) {
+            $this->deny('ID bank soal tidak valid.', 422);
+        }
+        foreach ($ids as $id) {
             if (!$this->ownsBank($id)) {
                 $this->deny('Anda tidak memiliki akses ke bank soal ini.', 403);
             }
@@ -505,7 +515,7 @@ class Exam_security_hook
             'cbtjadwal' => array(
                 'add' => array('uri' => 3),
             'savejadwal' => array('post' => array('id_jadwal', 'bank_id')),
-                'deletejadwal' => array('get' => array('id_jadwal')),
+                'deletejadwal' => array('post' => array('id_jadwal')),
                 'deletealljadwal' => array('post' => array('checked')),
             ),
             'cbtnilai' => array(
@@ -832,11 +842,7 @@ class Exam_security_hook
     }
 
     /**
-     * Siswa::applyAction adalah endpoint legacy yang membawa beberapa daftar
-     * ID di dalam JSON. Validasi parent jadwal saja tidak cukup: setiap child
-     * harus berasal dari jadwal yang sama. Aksi ulangi lama juga menghapus
-     * seluruh cbt_nilai siswa tanpa filter jadwal; lakukan penghapusan aman di
-     * sini lalu kosongkan daftar agar kode legacy tidak mengulanginya.
+     * Setiap sesi atau log yang dikirim pengawas harus berasal dari jadwal yang sama.
      */
     private function scopeLegacyProctorAction($idJadwal)
     {
@@ -850,11 +856,9 @@ class Exam_security_hook
         $hapus = $this->strictPositiveIds($action->hapus ?? array(), 'hapus');
         $reset = $this->strictPositiveIds($action->reset ?? array(), 'reset');
         $ulang = $this->strictPositiveIds($action->ulang ?? array(), 'ulang');
-        $log = $this->strictPositiveIds($action->log ?? array(), 'log');
-
         $this->assertChildrenInSchedule('cbt_durasi_siswa', 'id_durasi', array_merge($force, $hapus), $idJadwal);
         $this->assertChildrenInSchedule('log_ujian', 'id_log', $reset, $idJadwal);
-        $this->assertChildrenInSchedule('cbt_durasi_siswa', 'id_siswa', array_merge($ulang, $log), $idJadwal);
+        $this->assertChildrenInSchedule('cbt_durasi_siswa', 'id_siswa', $ulang, $idJadwal);
 
         if ($ulang) {
             $this->loadService();
@@ -878,9 +882,10 @@ class Exam_security_hook
             if (!$this->ci->db->trans_status()) {
                 $this->deny('Aksi mengulang ujian gagal diproses.', 500);
             }
-            $action->ulang = array();
-            $_POST['aksi'] = json_encode($action);
         }
+        $action->force = $force;
+        $action->reset = $reset;
+        $_POST['aksi'] = json_encode($action);
     }
 
     private function strictPositiveIds($values, $field)
@@ -1125,36 +1130,6 @@ class Exam_security_hook
             return;
         }
 
-        if ($controller === 'cbtbanksoal' && $method === 'savebank') {
-            $payload = json_decode($this->ci->output->get_output());
-            if ($payload && !empty($payload->status)
-                && $this->ci->db->field_exists('bank_program_mak', 'cbt_bank_soal')) {
-                $id = (int) $this->ci->input->post('id_bank', TRUE);
-                if ($id <= 0) {
-                    $bank = $this->ci->db->select('id_bank')->order_by('id_bank', 'DESC')->get_where(
-                        'cbt_bank_soal',
-                        array('bank_kode' => trim((string) $this->ci->input->post('kode', TRUE)))
-                    )->row();
-                    $id = $bank ? (int) $bank->id_bank : 0;
-                }
-                if ($id > 0) {
-                    $classes = $this->ci->input->post('kelas', TRUE);
-                    $classes = is_array($classes) ? array_values($classes) : array();
-                    $bankClasses = array_map(function ($classId) {
-                        return array('kelas_id' => (int) $classId);
-                    }, $classes);
-                    $this->ci->db->where('id_bank', $id)->update('cbt_bank_soal', array(
-                        // Timpa hasil loop model lama yang memakai <= dan selalu
-                        // menambahkan satu kelas kosong di akhir.
-                        'bank_kelas' => serialize($bankClasses),
-                        'bank_jurusan_id' => (int) $this->ci->input->post('peminatan', TRUE),
-                        'bank_program_mak' => $this->ci->input->post('program_mak', TRUE) ?: NULL,
-                    ));
-                }
-            }
-            return;
-        }
-
         if ($controller === 'siswa' && in_array($method, array('loadsoal', 'loadnomorsoal'), TRUE)) {
             $payload = json_decode($this->ci->output->get_output(), TRUE);
             if (is_array($payload)) {
@@ -1168,45 +1143,9 @@ class Exam_security_hook
         if ($controller === 'cbtjadwal' && $method === 'savejadwal') {
             $payload = json_decode($this->ci->output->get_output());
             if ($payload && !empty($payload->success)) {
-                $this->persistSebSettings();
+                $this->persistSebSettings((int) $payload->id_jadwal);
             }
             return;
-        }
-        if ($controller === 'siswa' && $method === 'applyaction') {
-            $payload = json_decode($this->ci->output->get_output());
-            $action = json_decode((string) $this->ci->input->post('aksi'));
-            $force = $action && isset($action->force) && is_array($action->force) ? $action->force : array();
-            if ($payload && !empty($payload->update_selesai) && $force
-                && $this->ci->db->table_exists('cbt_exam_attempt')) {
-                $idJadwal = (int) $this->ci->input->post('jadwal');
-                $rows = $this->ci->db->select('id_siswa')->where('id_jadwal', $idJadwal)
-                    ->where_in('id_durasi', $force)->get('cbt_durasi_siswa')->result();
-                $ids = array_map(function ($row) { return (int) $row->id_siswa; }, $rows);
-                if ($ids) {
-                    $this->ci->db->where('id_jadwal', $idJadwal)->where_in('id_siswa', $ids)
-                        ->where('status', 'IN_PROGRESS')->update('cbt_exam_attempt', array(
-                            'status' => 'SUBMITTED',
-                            'submitted_at' => date('Y-m-d H:i:s'),
-                            'updated_at' => date('Y-m-d H:i:s'),
-                        ));
-                }
-            }
-            return;
-        }
-        if ($controller !== 'siswa' || $method !== 'selesaiujian') {
-            return;
-        }
-
-        $payload = json_decode($this->ci->output->get_output());
-        /* Attempt hanya boleh SUBMITTED setelah grading benar-benar tersimpan. */
-        if (!$payload || empty($payload->status) || empty($payload->status_nilai)) {
-            return;
-        }
-        $this->loadService();
-        $student = $this->service->authenticatedStudent();
-        $idJadwal = (int) $this->ci->input->post('jadwal');
-        if ($student && $idJadwal) {
-            $this->service->submit($this->service->attempt($student->id_siswa, $idJadwal));
         }
     }
 
@@ -1215,6 +1154,22 @@ class Exam_security_hook
         $duration = $this->ci->input->post('durasi_ujian', TRUE);
         if (filter_var($duration, FILTER_VALIDATE_INT) === FALSE || (int) $duration < 1) {
             $this->deny('Durasi ujian harus berupa bilangan menit yang lebih dari nol.', 422);
+        }
+        $minimum = $this->ci->input->post('jarak', TRUE) ?? 0;
+        if (filter_var($minimum, FILTER_VALIDATE_INT) === FALSE || (int) $minimum < 0 || (int) $minimum > (int) $duration) {
+            $this->deny('Durasi minimal harus antara nol dan durasi ujian.', 422);
+        }
+        $dates = [];
+        foreach (['tgl_mulai', 'tgl_selesai'] as $field) {
+            $date = $this->ci->input->post($field, TRUE);
+            $parsed = is_string($date) ? DateTimeImmutable::createFromFormat('!Y-m-d', $date) : FALSE;
+            if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+                $this->deny('Tanggal jadwal tidak valid.', 422);
+            }
+            $dates[] = $date;
+        }
+        if ($dates[0] > $dates[1]) {
+            $this->deny('Tanggal selesai harus sama dengan atau setelah tanggal mulai.', 422);
         }
     }
 
@@ -1241,7 +1196,6 @@ class Exam_security_hook
             // Field yang tidak dikirim berarti jumlahnya nol, bukan input invalid.
             if ($count === NULL) {
                 $count = 0;
-                $_POST[$field] = '0';
             }
             if (filter_var($count, FILTER_VALIDATE_INT) === FALSE || (int) $count < 0) {
                 $this->deny('Jumlah setiap tipe soal harus berupa bilangan nol atau lebih.', 422);
@@ -1250,6 +1204,16 @@ class Exam_security_hook
         }
         if ($total < 1) {
             $this->deny('Bank soal harus menampilkan minimal satu soal.', 422);
+        }
+        $code = $this->ci->input->post('kode', TRUE);
+        if (!is_string($code) || trim($code) === '' || mb_strlen(trim($code)) > 20) {
+            $this->deny('Kode bank soal wajib diisi dan maksimal 20 karakter.', 422);
+        }
+        foreach (['pg', 'kompleks', 'bs', 'jodohkan', 'isian', 'esai'] as $kind) {
+            $weight = $this->ci->input->post('bobot_' . $kind, TRUE);
+            if ($weight !== NULL && (!is_numeric($weight) || (float) $weight < 0 || (float) $weight > 100)) {
+                $this->deny('Bobot soal harus berupa angka antara 0 dan 100.', 422);
+            }
         }
         $majorId = (int) $this->ci->input->post('peminatan', TRUE);
         $program = strtoupper(trim((string) $this->ci->input->post('program_mak', TRUE)));
@@ -1536,19 +1500,11 @@ class Exam_security_hook
         }
     }
 
-    private function persistSebSettings()
+    private function persistSebSettings($idJadwal)
     {
         $this->loadService();
         if (!$this->service->schemaReady()) {
             return;
-        }
-        $idJadwal = (int) $this->ci->input->post('id_jadwal');
-        if ($idJadwal <= 0) {
-            $row = $this->ci->db->order_by('id_jadwal', 'DESC')->get_where('cbt_jadwal', array(
-                'id_bank' => (int) $this->ci->input->post('bank_id'),
-                'id_jenis' => (int) $this->ci->input->post('jenis_id')
-            ))->row();
-            $idJadwal = $row ? (int) $row->id_jadwal : 0;
         }
         if ($idJadwal <= 0) {
             return;

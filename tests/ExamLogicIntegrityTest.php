@@ -50,13 +50,10 @@ final class ExamLogicIntegrityTest extends TestCase
         self::assertSame(2, substr_count($source, "'constraint' => 64"));
     }
 
-    public function testEmptyAutoSubmitAndForcedFinishUseSafePaths(): void
+    public function testAutoSubmitRequiresSavedGrade(): void
     {
         $view = file_get_contents(dirname(__DIR__) . '/application/views/members/siswa/cbt/ujian.php');
-        $hook = file_get_contents(dirname(__DIR__) . '/application/hooks/Exam_security_hook.php');
-
-        self::assertStringContainsString('jsonJawaban && jsonJawaban.jenis ? $.ajax', $view);
-        self::assertStringContainsString("\$method === 'applyaction'", $hook);
-        self::assertStringContainsString("'status' => 'SUBMITTED'", $hook);
+        self::assertStringContainsString('!useSavedAnswers && hasUnsavedAnswer() && jsonJawaban && jsonJawaban.jenis', $view);
+        self::assertStringContainsString('!response.status || !response.status_nilai', $view);
     }
 }

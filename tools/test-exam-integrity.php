@@ -74,11 +74,11 @@ class MemoryDb {
         return true;
     }
     function set($key, $value) { $this->sets[$key] = $value; return $this; }
-    function update($table) {
+    function update($table, $values = []) {
         foreach ($this->tables[$table] as &$row) {
             $matches = true;
             foreach ($this->filters as $key => $value) { if ((string) $row[$key] !== (string) $value) { $matches = false; } }
-            if ($matches) { $row = array_merge($row, $this->sets); }
+            if ($matches) { $row = array_merge($row, $this->sets, $values); }
         }
         $this->filters = $this->sets = [];
         return true;
@@ -97,7 +97,13 @@ class MemoryDb {
     function trans_start() {}
     function trans_complete() {}
     function trans_status() { return true; }
+    function trans_begin() { return true; }
+    function trans_commit() { return true; }
+    function trans_rollback() { return true; }
     function query($sql, $args) {
+        if (strpos($sql, 'FROM cbt_durasi_siswa') !== false) {
+            return $this->get_where('cbt_durasi_siswa', ['id_jadwal' => $args[0], 'id_durasi' => $args[1]]);
+        }
         $this->locks[] = [$sql, $args];
         return new Rows([['acquired' => $this->lockAvailable ? 1 : 0]]);
     }
@@ -193,10 +199,11 @@ $forged = clone $data;
 $forged->id_soal_siswa = $model->getALLSoalSiswa(7, 1, 11)[0]->id_soal_siswa;
 try { $service->validateAnswer($forged, 1, 10, 7); throw new RuntimeException('accepted question from another schedule'); }
 catch (InvalidArgumentException $expected) {}
-$exam->input->data = ['bank' => '7', 'siswa' => '1', 'jadwal' => '10', 'elapsed' => '0',
+$exam->input->data = ['bank' => '7', 'siswa' => '1', 'jadwal' => '10', 'elapsed' => '0', 'waktu' => '00:00:00',
     'data' => json_encode($normalized)];
 $exam->saveJawaban();
 check($exam->response['status'] === true && $exam->response['soal_terjawab'] === 1, 'save failed');
+check($db->tables['cbt_nilai'] === [], 'saving an answer prematurely submitted the exam');
 check(count(array_filter($model->getJumlahJawaban(7, 1, 11), function ($r) { return $r->jawaban_siswa !== null; })) === 0, 'answer count crossed schedules');
 $exam->olahNilai(1, 10); $exam->olahNilai(1, 11);
 check($db->tables['cbt_nilai']['1010']['pg_benar'] === 1 && $db->tables['cbt_nilai']['1011']['pg_benar'] === 0, 'grading crossed schedules');

@@ -93,7 +93,7 @@
                         <div class='col-6 col-md-3 mb-3'>
                             <div class='form-group'>
                                 <label>Durasi minimal (mnt)</label>
-                                <input type='number' id="durasi-ujian" name='jarak'
+                                <input type='number' id="durasi-minimal" name='jarak'
                                        class='form-control form-control-sm' value="<?= $jadwal->jarak ?>"
                                        required='true'/>
                             </div>
@@ -234,8 +234,11 @@
         $('#create').submit('click', function (e) {
             e.preventDefault();
             e.stopImmediatePropagation();
+            const $form = $(this);
+            if ($form.data('saving')) return;
             reEnable(false);
-            console.log("data:", $(this).serialize());
+            const payload = $form.serialize();
+            $form.data('saving', true).find(':submit').prop('disabled', true);
 
             swal.fire({
                 text: "Silahkan tunggu....",
@@ -252,16 +255,11 @@
                 url: base_url + "cbtjadwal/saveJadwal",
                 type: "POST",
                 dataType: "JSON",
-                data: $(this).serialize(),
+                data: payload,
                 success: function (data) {
                     console.log(data);
-                    reEnable(true);
-                    $('#tambahjadwal').modal('hide').data('bs.modal', null);
-                    $('#tambahjadwal').on('hidden', function () {
-                        $(this).data('modal', null);  // destroys modal
-                    });
-
                     if (data.success) {
+                        $('#tambahjadwal').modal('hide');
                         swal.fire({
                             title: "Sukses",
                             text: "Jadwal berhasil disimpan",
@@ -282,12 +280,15 @@
                     }
                 }, error: function (xhr, status, error) {
                     console.log("error", xhr.responseText);
-                    const err = JSON.parse(xhr.responseText)
+                    const err = xhr.responseJSON || {};
                     swal.fire({
                         title: "Error",
-                        text: err.Message,
+                        text: err.message || err.Message || 'Jadwal gagal disimpan.',
                         icon: "error"
                     });
+                }, complete: function () {
+                    reEnable(true);
+                    $form.data('saving', false).find(':submit').prop('disabled', false);
                 }
             });
         });

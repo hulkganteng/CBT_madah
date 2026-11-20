@@ -291,7 +291,10 @@ $kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
         $('#create').submit('click', function (e) {
             e.preventDefault();
             e.stopImmediatePropagation();
-            console.log("data:", $(this).serialize());
+            const $form = $(this);
+            if ($form.data('saving')) return;
+            const payload = $form.serialize();
+            $form.data('saving', true).find(':submit').prop('disabled', true);
             swal.fire({
                 text: "Silahkan tunggu....",
                 button: false,
@@ -307,8 +310,12 @@ $kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
                 url: base_url + "cbtbanksoal/saveBank",
                 type: "POST",
                 dataType: "JSON",
-                data: $(this).serialize(),
+                data: payload,
                 success: function (data) {
+                    if (!data.status) {
+                        swal.fire('Gagal', data.message || 'Bank soal gagal disimpan.', 'error');
+                        return;
+                    }
                     swal.fire({
                         title: "Sukses",
                         html: 'Bank soal berhasil disimpan',
@@ -335,6 +342,8 @@ $kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
                         text: message,
                         icon: "error"
                     });
+                }, complete: function () {
+                    $form.data('saving', false).find(':submit').prop('disabled', false);
                 }
             });
         });

@@ -9,6 +9,9 @@ if (!class_exists('CI_Controller')) {
     }
 }
 require_once dirname(__DIR__) . '/application/controllers/Siswa.php';
+require_once dirname(__DIR__) . '/application/controllers/Cbtnilai.php';
+require_once dirname(__DIR__) . '/application/controllers/Cbtrekap.php';
+require_once dirname(__DIR__) . '/application/controllers/Cbtanalisis.php';
 
 final class Phase1SubmitTest extends TestCase
 {
@@ -36,7 +39,7 @@ final class Phase1SubmitTest extends TestCase
         $controller->selesaiUjian();
 
         self::assertFalse($controller->response['status']);
-        self::assertTrue($controller->response['status_nilai']);
+        self::assertFalse($controller->response['status_nilai']);
         self::assertTrue($db->rolledBack);
         self::assertFalse($db->committed);
         self::assertSame(0, $controller->cbt->calls);
@@ -53,6 +56,7 @@ final class Phase1SubmitTest extends TestCase
         self::assertTrue($controller->response['status_nilai']);
         self::assertTrue($db->committed);
         self::assertSame(1, $db->progressUpdates);
+        self::assertSame(1, $db->attemptUpdates);
         self::assertSame(1, $controller->cbt->calls);
     }
 
@@ -69,6 +73,107 @@ final class Phase1SubmitTest extends TestCase
         self::assertTrue($controller->response['sudah_selesai']);
         self::assertSame(0, $controller->gradingCalls);
         self::assertSame(0, $db->progressUpdates);
+    }
+
+    public function testFinishedDurationWithoutGradeIsRepaired(): void
+    {
+        $db = new Phase1SubmitDb();
+        $db->status = 2;
+        $controller = $this->controller($db, TRUE);
+        $controller->cbt->hasGrade = FALSE;
+
+        $controller->selesaiUjian();
+
+        self::assertTrue($controller->response['status']);
+        self::assertSame(1, $controller->gradingCalls);
+        self::assertSame(0, $db->progressUpdates);
+    }
+
+    public function testForcedFinishReportsGradingFailureAndKeepsAttemptOpen(): void
+    {
+        $db = new Phase1SubmitDb();
+        $controller = $this->controller($db, FALSE);
+        $controller->input->data['aksi'] = json_encode(['force' => ['1010'], 'log' => []]);
+
+        $controller->applyAction();
+
+        self::assertFalse($controller->response['update_selesai']);
+        self::assertFalse($controller->response['status']);
+        self::assertSame(1, $controller->gradingCalls);
+        self::assertSame(0, $db->attemptUpdates);
+        self::assertTrue($db->rolledBack);
+    }
+
+    public function testForcedFinishUsesTheParticipantFromTheDuration(): void
+    {
+        $db = new Phase1SubmitDb();
+        $controller = $this->controller($db, TRUE);
+        $controller->input->data['aksi'] = json_encode(['force' => ['1010']]);
+
+        $controller->applyAction();
+
+        self::assertTrue($controller->response['status']);
+        self::assertTrue($db->committed);
+        self::assertSame(3, $db->durationUpdate['reset']);
+        self::assertSame(1, $db->attemptUpdates);
+    }
+
+    public function testAttemptUpdateFailureRollsBackGradeAndDuration(): void
+    {
+        $db = new Phase1SubmitDb();
+        $db->attemptUpdateResult = FALSE;
+        $controller = $this->controller($db, TRUE);
+
+        $controller->selesaiUjian();
+
+        self::assertFalse($controller->response['status']);
+        self::assertTrue($db->rolledBack);
+        self::assertFalse($db->committed);
+        self::assertSame(0, $controller->cbt->calls);
+    }
+
+    public function testCorrectionSavesZeroAndRollsBackWhenTheFinalGradeCannotBeUpdated(): void
+    {
+        $controller = new Phase1CorrectionController();
+        $controller->input = new Phase1SubmitInput();
+        $controller->input->data = ['siswa' => 1, 'jadwal' => 10, 'jenis' => 'kompleks_nilai',
+            'nilai' => json_encode([['id_soal' => '10101', 'koreksi' => '0']])];
+        $db = new Phase1SubmitDb();
+        $controller->db = $db;
+        $db->updateResult = FALSE;
+        $controller->simpanKoreksi();
+        self::assertSame(0, $controller->response['success']);
+        self::assertTrue($db->rolledBack);
+
+        $db->updateResult = TRUE;
+        $controller->simpanKoreksi();
+        self::assertSame(1, $controller->response['success']);
+        self::assertSame(['kompleks_nilai' => 0.0], $db->gradeUpdate);
+        self::assertTrue($db->committed);
+    }
+
+    public function testArchiveAndAnalysisAcceptSavedZeroWithoutRegrading(): void
+    {
+        foreach ([Cbtrekap::class, Cbtanalisis::class] as $class) {
+            $controller = (new ReflectionClass($class))->newInstanceWithoutConstructor();
+            $controller->load = new Phase1SubmitLoader();
+            $controller->cbt = new Phase1SubmitLog();
+            self::assertTrue($controller->generateNilaiUjian(10));
+            $controller->cbt->hasGrade = FALSE;
+            self::assertFalse($controller->generateNilaiUjian(10));
+        }
+    }
+
+    public function testGradeSummaryUsesSavedZeroAndSumsAllQuestionTypes(): void
+    {
+        $controller = new Phase1CorrectionController();
+        $applyScore = new ReflectionMethod(Cbtnilai::class, 'applyStoredScore');
+        $summary = (object) ['skor_kompleks' => 25];
+        $grade = (object) ['pg_nilai' => '33.33', 'kompleks_nilai' => '0.00', 'jodohkan_nilai' => '1.25',
+            'isian_nilai' => '15.00', 'essai_nilai' => '12.00', 'bs_nilai' => '4.20'];
+
+        self::assertSame(65.78, $applyScore->invoke($controller, $summary, $grade, 99));
+        self::assertSame(0.0, $summary->skor_kompleks);
     }
 
     public function testInvalidIdentifiersAreRejected(): void
@@ -119,6 +224,21 @@ class Phase1SubmitController extends Siswa
     }
 }
 
+#[AllowDynamicProperties]
+class Phase1CorrectionController extends Cbtnilai
+{
+    public $response;
+
+    public function __construct()
+    {
+    }
+
+    public function output_json($data, $encode = true)
+    {
+        $this->response = $data;
+    }
+}
+
 class Phase1SubmitInput
 {
     public $data = array();
@@ -140,10 +260,14 @@ class Phase1SubmitDb
 {
     public $status = 1;
     public $updateResult = TRUE;
+    public $attemptUpdateResult = TRUE;
     public $begun = FALSE;
     public $committed = FALSE;
     public $rolledBack = FALSE;
     public $progressUpdates = 0;
+    public $attemptUpdates = 0;
+    public $gradeUpdate = [];
+    public $durationUpdate = [];
 
     public function trans_begin()
     {
@@ -153,7 +277,12 @@ class Phase1SubmitDb
 
     public function query($sql, $args)
     {
-        return new Phase1SubmitResult((object) array('status' => $this->status));
+        return new Phase1SubmitResult((object) ['id_siswa' => 1, 'status' => $this->status, 'id_nilai' => '1010']);
+    }
+
+    public function table_exists($table)
+    {
+        return $table === 'cbt_exam_attempt';
     }
 
     public function where($key, $value = NULL)
@@ -161,8 +290,33 @@ class Phase1SubmitDb
         return $this;
     }
 
+    public function where_in($key, $values)
+    {
+        return $this;
+    }
+
+    public function count_all_results($table)
+    {
+        return 1;
+    }
+
+    public function update_batch($table, $data, $key)
+    {
+        return 0;
+    }
+
     public function update($table, $data)
     {
+        if ($table === 'cbt_exam_attempt') {
+            $this->attemptUpdates++;
+            return $this->attemptUpdateResult;
+        }
+        if ($table === 'cbt_nilai') {
+            $this->gradeUpdate = $data;
+        }
+        if ($table === 'cbt_durasi_siswa') {
+            $this->durationUpdate = $data;
+        }
         $this->progressUpdates++;
         return $this->updateResult;
     }
@@ -203,6 +357,17 @@ class Phase1SubmitResult
 class Phase1SubmitLog
 {
     public $calls = 0;
+    public $hasGrade = TRUE;
+
+    public function getNilaiSiswaByJadwal($schedule, $student)
+    {
+        return $this->hasGrade ? (object) ['pg_nilai' => 0] : NULL;
+    }
+
+    public function getAllNilaiSiswa($schedule)
+    {
+        return array_filter([$this->getNilaiSiswaByJadwal($schedule, 1)]);
+    }
 
     public function saveLog($student, $schedule, $type, $text = '')
     {

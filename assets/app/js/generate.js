@@ -1,14 +1,7 @@
-const cur_url = window.location.href;
-
-if (!localStorage.getItem('ada_jadwal_ujian') && cur_url.indexOf('dashboard') === -1) {
-    window.location.href = base_url + '/dashboard';
-} else {
-    adaJadwalUjian = localStorage.getItem('ada_jadwal_ujian');
-}
+adaJadwalUjian = localStorage.getItem('ada_jadwal_ujian') || '0';
 
 let timerToken, timerUpdate;
 let timerTokenRemaining, timerTokenOnGoing;
-let forceGenerate = 0;
 let timeOffset;
 
 $(document).ready(function () {
@@ -74,7 +67,7 @@ function createIntervalToken() {
             if (viewTimer.length) viewTimer.removeClass('d-none');
             if (t_remaining < 0) {
                 timerTokenRemaining = 'Membuat token...';
-                generateToken();
+                loadTokenFromServer();
             } else {
                 const r_jam = Math.floor(t_remaining / perjam);
                 const r_mnt = Math.floor((t_remaining % perjam) / permenit);
@@ -91,14 +84,12 @@ function zeroPad(no) {
     return no < 10 ? '0' + no : no;
 }
 
-function generateToken() {
+function generateToken(auto, interval) {
     ajaxcsrf();
     $.ajax({
         url: base_url + "cbttoken/generatetoken/",
-        type: "GET",
-        async: false,
-        cache: false,
-        data: 'data='+JSON.stringify(globalToken)+'&force='+forceGenerate,
+        type: "POST",
+        data: {auto: auto, jarak: interval},
         success: function (response) {
             console.log('tokenResult', response);
             localStorage.setItem('token', JSON.stringify(response));
@@ -106,7 +97,7 @@ function generateToken() {
             createIntervalToken();
         },
         error: function (xhr, status, error) {
-            console.log(xhr);
+            showDangerToast((xhr.responseJSON || {}).message || 'Token gagal disimpan.');
         }
     });
 }

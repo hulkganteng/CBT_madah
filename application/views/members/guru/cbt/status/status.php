@@ -340,7 +340,6 @@
         let item = {};
         item ["reset"] = [];
         item ["force"] = [];
-        item ["log"] = [];
         item ["ulang"] = [];
         item ["hapus"] = [];
         $rows.each((i, row) => {
@@ -355,7 +354,6 @@
             }
             if ($colForce.prop("checked") === true) {
                 item ["force"].push(siswa_id + '0' + jadwal);
-                item ["log"].push(siswa_id);
             }
             if ($colUlang.prop("checked") === true) {
                 item ["ulang"].push(siswa_id);
@@ -390,8 +388,12 @@
                     type: 'POST',
                     data: dataSiswa,
                     success: function (data) {
-                        //console.log(data);
-                        window.location.reload()
+                        if (data.status) {
+                            window.location.reload();
+                        } else {
+                            swal.fire({icon: 'error', text: data.message || 'Aksi pengawas gagal.'})
+                                .then(() => window.location.reload());
+                        }
                     }, error: function (xhr, status, error) {
                         console.log(xhr.responseText);
                     }

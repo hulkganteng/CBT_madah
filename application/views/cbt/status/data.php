@@ -259,7 +259,6 @@
         item ["reset"] = [];
         //item ["id_logs"] = [];
         item ["force"] = [];
-        item ["log"] = [];
         item ["ulang"] = [];
         item ["hapus"] = [];
         $rows.each((i, row) => {
@@ -274,7 +273,6 @@
             }
             if ($colForce.prop("checked") === true) {
                 item ["force"].push(siswa_id + '0' + jadwal);
-                item ["log"].push(siswa_id);
             }
             if ($colUlang.prop("checked") === true) {
                 item ["ulang"].push(siswa_id);
@@ -309,7 +307,7 @@
                     type: 'POST',
                     data: dataSiswa,
                     success: function (data) {
-                        console.log(data);
+                        if (!data.status) showWarningToast(data.message || 'Aksi pengawas gagal.');
                         if (printBy === '1') {
                             url = base_url + "cbtstatus/getsiswaruang?ruang=" + ruang + '&sesi=' + sesi + '&jadwal=' + jadwal;
                         } else {

@@ -349,11 +349,11 @@ $colWidth = '';
                                         <td class="text-center align-middle" data-a-v="middle" data-a-h="center"
                                             data-b-a-s="thin"
                                             style="border: 1px solid black;border-collapse: collapse; text-align: center;">
-                                            <b> <?= $disable ? '' : round($siswa->skor_total, 2) ?> </b></td>
+                                            <b><?= $siswa->nilai_tersimpan ? round($siswa->skor_total, 2) : 'Belum tersimpan' ?></b></td>
                                         <td class="text-center align-middle" data-a-v="middle" data-a-h="center"
                                             data-b-a-s="thin"
                                             style="border: 1px solid black;border-collapse: collapse; text-align: center;">
-                                            <b> <?= $disable ? '' : ($siswa->skor_katrol == '' ? '' : round($siswa->skor_katrol, 2)) ?> </b>
+                                            <b><?= $siswa->nilai_tersimpan && $siswa->skor_katrol !== '' ? round($siswa->skor_katrol, 2) : '' ?></b>
                                         </td>
                                         <td class="text-center align-middle" data-exclude="true" data-a-v="middle"
                                             data-a-h="center" data-b-a-s="thin"

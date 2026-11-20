@@ -102,10 +102,7 @@
                 icon: "warning"
             });
         } else {
-            globalToken.auto = $('#auto').val();
-            globalToken.jarak = $('#jarak').val();
-            forceGenerate = 1;
-            generateToken();
+            generateToken(auto, jarak);
         }
     }
 

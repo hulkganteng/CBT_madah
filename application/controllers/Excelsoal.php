@@ -201,6 +201,12 @@ class Excelsoal extends CI_Controller
 
         $now = date('Y-m-d H:i:s');
         $this->db->trans_begin();
+        $lockedBank = $this->db->query('SELECT id_bank FROM cbt_bank_soal WHERE id_bank = ? FOR UPDATE', [(int) $bankId]);
+        if (!$lockedBank || !$lockedBank->num_rows()) {
+            $this->db->trans_rollback();
+            $this->json(['message' => 'Bank soal tidak ditemukan.'], 404);
+            return;
+        }
         $draftSaved = $this->db->insert('cbt_soal_import', array(
             'bank_id' => (int) $bankId,
             'user_id' => (int) $this->ion_auth->user()->row()->id,
@@ -377,6 +383,12 @@ class Excelsoal extends CI_Controller
         }
 
         $this->db->trans_begin();
+        $lockedBank = $this->db->query('SELECT * FROM cbt_bank_soal WHERE id_bank = ? FOR UPDATE', [(int) $import->bank_id]);
+        if (!$lockedBank || !($bank = $lockedBank->row())) {
+            $this->db->trans_rollback();
+            $this->json(['message' => 'Bank soal tidak ditemukan.'], 404);
+            return;
+        }
         $this->db->where(array('id' => $import->id, 'status' => 'draft'))->update('cbt_soal_import', array(
             'status' => 'committing',
             'updated_at' => date('Y-m-d H:i:s'),
@@ -395,9 +407,6 @@ class Excelsoal extends CI_Controller
             return;
         }
 
-        /* Kunci baris bank selama penomoran supaya dua commit paralel pada bank
-           yang sama tidak menghasilkan nomor_soal duplikat. */
-        $this->db->query('SELECT id_bank FROM cbt_bank_soal WHERE id_bank = ? FOR UPDATE', array((int) $import->bank_id));
         $maxRows = $this->db->select('jenis, MAX(nomor_soal) AS nomor', false)->where('bank_id', $import->bank_id)
             ->group_by('jenis')->get('cbt_soal')->result();
         $numbers = array('1' => 0, '2' => 0, '6' => 0);
@@ -457,14 +466,14 @@ class Excelsoal extends CI_Controller
             'status' => $remaining ? 'draft' : 'committed',
             'updated_at' => date('Y-m-d H:i:s'),
         ));
-        $this->updateBankStatus($import->bank_id, $bank);
+        $this->load->model('Cbt_model', 'cbt');
+        $updated = $this->cbt->refreshBankQuestionStatus($bank);
         $this->refreshCounts($import->id);
-        if ($this->db->trans_status() === false) {
+        if (!$updated || $this->db->trans_status() === false || !$this->db->trans_commit()) {
             $this->db->trans_rollback();
             $this->json(array('message' => 'Soal gagal disimpan. Draft tetap tersedia untuk dicoba kembali.'), 500);
             return;
         }
-        $this->db->trans_commit();
         $this->json(array('message' => count($rows) . ' soal berhasil diimport.', 'inserted' => count($rows), 'remaining' => $remaining));
     }
 
@@ -672,30 +681,6 @@ class Excelsoal extends CI_Controller
     {
         $key = $this->question_import->comparisonKey(isset($question['question']) ? $question['question'] : '');
         return $key !== '' && isset($existing[$key]) ? 'Soal yang sama sudah terdapat dalam bank. Soal tetap dapat diimport.' : null;
-    }
-
-    private function updateBankStatus($bankId, $bank)
-    {
-        $counts = array('1' => 0, '2' => 0, '6' => 0);
-        $result = $this->db->select('jenis, COUNT(*) AS total', false)
-            ->where('bank_id', $bankId)->where('tampilkan', '1')->group_by('jenis')->get('cbt_soal')->result();
-        foreach ($result as $row) {
-            $counts[(string) $row->jenis] = (int) $row->total;
-        }
-        /* PRD FR-11: hanya tiga tipe baku punya kuota. */
-        $targets = array(
-            '1' => (int) $bank->tampil_pg,
-            '2' => (int) $bank->tampil_kompleks,
-            '6' => (int) ($bank->tampil_bs ?? 0)
-        );
-        $complete = true;
-        foreach ($targets as $type => $target) {
-            if ($counts[$type] < $target) {
-                $complete = false;
-                break;
-            }
-        }
-        $this->db->where('id_bank', $bankId)->update('cbt_bank_soal', array('status_soal' => $complete ? '1' : '0'));
     }
 
     private function json($data, $status = 200)

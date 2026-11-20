@@ -9,17 +9,10 @@ final class QuestionSaveRegressionTest extends TestCase
         $source = file_get_contents(dirname(__DIR__) . '/application/controllers/Cbtbanksoal.php');
 
         self::assertStringContainsString(
-            'is_array($jawaban_pg2) ? array_values($jawaban_pg2) : []',
+            '!is_array($answers) || !$answers || count($options) < 2',
             $source
         );
-        self::assertStringNotContainsString(
-            '$jwb_pg2 = count($this->input->post(',
-            $source
-        );
-        self::assertStringNotContainsString(
-            'if (!($i <= $jwb_pg2))',
-            $source
-        );
+        self::assertStringContainsString('count(array_intersect(array_keys($options), $answers)) !== count($answers)', $source);
     }
 
     public function testQuestionSaveChecksDatabaseResultBeforeReportingSuccess(): void
@@ -27,10 +20,9 @@ final class QuestionSaveRegressionTest extends TestCase
         $source = file_get_contents(dirname(__DIR__) . '/application/controllers/Cbtbanksoal.php');
         $javascript = file_get_contents(dirname(__DIR__) . '/assets/app/js/cbt/banksoal/soal.js');
 
-        self::assertStringContainsString('if (!$saved) { goto dbSaveFailed; }', $source);
-        self::assertStringContainsString('dbSaveFailed:', $source);
-        self::assertStringContainsString('set_status_header(500)', $source);
-        self::assertStringContainsString('$result["soal_id"] = $this->db->insert_id()', $source);
+        self::assertStringContainsString('if (!$saved || !$this->cbt->refreshBankQuestionStatus($bank)', $source);
+        self::assertStringContainsString("\$fail('Soal gagal disimpan ke database.', 500);", $source);
+        self::assertStringContainsString('$questionId = $this->db->insert_id()', $source);
         self::assertStringContainsString("$('#method').val('edit')", $javascript);
         self::assertStringContainsString('data.error || "Soal gagal disimpan ke database."', $javascript);
     }
@@ -50,11 +42,12 @@ final class QuestionSaveRegressionTest extends TestCase
     {
         $hook = file_get_contents(dirname(__DIR__) . '/application/hooks/Exam_security_hook.php');
         $view = file_get_contents(dirname(__DIR__) . '/application/views/cbt/banksoal/add.php');
+        $model = file_get_contents(dirname(__DIR__) . '/application/models/Cbt_model.php');
 
         self::assertStringContainsString('$classes = is_array($classes) ? $classes : array();', $hook);
         self::assertStringContainsString("\$_POST['kelas'] = \$classes;", $hook);
         self::assertStringContainsString("Pilih minimal satu kelas untuk bank soal.", $hook);
-        self::assertStringContainsString("'bank_kelas' => serialize(\$bankClasses)", $hook);
+        self::assertStringContainsString("'bank_kelas' => serialize(\$classes)", $model);
         self::assertStringContainsString('err.message || err.error || err.Message', $view);
     }
 }

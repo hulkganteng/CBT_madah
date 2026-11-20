@@ -131,32 +131,32 @@ $(document).ready(function () {
         }
 	});
 
-	$('#create').submit('click', function (e) {
+	$('#create').on('submit', function (e) {
 		e.preventDefault();
-		e.stopImmediatePropagation();
-		console.log("data:", $(this).serialize());
-
+		const $form = $(this);
+		if ($form.data('saving')) return;
+		const payload = $form.serialize();
+		const $buttons = $form.find(':submit');
+		$form.data('saving', true);
+		$buttons.prop('disabled', true);
 		$.ajax({
-			url: base_url + "cbtruang/add",
-			type: "POST",
-			dataType: "JSON",
-			data: $(this).serialize(),
-			success: function (data) {
-				console.log("result", data);
-				$('#createRuangModal').modal('hide').data('bs.modal', null);
-				$('#createRuangModal').on('hidden', function () {
-					$(this).data('modal', null);  // destroys modal
-				});
-				showSuccessToast('Data berhasil disimpan.');
-				table.ajax.reload();
-			}, error: function (xhr, status, error) {
-				$('#createRuangModal').modal('hide').data('bs.modal', null);
-				$('#createRuangModal').on('hidden', function () {
-					$(this).data('modal', null);  // destroys modal
-				});
-				console.log("error", xhr.responseText);
-				showDangerToast('Error');
+			url: base_url + 'cbtruang/add',
+			method: 'POST',
+			dataType: 'json',
+			data: payload
+		}).done(function (data) {
+			if (!data.status) {
+				showDangerToast(data.message || 'Data gagal disimpan.');
+				return;
 			}
+			$('#createRuangModal').modal('hide');
+			showSuccessToast('Data berhasil disimpan.');
+			table.ajax.reload();
+		}).fail(function (xhr) {
+			showDangerToast((xhr.responseJSON || {}).message || 'Data gagal disimpan. Coba lagi.');
+		}).always(function () {
+			$form.data('saving', false);
+			$buttons.prop('disabled', false);
 		});
 	});
 
@@ -181,33 +181,30 @@ $(document).ready(function () {
 
 	$('#update').on('submit', function (e) {
 		e.preventDefault();
-		e.stopImmediatePropagation();
-
-		var btn = $('#submit');
-		btn.attr('disabled', 'disabled').text('Wait...');
-
-		console.log("data", $(this).serialize());
-
+		const $form = $(this);
+		if ($form.data('saving')) return;
+		const payload = $form.serialize();
+		const $buttons = $form.find(':submit');
+		$form.data('saving', true);
+		$buttons.prop('disabled', true);
 		$.ajax({
-			url: base_url + "cbtruang/update",
-			data: $(this).serialize(),
+			url: base_url + 'cbtruang/update',
 			method: 'POST',
-			dataType: "JSON",
-			success: function (data) {
-				$('#editRuangModal').modal('hide').data('bs.modal', null);
-				$('#editRuangModal').on('hidden', function () {
-					$(this).data('modal', null);  // destroys modal
-				});
-				showSuccessToast('Data berhasil diupdate.');
-				table.ajax.reload();
-			},
-			error: function (xhr, status, error) {
-				$('#editRuangModal').modal('hide').data('bs.modal', null);
-				$('#editRuangModal').on('hidden', function () {
-					$(this).data('modal', null);  // destroys modal
-				});
-				showDangerToast('Error');
+			dataType: 'json',
+			data: payload
+		}).done(function (data) {
+			if (!data.status) {
+				showDangerToast(data.message || 'Data gagal disimpan.');
+				return;
 			}
+			$('#editRuangModal').modal('hide');
+			showSuccessToast('Data berhasil disimpan.');
+			table.ajax.reload();
+		}).fail(function (xhr) {
+			showDangerToast((xhr.responseJSON || {}).message || 'Data gagal disimpan. Coba lagi.');
+		}).always(function () {
+			$form.data('saving', false);
+			$buttons.prop('disabled', false);
 		});
 	});
 
@@ -230,7 +227,7 @@ $(document).ready(function () {
 				} else {
 					swal.fire({
 						title: "Gagal",
-						text: "Tidak ada data yang dipilih",
+						text: respon.message || "Tidak ada data yang dipilih",
 						icon: "error"
 					});
 				}
@@ -252,7 +249,7 @@ function bulk_delete() {
 	if ($("#ruang tbody tr .check:checked").length == 0) {
 		swal.fire({
 			title: "Gagal",
-			text: "Tidak ada data yang dipilih",
+			text: respon.message || "Tidak ada data yang dipilih",
 			icon: "error"
 		});
 	} else {

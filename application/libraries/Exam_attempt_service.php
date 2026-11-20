@@ -767,19 +767,6 @@ class Exam_attempt_service
         return $count < self::EVENT_LIMIT_PER_MINUTE;
     }
 
-    public function submit($attempt)
-    {
-        if (!$attempt) {
-            return;
-        }
-        $now = date('Y-m-d H:i:s');
-        $this->ci->db->where('attempt_id', $attempt->attempt_id)->where('status', 'IN_PROGRESS')->update('cbt_exam_attempt', array(
-            'status' => 'SUBMITTED',
-            'submitted_at' => $now,
-            'updated_at' => $now
-        ));
-    }
-
     private function rememberSeb($schedule, $mode)
     {
         $this->ci->session->set_userdata('seb_verified_' . (int) $schedule->id_jadwal, time());

@@ -131,12 +131,10 @@
         if (val.length > 0) {
             $('#loading').removeClass('d-none');
             setTimeout(function () {
-                var arrStr = encodeURIComponent(JSON.stringify(val));
-                console.log(arrStr);
                 $.ajax({
-                    url: base_url + "cbtnomorpeserta/resetnomor?kelas=" + arrStr,
-                    type: "GET",
-                    //data: $(this).serialize() + "&siswa=" + JSON.stringify(arrayNomor),
+                    url: base_url + "cbtnomorpeserta/resetnomor",
+                    type: "POST",
+                    data: $('#setNomor').serialize() + '&kelas=' + encodeURIComponent(JSON.stringify(val)),
                     success: function (data) {
                         console.log("response:", data);
                         if (data.status) {
@@ -156,6 +154,8 @@
                             text: err.Message,
                             icon: "error"
                         });
+                    }, complete: function () {
+                        $('#loading').addClass('d-none');
                     }
                 });
             });

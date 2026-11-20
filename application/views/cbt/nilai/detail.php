@@ -85,7 +85,7 @@
                                     <td rowspan="4" style="width: 100px" class="text-center">
                                         <b>NILAI</b>
                                         <br>
-                                        <span style="font-size: 40pt"><?= round($skor->skor_total, 2) ?></span>
+                                        <span style="font-size: 40pt"><?= $ada_nilai ? round($skor->skor_total, 2) : 'Belum tersimpan' ?></span>
                                     </td>
                                 </tr>
                                 <tr>

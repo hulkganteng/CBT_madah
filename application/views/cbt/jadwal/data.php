@@ -608,8 +608,9 @@ if (isset($jadwal_ujian)) {
                     }
                 });
                 $.ajax({
-                    url: base_url + 'cbtjadwal/deletejadwal?id_jadwal=' + id,
-                    type: "GET",
+                    url: base_url + 'cbtjadwal/deletejadwal',
+                    type: "POST",
+                    data: $('#hapus_semua').serialize() + '&id_jadwal=' + encodeURIComponent(id),
                     success: function (respon) {
                         console.log(respon);
                         if (respon.status) {

@@ -1,6 +1,6 @@
 <?php
 /**
- * Smoke test simulasi ujian TANPA SEB (jadwal.seb_mode = OFF).
+ * Smoke test simulasi ujian dengan kebijakan SEB global.
  *
  * Alur yang diuji lewat HTTP sungguhan:
  *   login siswa -> konfirmasi -> validasisiswa -> penilaian ->
@@ -20,11 +20,14 @@ mysqli_report(MYSQLI_REPORT_OFF);
 
 $base = 'http://localhost/garudacbt/';
 $keep = false;
+$expired = false;
 foreach (array_slice($argv, 1) as $arg) {
     if (strpos($arg, '--base=') === 0) {
         $base = rtrim(substr($arg, 7), '/') . '/';
     } elseif ($arg === '--keep') {
         $keep = true;
+    } elseif ($arg === '--expired') {
+        $expired = true;
     }
 }
 
@@ -81,7 +84,10 @@ $jar = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'smoke-simulasi.cookies';
 
 /* Login peserta kini wajib dari Safe Exam Browser: pakai UA SEB + Config Key
    hash milik jadwal SEB yang tersimpan (bila ada). */
-$sebKey = (string) scalar($dbh, "SELECT seb_config_key FROM cbt_jadwal WHERE seb_config_key IS NOT NULL AND seb_config_key <> '' ORDER BY id_jadwal DESC LIMIT 1");
+$sebKey = (string) getenv('GARUDACBT_SEB_CONFIG_KEY');
+if ($sebKey === '') {
+    $sebKey = (string) scalar($dbh, "SELECT seb_config_key FROM cbt_jadwal WHERE seb_config_key IS NOT NULL AND seb_config_key <> '' ORDER BY id_jadwal DESC LIMIT 1");
+}
 
 /* Aplikasi memakai CSRF token cookie (config: csrf_token=csrf_token,
    csrf_cookie=csrf_cookie, regenerate=FALSE). Ambil nilainya dari cookie
@@ -335,6 +341,7 @@ try {
             'bank' => $bankId,
             'jadwal' => $jadwalId,
             'timer' => '00:00:10',
+            'waktu' => '00:00:10',
             'elapsed' => '00:00:10',
             'data' => json_encode($jawaban),
         ));
@@ -346,6 +353,12 @@ try {
         }
     }
 
+    step('simpan jawaban tidak menutup ujian', (string) scalar($dbh,
+        "SELECT status FROM cbt_durasi_siswa WHERE id_siswa=? AND id_jadwal=?", [$siswaId, $jadwalId]) === '1');
+    if ($expired) {
+        q($dbh, "UPDATE cbt_exam_attempt SET deadline_at=DATE_SUB(last_heartbeat_at, INTERVAL 30 SECOND) WHERE id_siswa=? AND id_jadwal=?",
+            [$siswaId, $jadwalId]);
+    }
     list($code, $body) = http($base . 'siswa/selesaiujian', array(
         'siswa' => $siswaId,
         'bank' => $bankId,
@@ -360,14 +373,17 @@ try {
         $durasi ? 'status=' . $durasi['status'] . ' selesai=' . (string) $durasi['selesai'] : 'baris tidak ada');
 
     $nilai = $dbh->query("SELECT pg_benar, pg_nilai FROM cbt_nilai WHERE id_siswa=$siswaId AND id_jadwal=$jadwalId")->fetch_assoc();
-    step('nilai tersimpan', $nilai !== null && (int) $nilai['pg_benar'] === $saved,
+    step('nilai tersimpan', $nilai !== null && (int) $nilai['pg_benar'] === 3 && (float) $nilai['pg_nilai'] === 100.0,
         $nilai ? 'benar=' . $nilai['pg_benar'] . ' nilai=' . $nilai['pg_nilai'] : 'baris tidak ada');
 
     $attempt = $dbh->query("SELECT status, seb_verified FROM cbt_exam_attempt WHERE id_siswa=$siswaId AND id_jadwal=$jadwalId ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
     step('attempt ujian dikumpulkan', $attempt !== null && strtoupper((string) $attempt['status']) === 'SUBMITTED',
         $attempt ? 'status=' . $attempt['status'] : 'attempt tidak ada');
-    step('tanpa SEB tidak dianggap terverifikasi', $attempt !== null && (int) $attempt['seb_verified'] === 0,
+    step('kebijakan SEB global terverifikasi', $attempt !== null && (int) $attempt['seb_verified'] === 1,
         $attempt ? 'seb_verified=' . $attempt['seb_verified'] : '-');
+
+    $retry = json_of(http($base . 'siswa/selesaiujian', ['siswa' => $siswaId, 'jadwal' => $jadwalId]));
+    step('submit ulang mengakui nilai yang sudah tersimpan', !empty($retry['status_nilai']) && !empty($retry['sudah_selesai']));
 
     $jawabanTersimpan = (int) scalar($dbh, "SELECT COUNT(*) FROM cbt_soal_siswa WHERE id_siswa=? AND id_jadwal=? AND jawaban_siswa IS NOT NULL AND jawaban_siswa<>''",
         array($siswaId, $jadwalId));
@@ -382,5 +398,5 @@ try {
     @unlink($jar);
 }
 
-echo $failures === 0 ? "SMOKE SIMULASI TANPA SEB: OK\n" : "SMOKE SIMULASI TANPA SEB: $failures GAGAL\n";
+echo $failures === 0 ? "SMOKE SIMULASI: OK\n" : "SMOKE SIMULASI: $failures GAGAL\n";
 exit($failures === 0 ? 0 : 1);

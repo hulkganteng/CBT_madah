@@ -356,6 +356,10 @@
             contentType: false,
             data: formData
         }).done(function (response) {
+            if (!response || !response.status) {
+                answerSaveFailed();
+                return;
+            }
             soalTerjawab = response.soal_terjawab;
             savedAnswerRevision = Math.max(savedAnswerRevision, savingRevision);
             jawabanSiswa = savedValue;
@@ -374,13 +378,16 @@
             } else {
                 saveIsForNavigation = false;
             }
-        }).fail(function (xhr) {
+        }).fail(answerSaveFailed).always(function () {
+            answerRequest = null;
+        });
+
+        function answerSaveFailed() {
             answerSaving = false;
             if (examExpired) return;
             var blockedNavigation = saveIsForNavigation;
             recoverExamUi();
             $('#save-state').removeClass('is-saved').addClass('is-error').text('Jawaban belum tersimpan');
-            console.warn('Gagal menyimpan jawaban:', xhr.status);
             if (blockedNavigation) {
                 var retryDestination = pendingNavigation;
                 pendingNavigation = null;
@@ -393,9 +400,7 @@
             } else {
                 scheduleAutosave(3000);
             }
-        }).always(function () {
-            answerRequest = null;
-        });
+        }
     }
 
     function escapeHtml(value) {
@@ -791,22 +796,25 @@
         }, serverRemainingSeconds);
     }
 
-    function showExpiredRetry(message) {
+    function showExpiredRetry(message, retry, submitSavedAnswers) {
         $('#loading').addClass('d-none');
         swal.fire({
             title: 'Ujian belum terkumpul',
             text: message,
             icon: 'error',
             confirmButtonText: 'Coba lagi',
+            showCancelButton: !!submitSavedAnswers,
+            cancelButtonText: 'Kumpulkan jawaban tersimpan',
             allowOutsideClick: false,
             allowEscapeKey: false,
             footer: 'Jika tetap gagal, segera hubungi proktor dan jangan tutup halaman ini.'
-        }).then(function () {
-            submitExpiredExam();
+        }).then(function (result) {
+            if (result.value) retry();
+            if (result.dismiss === 'cancel' && submitSavedAnswers) submitSavedAnswers();
         });
     }
 
-    function submitExpiredExam() {
+    function submitExpiredExam(useSavedAnswers) {
         if (timeoutSubmissionInFlight) return;
         timeoutSubmissionInFlight = true;
         examExpired = true;
@@ -825,16 +833,28 @@
         var jadwal = $('#up').find('input[name="jadwal"]').val();
         var saveData = $('#jawab').serialize() + '&jadwal=' + encodeURIComponent(jadwal) +
             '&siswa=' + encodeURIComponent(siswa) + '&bank=' + encodeURIComponent(bank) +
-            '&waktu=' + encodeURIComponent($('#timer').text()) + '&elapsed=' + encodeURIComponent(elapsed) +
             '&data=' + encodeURIComponent(JSON.stringify(jsonJawaban || {}));
 
-        var saveRequest = jsonJawaban && jsonJawaban.jenis ? $.ajax({
+        var needsSave = !useSavedAnswers && hasUnsavedAnswer() && jsonJawaban && jsonJawaban.jenis;
+        var saveRequest = needsSave ? $.ajax({
             url: base_url + 'siswa/savejawaban',
             method: 'POST',
             data: saveData
-        }) : $.Deferred().resolve().promise();
+        }) : $.Deferred().resolve({status: true}).promise();
 
-        saveRequest.done(function () {
+        function retry() { submitExpiredExam(useSavedAnswers); }
+        function saveFailed() {
+            timeoutSubmissionInFlight = false;
+            showExpiredRetry('Jawaban terakhir belum tersimpan. Coba simpan lagi atau kumpulkan jawaban yang sudah tersimpan.',
+                retry, function () { submitExpiredExam(true); });
+        }
+
+        saveRequest.done(function (response) {
+            if (!response || !response.status) {
+                saveFailed();
+                return;
+            }
+            if (needsSave) savedAnswerRevision = answerRevision;
             /* Simpan jawaban terakhir lebih dahulu, lalu kumpulkan ujian. */
             $.post(base_url + 'siswa/selesaiujian', {
                 siswa: siswa,
@@ -842,8 +862,8 @@
                 jadwal: jadwal
             }, null, 'json').done(function (response) {
                 timeoutSubmissionInFlight = false;
-                if (response && response.status === false) {
-                    showExpiredRetry(response.message || 'Server belum dapat menyelesaikan ujian.');
+                if (!response || !response.status || !response.status_nilai) {
+                    showExpiredRetry((response && response.message) || 'Server belum dapat menyelesaikan ujian.', retry);
                     return;
                 }
                 $('.konten-soal-jawab').html('');
@@ -851,13 +871,9 @@
             }).fail(function (xhr) {
                 timeoutSubmissionInFlight = false;
                 console.warn('Gagal mengumpulkan ujian:', xhr.status);
-                showExpiredRetry('Jawaban sudah disimpan, tetapi ujian belum berhasil dikumpulkan.');
+                showExpiredRetry('Ujian belum berhasil dikumpulkan.', retry);
             });
-        }).fail(function (xhr) {
-            timeoutSubmissionInFlight = false;
-            console.warn('Gagal menyimpan jawaban terakhir:', xhr.status);
-            showExpiredRetry('Jawaban terakhir belum tersimpan karena koneksi ke server bermasalah.');
-        });
+        }).fail(saveFailed);
     }
 
     function nextSoal() {
@@ -1214,7 +1230,7 @@
                         method: "POST",
                         data: $('#up').serialize(),
                         success: function (respon) {
-                            if (respon.status) {
+                            if (respon.status && respon.status_nilai) {
                                 window.location.href = base_url + 'siswa/cbt';
                             } else {
                                 recoverExamUi();

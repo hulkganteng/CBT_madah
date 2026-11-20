@@ -134,7 +134,7 @@ assertTrue(strpos($hookSource, "\$controller === 'cbtrekap'") !== false, 'rekap 
 assertTrue(strpos($hookSource, "array('resettimer', 'ulangiujian', 'applyaction', 'olahnilai')") !== false, 'RBAC aksi pengawas hilang');
 assertTrue(strpos($hookSource, "scopeLegacyProctorAction(\$idJadwal)") !== false, 'child object aksi pengawas tidak divalidasi');
 assertTrue(strpos($hookSource, "foreach (array('cbt_nilai', 'cbt_soal_siswa', 'log_ujian') as \$table)") !== false, 'penghapusan ulangi ujian tidak dibatasi jadwal');
-assertTrue(strpos($hookSource, "\$action->ulang = array()") !== false, 'penghapusan lintas jadwal legacy masih dapat dijalankan');
+assertTrue(strpos($hookSource, "->where_in('id_siswa', \$ulang)") !== false, 'penghapusan ulangi ujian tidak dibatasi peserta');
 assertTrue(strpos($hookSource, "\$requestedBank !== (int) \$schedule->id_bank") !== false, 'bank aksi ulangi tidak terikat jadwal');
 assertTrue(strpos($hookSource, "\$requested !== (int) \$teacher->id_guru") !== false, 'otorisasi profil guru hilang');
 assertTrue(strpos($hookSource, "\$method === 'hapussoal' || \$method === 'uploadfile'") !== false, 'otorisasi objek soal hilang');

@@ -933,6 +933,8 @@
             }
             findUnchecked();
 
+        });
+
         $('#save-pg').on('click', function (e) {
             var dataPost = $('#select-pg').serialize() + "&uncheck=" + JSON.stringify(pgUnchecked);
             console.log(dataPost);
@@ -1000,6 +1002,10 @@
                 dataType: "JSON",
                 data: dataPost,
                 success: function (data) {
+                    if (!data.status) {
+                        swal.fire('Gagal', data.message, 'error');
+                        return;
+                    }
                     swal.fire({
                         title: "Sukses",
                         html: data.check+' Soal terpilih berhasil disimpan',
@@ -1014,10 +1020,10 @@
                     });
                 }, error: function (xhr, status, error) {
                     console.log("error", xhr.responseText);
-                    const err = JSON.parse(xhr.responseText)
+                    const err = xhr.responseJSON || {};
                     swal.fire({
                         title: "Error",
-                        text: err.Message,
+                        text: err.message || err.Message || 'Gagal menyimpan soal terpilih.',
                         icon: "error"
                     });
                 }

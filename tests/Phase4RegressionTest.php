@@ -300,7 +300,12 @@ class Phase4SubmitDb
     public function query($sql, $args)
     {
         // Setelah satu update 'status' => 2, submit berikutnya melihat status 2.
-        return new Phase4FakeResult((object) array('status' => $this->completedUpdates > 0 ? 2 : 1));
+        return new Phase4FakeResult((object) ['id_siswa' => 1, 'status' => $this->completedUpdates > 0 ? 2 : 1]);
+    }
+
+    public function table_exists($table)
+    {
+        return $table === 'cbt_exam_attempt';
     }
 
     public function where($key, $value = NULL)
@@ -334,6 +339,11 @@ class Phase4SubmitDb
 
 class Phase4SubmitLog
 {
+    public function getNilaiSiswaByJadwal($schedule, $student)
+    {
+        return (object) ['pg_nilai' => 0];
+    }
+
     public function saveLog($student, $schedule, $type, $text = '')
     {
     }

@@ -1115,9 +1115,9 @@ $allBanksIds = [];
                     }
                 });
                 $.ajax({
-                    url: base_url + 'cbtbanksoal/deleteBank?id_bank=' + id,
-                    //data: {id_bank: id},
-                    type: "GET",
+                    url: base_url + 'cbtbanksoal/deleteBank',
+                    data: $('#hapus_semua').serialize() + '&id_bank=' + encodeURIComponent(id),
+                    type: "POST",
                     success: function (respon) {
                         if (respon.status) {
                             swal.fire({
@@ -1138,11 +1138,11 @@ $allBanksIds = [];
                             });
                         }
                     },
-                    error: function () {
-                        const err = JSON.parse(xhr.responseText)
+                    error: function (xhr) {
+                        const err = xhr.responseJSON || {};
                         swal.fire({
                             title: "Error",
-                            text: err.Message,
+                            text: err.message || err.Message || 'Bank soal gagal dihapus.',
                             icon: "error"
                         });
                     }
@@ -1175,7 +1175,8 @@ $allBanksIds = [];
                 });
                 $.ajax({
                     url: base_url + 'cbtbanksoal/copybanksoal/' + id,
-                    type: "GET",
+                    type: "POST",
+                    data: $('#hapus_semua').serialize(),
                     success: function (respon) {
                         if (respon) {
                             swal.fire({

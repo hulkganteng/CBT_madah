@@ -26,9 +26,7 @@ final class QuestionImportDraftSchemaMigrationTest extends TestCase
     public function testApplicationTargetsRepairMigration(): void
     {
         $config = file_get_contents(dirname(__DIR__) . '/application/config/migration.php');
-        self::assertStringContainsString(
-            "migration_version'] = 20261114000100",
-            $config
-        );
+        self::assertSame(1, preg_match("/migration_version'\\]\\s*=\\s*(\\d+)/", $config, $match));
+        self::assertGreaterThanOrEqual(20261114000100, (int) $match[1]);
     }
 }

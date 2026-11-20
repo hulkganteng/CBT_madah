@@ -115,6 +115,27 @@ class Cbtjadwalimport extends CI_Controller
             return $this->json(array('status' => false, 'message' => implode(' ', $resolved['errors'])));
         }
 
+        $bankIds = array_values(array_unique(array_column($resolved['rows'], 'id_bank')));
+        $typeIds = array_values(array_unique(array_column($resolved['rows'], 'id_jenis')));
+        if (!$bankIds || !$typeIds) {
+            $this->db->trans_rollback();
+            return $this->json(['status' => FALSE, 'message' => 'Tidak ada jadwal yang siap diimpor.']);
+        }
+        $banks = $this->db->query('SELECT id_bank FROM cbt_bank_soal WHERE id_bank IN ? AND status = 1 AND status_soal = 1 ORDER BY id_bank FOR UPDATE', [$bankIds]);
+        $types = $this->db->query('SELECT id_jenis FROM cbt_jenis WHERE id_jenis IN ? ORDER BY id_jenis FOR UPDATE', [$typeIds]);
+        if (!$banks || $banks->num_rows() !== count($bankIds) || !$types || $types->num_rows() !== count($typeIds)) {
+            $this->db->trans_rollback();
+            return $this->json(['status' => FALSE, 'message' => 'Bank soal atau jenis ujian berubah. Muat ulang pratinjau.']);
+        }
+        foreach ($resolved['rows'] as $row) {
+            $duplicate = $this->db->query('SELECT id_jadwal FROM cbt_jadwal WHERE id_bank = ? AND id_jenis = ? FOR UPDATE',
+                [$row['id_bank'], $row['id_jenis']]);
+            if (!$duplicate || $duplicate->num_rows()) {
+                $this->db->trans_rollback();
+                return $this->json(['status' => FALSE, 'message' => 'Jadwal sudah ada atau gagal diperiksa. Muat ulang pratinjau.']);
+            }
+        }
+
         $tp = $this->dashboard->getTahunActive();
         $smt = $this->dashboard->getSemesterActive();
         $insert = array();
@@ -140,11 +161,10 @@ class Cbtjadwalimport extends CI_Controller
         $this->db->db_debug = false;
         $saved = $this->db->insert_batch('cbt_jadwal', $insert);
         $this->db->db_debug = $dbDebug;
-        if (!$saved || !$this->db->trans_status()) {
+        if (!$saved || !$this->db->trans_status() || !$this->db->trans_commit()) {
             $this->db->trans_rollback();
             return $this->json(array('status' => false, 'message' => 'Jadwal gagal disimpan. Tidak ada data yang diubah.'));
         }
-        $this->db->trans_commit();
         $this->load->model('Log_model', 'logging');
         $this->logging->saveLog(3, 'mengimpor ' . count($insert) . ' jadwal ujian');
         return $this->json(array('status' => true, 'message' => count($insert) . ' jadwal berhasil diimpor.'));
