@@ -7,6 +7,10 @@
  */
 ?>
 
+<style>
+    .question-preview img { max-width: 100%; height: auto; }
+</style>
+
 <div class="content-wrapper bg-white pt-4">
     <section class="content-header">
         <div class="container-fluid">
@@ -97,20 +101,12 @@
                         : ($tampil_kurang ? 'soal yang ditampilkan masih kurang' : ($soal_kurang ? 'soal yang ditampilkan tidak sama dengan seharusnya' : 'soal sudah cukup dan siap digunakan'));
                     $bg_color = $total_soal_tampil < $total_soal_seharusnya_tampil ? 'bg-danger' : 'bg-success';
 
-                    $jk = json_decode(json_encode($bank->bank_kelas));
-                    $jumlahKelas = json_decode(json_encode(unserialize($jk ?? '')));
-
-                    $kelasbank = '';
-                    $no = 1;
-                    foreach ($jumlahKelas as $j) {
-                        foreach ($kelas as $k) {
-                            if ((isset($j->kelas_id) && isset($k->id_kelas)) && $j->kelas_id === $k->id_kelas) {
-                                if ($no > 1) {
-                                    $kelasbank .= ', ';
-                                }
-                                $kelasbank .= $k->nama_kelas;
-                                $no++;
-                            }
+                    $classNamesById = array_column($kelas, 'nama_kelas', 'id_kelas');
+                    $assignedClasses = @unserialize($bank->bank_kelas ?? '', ['allowed_classes' => ['stdClass']]);
+                    $bankClassNames = [];
+                    foreach (array_column((array) $assignedClasses, 'kelas_id') as $classId) {
+                        if (isset($classNamesById[$classId])) {
+                            $bankClassNames[] = $classNamesById[$classId];
                         }
                     }
                     //var_dump($check_soal);
@@ -131,7 +127,7 @@
 										</span>
                                 </li>
                                 <li class="list-group-item p-1"> Kelas
-                                    <span class="float-right"><b><?= $kelasbank ?></b></span>
+                                    <span class="float-right"><b><?= html_escape(implode(', ', $bankClassNames)) ?></b></span>
                                 </li>
                             </ul>
                         </div>
@@ -292,22 +288,25 @@
                                                         <?= $s->nomor_soal ?>.
                                                     </p>
                                                 </div>
-                                                <div class="rTableCell align-top">
+                                                <div class="rTableCell align-top question-preview">
+                                                    <?php if (!empty($s->deskripsi)): ?>
+                                                        <div class="border rounded p-2 mt-2"><?= $s->deskripsi ?></div>
+                                                    <?php endif; ?>
                                                     <div class="mt-2">
                                                         <?= $s->soal ?>
                                                     </div>
                                                     <br>
                                                     <ul class="list-group list-group-unbordered pl-3"
                                                         style="list-style-type: upper-alpha">
-                                                        <li><?= str_replace(['<p>', '</p>'], '', $s->opsi_a) ?></li>
-                                                        <li><?= str_replace(['<p>', '</p>'], '', $s->opsi_b) ?></li>
-                                                        <li><?= str_replace(['<p>', '</p>'], '', $s->opsi_c) ?></li>
+                                                        <li><?= $s->opsi_a ?></li>
+                                                        <li><?= $s->opsi_b ?></li>
+                                                        <li><?= $s->opsi_c ?></li>
                                                         <?php if ($bank->opsi == '4') : ?>
-                                                        <li><?= str_replace(['<p>', '</p>'], '', $s->opsi_d) ?></li>
+                                                        <li><?= $s->opsi_d ?></li>
                                                         <?php endif; ?>
                                                         <?php if ($bank->opsi == '5') : ?>
-                                                            <li><?= str_replace(['<p>', '</p>'], '', $s->opsi_d) ?></li>
-                                                            <li><?= str_replace(['<p>', '</p>'], '', $s->opsi_e) ?></li>
+                                                            <li><?= $s->opsi_d ?></li>
+                                                            <li><?= $s->opsi_e ?></li>
                                                         <?php endif; ?>
                                                     </ul>
                                                     <div class="mb-2 mt-2">Jawaban:
@@ -437,7 +436,10 @@
                                                         <?= $s->nomor_soal ?>.
                                                     </p>
                                                 </div>
-                                                <div class="rTableCell align-top">
+                                                <div class="rTableCell align-top question-preview">
+                                                    <?php if (!empty($s->deskripsi)): ?>
+                                                        <div class="border rounded p-2 mt-2"><?= $s->deskripsi ?></div>
+                                                    <?php endif; ?>
                                                     <div class="mt-2">
                                                         <?= $s->soal ?>
                                                         <br>
@@ -451,13 +453,12 @@
                                                         $jwb_pg2 = implode(', ', array_filter($jawabs));
                                                     }
                                                     if ($opsis) : ?>
-                                                        <ul class="list-group list-group-unbordered pl-3"
+                                                        <ol class="list-group list-group-unbordered pl-3"
                                                             style="list-style-type: upper-alpha">
-                                                            <?php for ($i = 97; $i < (97 + count($opsis)); $i++) :
-                                                                $abjad = chr($i); ?>
-                                                                <li><?=isset($opsis[$abjad]) ? str_replace(['<p>', '</p>'], '', $opsis[$abjad]) : 'null' ?></li>
-                                                            <?php endfor; ?>
-                                                        </ul>
+                                                            <?php foreach ($opsis as $key => $option): ?>
+                                                                <li value="<?= ord($key) - ord('a') + 1 ?>"><?= $option ?></li>
+                                                            <?php endforeach; ?>
+                                                        </ol>
                                                     <?php endif; ?>
                                                     <div class="mb-2 mt-2">Jawaban: <b><?= strtoupper($jwb_pg2) ?></b>
                                                     </div>
@@ -585,7 +586,10 @@
                                                         <?= $s->nomor_soal ?>.
                                                     </p>
                                                 </div>
-                                                <div class="rTableCell align-top">
+                                                <div class="rTableCell align-top question-preview">
+                                                    <?php if (!empty($s->deskripsi)): ?>
+                                                        <div class="border rounded p-2 mt-2"><?= $s->deskripsi ?></div>
+                                                    <?php endif; ?>
                                                     <div class="mt-2">
                                                         <?= $s->soal ?>
                                                         <br>
@@ -668,6 +672,7 @@
                                 <?= $s['nomor_soal'] ?>
                             </td>
                             <td rowspan="5" style="border: 1px solid black; vertical-align: top; padding-left: 6px">
+                                <?= $s['deskripsi'] ?? '' ?>
                                 <?= $s['soal'] ?>
                             </td>
                             <td rowspan="5" style="border: 1px solid black;vertical-align: top;text-align: center;">
@@ -730,52 +735,33 @@
                         ]));
                         $opsis = unserialize($s->opsi_a ?? '');
                         $opsis = $opsis ? $opsis : ['a'=>'','b'=>'','c'=>''];
-                        $rows = $opsis ? count($opsis) : 3;
-                        $jawabs = $opsis ? unserialize($s->jawaban ?? '') : [];
+                        $rows = count($opsis);
+                        $jawabs = @unserialize($s->jawaban ?? '', ['allowed_classes' => FALSE]) ?: [];
                         $bg = $s->nomor_soal % 2 == 0 ? '#FFFFFF' : '#F2F2F2';
-                        //if ($opsis) :
                         ?>
-                        <tr style="border-top: 3px solid black;background-color: <?= $bg ?>">
-                            <td rowspan="<?= $rows ?>"
-                                style="border: 1px solid black;vertical-align: top;text-align: center;">
-                                <?= $s->nomor_soal ?>
-                            </td>
-                            <td rowspan="<?= $rows ?>"
-                                style="border: 1px solid black; vertical-align: top; padding-left: 6px">
-                                <?= $s->soal ?>
-                            </td>
-                            <td rowspan="<?= $rows ?>"
-                                style="border: 1px solid black;vertical-align: top;text-align: center;">
-                                2
-                            </td>
-                            <td style="border: 1px solid black;vertical-align: top;text-align: center; width: 50px">
-                                A
-                            </td>
-                            <td style="border: 1px solid black;vertical-align: top;padding-left: 6px;">
-                                <?= $opsis ? $opsis['a'] : '' ?>
-                            </td>
-                            <td style="border: 1px solid black;vertical-align: top;text-align: center;">
-                                <?= $jawabs && in_array('a', $jawabs) ? 'v' : '' ?>
-                            </td>
-                        </tr>
-                        <?php
-
-                        $post_char = 98;
-                        for ($i = 1; $i < count($opsis); $i++) :
-                            $abjad = chr($post_char); ?>
+                        <?php foreach ($opsis as $abjad => $option): ?>
                             <tr style="background-color: <?= $bg ?>">
-                                <td style="border: 1px solid black;vertical-align: top;text-align: center;">
-                                    <?= strtoupper($abjad) ?>
+                                <?php if ($abjad === array_key_first($opsis)): ?>
+                                    <td rowspan="<?= $rows ?>" style="border: 1px solid black;vertical-align: top;text-align: center;">
+                                        <?= $s->nomor_soal ?>
+                                    </td>
+                                    <td rowspan="<?= $rows ?>" style="border: 1px solid black;vertical-align: top;padding-left: 6px">
+                                        <?= $s->deskripsi ?? '' ?>
+                                        <?= $s->soal ?>
+                                    </td>
+                                    <td rowspan="<?= $rows ?>" style="border: 1px solid black;vertical-align: top;text-align: center;">2</td>
+                                <?php endif; ?>
+                                <td style="border: 1px solid black;vertical-align: top;text-align: center;width: 50px">
+                                    <?= html_escape(strtoupper($abjad)) ?>
                                 </td>
                                 <td style="border: 1px solid black;vertical-align: top;padding-left: 6px">
-                                    <?= $opsis[$abjad] ?>
+                                    <?= $option ?>
                                 </td>
                                 <td style="border: 1px solid black;vertical-align: top;text-align: center;">
-                                    <?= $jawabs && in_array($abjad, $jawabs) ? 'v' : '' ?>
+                                    <?= in_array($abjad, $jawabs, TRUE) ? 'v' : '' ?>
                                 </td>
                             </tr>
-                            <?php $post_char++; endfor;
-                        //endif;
+                        <?php endforeach;
                     endfor; ?>
                 </table>
                 <p>&nbsp;</p>
@@ -789,6 +775,7 @@
 
 <script type="text/javascript" src="<?= base_url() ?>/assets/app/js/html-docx.js"></script>
 <script src="<?= base_url() ?>/assets/app/js/convert-area.js"></script>
+<script src="<?= base_url('assets/app/js/cbt/question-content.js') ?>"></script>
 
 <script src="<?= base_url() ?>/assets/plugins/element-queries/ElementQueries.js"></script>
 <script src="<?= base_url() ?>/assets/plugins/element-queries/ResizeSensor.js"></script>
@@ -801,33 +788,8 @@
     var arrJenis = ['', 'Pilihan Ganda', 'PG Kompleks', '', '', '', 'Benar/Salah'];
 
     $(document).ready(function () {
-        var pathUpload = 'uploads';
-        var $imgs = $('img');
-        $.each($imgs, function () {
-            var curSrc = $(this).attr('src');
-            if (curSrc.indexOf("base64") > 0 || !curSrc.includes("uploads")) {
-            } else {
-                var forReplace = curSrc.split(pathUpload);
-                $(this).attr('src', base_url + pathUpload + forReplace[1]);
-            }
-        });
-
-        $.each($(`video`), function () {
-            var curSrc = $(this).attr('src');
-            if (curSrc.indexOf("base64") > 0 || !curSrc.includes("uploads")) {
-            } else {
-                var forReplace = curSrc.split(pathUpload);
-                $(this).attr('src', base_url + pathUpload + forReplace[1]);
-            }
-        });
-
-        $.each($(`audio`), function () {
-            var curSrc = $(this).attr('src');
-            if (curSrc.indexOf("base64") > 0 || !curSrc.includes("uploads")) {
-            } else {
-                var forReplace = curSrc.split(pathUpload);
-                $(this).attr('src', base_url + pathUpload + forReplace[1]);
-            }
+        $('.question-preview, #for-export').each(function () {
+            resolveQuestionMedia(this, base_url);
         });
 
         var pgCount = $('#table-pg .check-pg').length;
@@ -1030,34 +992,40 @@
             });
         }
 
-        $("#convert").click(function (e) {
+        $('#convert').on('click', async function (e) {
             e.preventDefault();
+            const button = this;
+            button.disabled = true;
+            try {
+                const contentDocument = $('#for-export').convertToHtmlFile('detail', '');
+                const failedImages = await embedQuestionImages(contentDocument);
+                const content = '<!DOCTYPE html>' + contentDocument.documentElement.outerHTML;
+                const converted = htmlDocx.asBlob(content, {
+                    orientation: 'landscape',
+                    size: 'A4',
+                    margins: {top: 700, bottom: 700, left: 1000, right: 1000}
+                });
+                const filename = <?= json_encode('Soal ' . $bank->bank_kode . ' ' . $bank->nama_mapel . ' Kls ' . $bank->bank_level . '.docx', JSON_HEX_TAG) ?>;
+                saveAs(converted, filename);
 
-            var contentDocument = $('#for-export').convertToHtmlFile('detail', '');
+                const area = document.getElementById('download-area');
+                const previousLink = area.querySelector('a[href^="blob:"]');
+                if (previousLink) URL.revokeObjectURL(previousLink.href);
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(converted);
+                link.download = filename;
+                link.textContent = 'Unduh ulang jika unduhan belum dimulai';
+                area.replaceChildren(link);
 
-            var content = '<!DOCTYPE html>' + contentDocument.documentElement.outerHTML;
-            var converted = htmlDocx.asBlob(content, {
-                orientation: 'landscape',
-                size: 'A4',
-                margins: {top: 700, bottom: 700, left: 1000, right: 1000}
-            });
-            saveAs(converted, 'Soal <?= $bank->bank_kode ?> <?= $bank->nama_mapel ?> Kls <?= $bank->bank_level ?>.docx');
-
-            var link = document.createElement('a');
-            link.href = URL.createObjectURL(converted);
-            link.download = 'Soal <?= $bank->nama_mapel ?> Kls <?= $bank->bank_level ?>.docx';
-            link.appendChild(
-                document.createTextNode('Click here if your download has not started automatically'));
-            var downloadArea = document.getElementById('download-area');
-            downloadArea.innerHTML = '';
-            downloadArea.appendChild(link);
-
-            $('#alert-download').removeClass('d-none');
-
-            $("#alert-download").fadeTo(10000, 500).slideUp(500, function () {
-                $("#alert-download").slideUp(500);
-            });
-
+                $('#alert-download').stop(true, true).removeClass('d-none').show().delay(10000).slideUp(500);
+                if (failedImages) {
+                    swal.fire('Unduhan selesai', failedImages + ' gambar tidak dapat disematkan ke dokumen.', 'warning');
+                }
+            } catch (error) {
+                swal.fire('Gagal', 'Dokumen soal gagal dibuat.', 'error');
+            } finally {
+                button.disabled = false;
+            }
         });
     });
 

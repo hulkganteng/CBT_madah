@@ -59,6 +59,11 @@ foreach ($soal_ada as $key => $value) {
 }
 ?>
 
+<style>
+    #create .note-editable { overflow-x: auto; }
+    #create .note-editable img { max-width: 100%; height: auto; }
+</style>
+
 <div class="content-wrapper bg-white">
     <section class="content-header">
         <div class="container-fluid">
@@ -408,4 +413,5 @@ foreach ($soal_ada as $key => $value) {
         bsCustomFileInput.init();
     });
 </script>
+<script src="<?= base_url('assets/app/js/cbt/question-content.js') ?>"></script>
 <script src="<?= base_url() ?>/assets/app/js/cbt/banksoal/soal.js"></script>

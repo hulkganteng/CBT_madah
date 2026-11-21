@@ -1,5 +1,16 @@
 <?php
 $allBanksIds = [];
+$classNamesById = array_column($kelas, 'nama_kelas', 'id_kelas');
+$getBankClassNames = static function ($bank) use ($classNamesById) {
+    $classes = @unserialize($bank->bank_kelas ?? '', ['allowed_classes' => ['stdClass']]);
+    $names = [];
+    foreach (array_column((array) $classes, 'kelas_id') as $classId) {
+        if (isset($classNamesById[$classId])) {
+            $names[] = $classNamesById[$classId];
+        }
+    }
+    return $names;
+};
 ?>
 <div class="content-wrapper bg-white pt-4">
     <section class="content-header">
@@ -143,18 +154,7 @@ $allBanksIds = [];
                                     $no = 1;
                                     foreach ($banks[$tp_active->id_tp][$smt_active->id_smt] as $bank): ?>
                                         <?php
-                                        $jk = json_decode(json_encode($bank->bank_kelas));
-                                        $data = @unserialize($jk ?? '');
-                                        $jumlahKelas = json_decode(json_encode($data));
-                                        $jks = [];
-                                        $kelasbank = '';
-                                        foreach ((array)$jumlahKelas as $j) {
-                                            foreach ($kelas as $k) {
-                                                if ((isset($j->kelas_id) && isset($k->id_kelas)) && $j->kelas_id === $k->id_kelas) {
-                                                    $kelasbank .= '<span class="badge badge-btn badge-primary">' . $k->nama_kelas . '</span> ';
-                                                }
-                                            }
-                                        }
+                                        $bankClassNames = $getBankClassNames($bank);
                                         $terpakai = true;
                                         $bgRandom = 'text-maroon';
                                         $disable_edit = 'btn-disabled';
@@ -173,7 +173,11 @@ $allBanksIds = [];
                                                 <i class="fas fa-square text-lg mr-1 <?= $bgRandom ?>"></i><?= $bank->bank_kode ?>
                                             </td>
                                             <td class="align-middle"><?= $bank->nama_mapel ?></td>
-                                            <td class="align-middle"><?= $kelasbank ?></td>
+                                            <td class="align-middle">
+                                                <?php foreach ($bankClassNames as $className): ?>
+                                                    <span class="badge badge-btn badge-primary"><?= html_escape($className) ?></span>
+                                                <?php endforeach; ?>
+                                            </td>
                                             <td class="text-center w-auto">
                                                 <span data-toggle="tooltip" title="Edit Bank Soal">
                                                     <a type="button"
@@ -239,18 +243,7 @@ $allBanksIds = [];
                                     $no = 1;
                                     foreach ($banks[0][0] as $bank) : ?>
                                         <?php
-                                        $jk = json_decode(json_encode($bank->bank_kelas));
-                                        $jumlahKelas = json_decode(json_encode(unserialize($jk ?? '')));
-                                        $jks = [];
-
-                                        $kelasbank = '';
-                                        foreach ($jumlahKelas as $j) {
-                                            foreach ($kelas as $k) {
-                                                if ((isset($j->kelas_id) && isset($k->id_kelas)) && $j->kelas_id === $k->id_kelas) {
-                                                    $kelasbank .= '<span class="badge badge-btn badge-primary">' . $k->nama_kelas . '</span> ';
-                                                }
-                                            }
-                                        }
+                                        $bankClassNames = $getBankClassNames($bank);
                                         $terpakai = true;
                                         $bgRandom = 'bg-gradient-maroon';
                                         $disable_edit = 'btn-disabled';
@@ -273,7 +266,11 @@ $allBanksIds = [];
                                             <td class="text-center align-middle"><?= $no ?></td>
                                             <td class="align-middle"><?= $bank->bank_kode ?></td>
                                             <td class="align-middle"><?= $bank->nama_mapel ?></td>
-                                            <td class="align-middle"><?= $kelasbank ?></td>
+                                            <td class="align-middle">
+                                                <?php foreach ($bankClassNames as $className): ?>
+                                                    <span class="badge badge-btn badge-primary"><?= html_escape($className) ?></span>
+                                                <?php endforeach; ?>
+                                            </td>
                                             <td class="align-middle">
                                                 <span data-toggle="tooltip" title="Edit Bank Soal">
                                                     <a type="button"
@@ -379,23 +376,7 @@ $allBanksIds = [];
                                             </div>
                                             <div class="card-body pt-0">
                                                 <?php
-                                                $jk = json_decode(json_encode($bank->bank_kelas));
-                                                $jumlahKelas = json_decode(json_encode(unserialize($jk ?? '')));
-                                                $jks = [];
-
-                                                $kelasbank = '';
-                                                $no = 1;
-                                                foreach ($jumlahKelas as $j) {
-                                                    foreach ($kelas as $k) {
-                                                        if ((isset($j->kelas_id) && isset($k->id_kelas)) && $j->kelas_id === $k->id_kelas) {
-                                                            if ($no > 1) {
-                                                                $kelasbank .= ', ';
-                                                            }
-                                                            $kelasbank .= $k->nama_kelas;
-                                                            $no++;
-                                                        }
-                                                    }
-                                                }
+                                                $bankClassNames = $getBankClassNames($bank);
                                                 ?>
                                                 <ul class="list-group list-group-unbordered">
                                                     <li class="list-group-item p-1"> Guru
@@ -405,7 +386,7 @@ $allBanksIds = [];
                                                         <span class="float-right"><b><?= $bank->bank_kode ?></b></span>
                                                     </li>
                                                     <li class="list-group-item p-1"> Kelas
-                                                        <span class="float-right"><b><?= $kelasbank ?></b></span>
+                                                        <span class="float-right"><b><?= html_escape(implode(', ', $bankClassNames)) ?></b></span>
                                                     </li>
                                                     <li class="list-group-item p-1"> Jumlah Soal
                                                         <span class="float-right">
@@ -489,23 +470,7 @@ $allBanksIds = [];
                                             </div>
                                             <div class="card-body pt-0">
                                                 <?php
-                                                $jk = json_decode(json_encode($bank->bank_kelas));
-                                                $jumlahKelas = json_decode(json_encode(unserialize($jk ?? '')));
-                                                $jks = [];
-
-                                                $kelasbank = '';
-                                                $no = 1;
-                                                foreach ($jumlahKelas as $j) {
-                                                    foreach ($kelas as $k) {
-                                                        if ((isset($j->kelas_id) && isset($k->id_kelas)) && $j->kelas_id === $k->id_kelas) {
-                                                            if ($no > 1) {
-                                                                $kelasbank .= ', ';
-                                                            }
-                                                            $kelasbank .= $k->nama_kelas;
-                                                            $no++;
-                                                        }
-                                                    }
-                                                }
+                                                $bankClassNames = $getBankClassNames($bank);
                                                 ?>
                                                 <ul class="list-group list-group-unbordered">
                                                     <li class="list-group-item p-1"> Guru
@@ -515,7 +480,7 @@ $allBanksIds = [];
                                                         <span class="float-right"><b><?= $bank->kode ?></b></span>
                                                     </li>
                                                     <li class="list-group-item p-1"> Kelas
-                                                        <span class="float-right"><b><?= $kelasbank ?></b></span>
+                                                        <span class="float-right"><b><?= html_escape(implode(', ', $bankClassNames)) ?></b></span>
                                                     </li>
                                                     <li class="list-group-item p-1"> Jumlah Soal
                                                         <span class="float-right">

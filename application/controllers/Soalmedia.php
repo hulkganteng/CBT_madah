@@ -71,7 +71,7 @@ class Soalmedia extends CI_Controller
 
         $relativeDirectory = 'uploads/bank_soal/' . $bankId;
         $directory = FCPATH . $relativeDirectory;
-        if (!is_dir($directory) && !mkdir($directory, 0755, true)) {
+        if (!is_dir($directory) && !@mkdir($directory, 0755, true) && !is_dir($directory)) {
             imagedestroy($image);
             $this->json(array('status' => false, 'message' => 'Direktori gambar tidak dapat dibuat.'), 500);
             return;
@@ -113,12 +113,12 @@ class Soalmedia extends CI_Controller
         $path = ltrim(str_replace('\\', '/', rawurldecode($path)), '/');
         $expectedPrefix = 'uploads/bank_soal/' . $bankId . '/';
         $filename = basename($path);
-        if (strpos($path, $expectedPrefix) !== 0 || !preg_match('/^soal_[a-f0-9]{24}\.(jpg|png|gif|webp)$/', $filename)) {
+        if ($path !== $expectedPrefix . $filename || !preg_match('/^soal_[a-f0-9]{24}\.(jpg|png|gif|webp)$/', $filename)) {
             $this->json(array('status' => false, 'message' => 'Lokasi gambar tidak valid.'), 422);
             return;
         }
 
-        if ($this->isReferenced($bankId, $path)) {
+        if ($this->isReferenced($path)) {
             $this->json(array('status' => false, 'message' => 'Gambar masih digunakan oleh soal tersimpan.'), 409);
             return;
         }
@@ -173,10 +173,11 @@ class Soalmedia extends CI_Controller
         return $bank;
     }
 
-    private function isReferenced($bankId, $path)
+    private function isReferenced($path)
     {
-        $fields = array('soal', 'opsi_a', 'opsi_b', 'opsi_c', 'opsi_d', 'opsi_e', 'jawaban');
-        $this->db->from('cbt_soal')->where('bank_id', $bankId)->group_start();
+        $fields = array('soal', 'opsi_a', 'opsi_b', 'opsi_c', 'opsi_d', 'opsi_e', 'jawaban', 'deskripsi');
+        // A copied bank can point to the original bank's image.
+        $this->db->from('cbt_soal')->group_start();
         foreach ($fields as $index => $field) {
             if ($index === 0) {
                 $this->db->like($field, $path);

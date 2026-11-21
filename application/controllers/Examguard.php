@@ -115,7 +115,11 @@ class Examguard extends CI_Controller
         }
         $ragu = (int) $this->input->post('ragu') === 1 ? 1 : 0;
         $this->exam_attempt_service->heartbeat($attempt, $seb['verified']);
-        $this->db->where('id_soal_siswa', $idSoalSiswa)->update('cbt_soal_siswa', array('ragu_ragu' => $ragu));
+        $saved = $this->db->where('id_soal_siswa', $idSoalSiswa)
+            ->update('cbt_soal_siswa', array('ragu_ragu' => $ragu));
+        if (!$saved) {
+            $this->respond(array('status' => FALSE, 'message' => 'Penanda ragu-ragu gagal disimpan.'), 500);
+        }
         $this->exam_attempt_service->recordEvent($attempt, $ragu ? 'RAGU_SET' : 'RAGU_UNSET', array('soal' => $idSoalSiswa));
         $this->respond(array('status' => TRUE, 'ragu' => $ragu));
     }

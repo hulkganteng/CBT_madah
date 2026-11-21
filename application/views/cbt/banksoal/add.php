@@ -6,7 +6,8 @@
  * Time: 17:46
  */
 
-$kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
+$savedClasses = @unserialize($bank->bank_kelas ?? '', ['allowed_classes' => ['stdClass']]);
+$selectedClassIds = array_column((array) $savedClasses, 'kelas_id');
 ?>
 
 <div class="content-wrapper bg-white pt-4">
@@ -253,10 +254,8 @@ $kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
 </div>
 
 <script>
-    var isAdmin = '<?= $this->ion_auth->is_admin() ?>';
-    let kelasSelect = JSON.parse('<?= $kelasSelected ?>');
-    var idGuru = '<?=$id_guru?>';
-    var idMapel = '<?=$bank->bank_mapel_id?>';
+    const isAdmin = <?= json_encode((bool) $this->ion_auth->is_admin()) ?>;
+    let selectedClassIds = <?= json_encode($selectedClassIds) ?>.map(String);
 
     $(document).ready(function () {
         ajaxcsrf();
@@ -280,13 +279,14 @@ $kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
         peminatan.on('change', toggleProgramMak);
         toggleProgramMak();
 
-        var as = [];
-        for (let i = 0; i < kelasSelect.length; i++) {
-            as.push(kelasSelect[i].kelas_id);
-        }
+        let teacherRequest;
+        let classRequest;
 
-        getGuruMapel(selMapel.val());
-        getKelasLevel(selLevel.val(), selMapel.val());
+        if (isAdmin) {
+            getGuruMapel();
+        } else {
+            getKelasLevel();
+        }
 
         $('#create').submit('click', function (e) {
             e.preventDefault();
@@ -348,68 +348,67 @@ $kelasSelected = json_encode(unserialize($bank->bank_kelas ?? ''));
             });
         });
 
-        function getGuruMapel(mapel) {
-            if (isAdmin) {
-                $.ajax({
-                    url: base_url + "cbtbanksoal/getgurumapel?id_mapel=" + mapel,
-                    type: "GET",
-                    success: function (data) {
-                        console.log('guru', data);
-                        var opts = '';
-                        selGuru.html(opts);
-                        $.each(data, function (k, v) {
-                            var selected = idGuru == k ? 'selected=selected' : '';
-                            opts += '<option value="' + k + '" ' + selected + '>' + v + '</option>';
-                        });
-                        selGuru.html(opts);
-                        idGuru = selGuru.val();
-                        getKelasLevel(selLevel.val(), selMapel.val());
-                    }, error: function (xhr, status, error) {
-                        console.log("error", xhr.responseText);
+        function getGuruMapel() {
+            const selectedTeacher = selGuru.val();
+            if (teacherRequest) teacherRequest.abort();
+            if (classRequest) classRequest.abort();
+            selGuru.empty().trigger('change.select2');
+            selKelas.empty().trigger('change');
+
+            teacherRequest = $.ajax({
+                url: base_url + "cbtbanksoal/getgurumapel",
+                data: {id_mapel: selMapel.val()},
+                dataType: 'json',
+                success: function (teachers) {
+                    $.each(teachers, function (id, name) {
+                        selGuru.append(new Option(name, id));
+                    });
+                    if (Object.prototype.hasOwnProperty.call(teachers, selectedTeacher)) {
+                        selGuru.val(selectedTeacher);
                     }
-                });
-            }
+                    selGuru.trigger('change');
+                },
+                error: function (xhr, status) {
+                    if (status !== 'abort') {
+                        swal.fire('Gagal', 'Daftar guru pengampu gagal dimuat.', 'error');
+                    }
+                }
+            });
         }
 
-        function getKelasLevel(level, mapel) {
-            console.log('id_guru', idGuru);
-            console.log('id_level', level);
-            console.log('id_mapel', mapel);
-            if (idGuru === '' || mapel == null) {
-                console.log('id_guru', 'empty');
-            } else {
-                $.ajax({
-                    url: base_url + "cbtbanksoal/getkelaslevel?level=" + level + "&id_guru=" + idGuru + '&mapel=' + mapel,
-                    type: "GET",
-                    success: function (data) {
-                        console.log('kelas', data);
-                        selKelas.html('').select2({data: null}).trigger('change');
-                        var kelas = data.kelas;
-                        for (let i = 0; i < kelas.length; i++) {
-                            var selected = jQuery.inArray(kelas[i].id_kelas, as) > -1;
-                            selKelas.append(new Option(kelas[i].kode_kelas, kelas[i].id_kelas, false, selected));
-                        }
-                        selKelas.trigger('change');
-                    }, error: function (xhr, status, error) {
-                        console.log("error", xhr.responseText);
+        function getKelasLevel() {
+            if (classRequest) classRequest.abort();
+            selKelas.empty().trigger('change');
+            const level = selLevel.val();
+            const mapel = selMapel.val();
+            const teacher = selGuru.val();
+            if (!level || !mapel || !teacher) return;
+
+            classRequest = $.ajax({
+                url: base_url + "cbtbanksoal/getkelaslevel",
+                data: {level: level, id_guru: teacher, mapel: mapel},
+                dataType: 'json',
+                success: function (data) {
+                    data.kelas.forEach(function (rombel) {
+                        const selected = selectedClassIds.includes(String(rombel.id_kelas));
+                        selKelas.append(new Option(rombel.nama_kelas, rombel.id_kelas, false, selected));
+                    });
+                    selectedClassIds = selKelas.val() || [];
+                    selKelas.trigger('change');
+                },
+                error: function (xhr, status) {
+                    if (status !== 'abort') {
+                        swal.fire('Gagal', 'Daftar rombel gagal dimuat.', 'error');
                     }
-                });
-            }
+                }
+            });
         }
 
-        selGuru.on('change', function () {
-            idGuru = $(this).val();
-            console.log('id_guru_change', idGuru);
-            getKelasLevel(selLevel.val(), selMapel.val());
+        selKelas.on('select2:select select2:unselect', function () {
+            selectedClassIds = selKelas.val() || [];
         });
-
-        selLevel.on('change', function () {
-            getKelasLevel($(this).val(), selMapel.val());
-        });
-
-        selMapel.on('change', function () {
-            getGuruMapel($(this).val());
-        });
+        selGuru.add(selLevel).on('change', getKelasLevel);
+        selMapel.on('change', isAdmin ? getGuruMapel : getKelasLevel);
 
         var valBobotPg = $('#bobot-pg');
         var valBobotPg2 = $('#bobot-pg2');

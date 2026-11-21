@@ -4,6 +4,10 @@ var fieldLinks;
 let dataJodohkan;
 let adaJawaban = false;
 let saveAndAddAnother = false;
+let uploadsPending = 0;
+let questionSaving = false;
+let questionLoading = false;
+let questionRequest;
 
 $(document).ready(function() {
     ajaxcsrf();
@@ -24,12 +28,8 @@ $(document).ready(function() {
             ['cleaner',['cleaner']],
         ],
         callbacks: {
-            onImageUpload: function(images) {
-                var idtextarea = $(this);
-                myOwnCallBack(images[0], idtextarea);
-            },
-            onMediaDelete : function(target) {
-                deleteEditorImage(target[0].src);
+            onImageUpload: function (images) {
+                uploadEditorImages(images, $(this));
             }
         },
     });
@@ -47,12 +47,8 @@ $(document).ready(function() {
             ['view', ['codeview']],
         ],
         callbacks: {
-            onImageUpload: function(images) {
-                var idtextarea = $(this);
-                myOwnCallBack(images[0], idtextarea);
-            },
-            onMediaDelete : function(target) {
-                deleteEditorImage(target[0].src);
+            onImageUpload: function (images) {
+                uploadEditorImages(images, $(this));
             }
         },
     });
@@ -71,12 +67,8 @@ $(document).ready(function() {
             ['insert', ['picture']],
         ],
         callbacks: {
-            onImageUpload: function(images) {
-                var idtextarea = $(this);
-                myOwnCallBack(images[0], idtextarea);
-            },
-            onMediaDelete : function(target) {
-                deleteEditorImage(target[0].src);
+            onImageUpload: function (images) {
+                uploadEditorImages(images, $(this));
             }
         },
     });
@@ -97,16 +89,18 @@ $(document).ready(function() {
             //['cleaner',['cleaner']],
         ],
         callbacks: {
-            onImageUpload: function(images) {
-                myOwnCallBack(images[0], $(this));
-            },
-            onMediaDelete: function(target) {
-                deleteEditorImage(target[0].src);
+            onImageUpload: function (images) {
+                uploadEditorImages(images, $(this));
             }
         },
     });
 
-    $("#picupload").on('change', function (e) {
+    $("#picupload").on('change', function () {
+        if (!idSoal || questionLoading) {
+            this.value = '';
+            showDangerToast('Simpan soal sebelum menambahkan lampiran.');
+            return;
+        }
         var form = new FormData($("#addfile")[0]);
         //console.log('nama file', names_files);
         //bank_id: id_bank, nomor: number, jenis: jenis_soal
@@ -119,7 +113,16 @@ $(document).ready(function() {
     $('#create').submit('click', function (e) {
         e.preventDefault();
         e.stopImmediatePropagation();
+        if (questionLoading || questionSaving || uploadsPending) return;
         jenis = $('#jenis-id').val();
+        $(this).find('.textsoal, .textstimulus, .textjawaban, .textjawaban2, .textjawaban-essai')
+            .filter(':enabled').each(function () {
+                const $editor = $(this);
+                if ($editor.summernote('codeview.isActivated')) {
+                    $editor.summernote('codeview.deactivate');
+                }
+                $editor.val($editor.summernote('isEmpty') ? '' : $editor.summernote('code'));
+            });
 
         let formData = new FormData($('#create')[0]);
         formData.append('nomor_soal', nomor_soal)
@@ -146,7 +149,6 @@ $(document).ready(function() {
                 }
             });
         }
-        console.log(Object.fromEntries(formData))
 
         if (inputKosong()) {
             swal.fire({
@@ -156,79 +158,72 @@ $(document).ready(function() {
                 showCancelButton: false
             });
         } else {
+            questionSaving = true;
+            updateSaveButtons();
             $('#loading').removeClass('d-none');
-            setTimeout(function() {
-                $.ajax({
-                    url: base_url + "cbtbanksoal/saveSoal",
-                    type: "POST",
-                    processData: false,
-                    contentType: false,
-                    data: formData,
-                    success: function (data) {
-                        $('#loading').addClass('d-none');
-                        console.log(data);
-                        if (data.status === 'error') {
-                            swal.fire({
-                                title: "ERROR",
-                                text: data.error || "Soal gagal disimpan ke database.",
-                                icon: "warning",
-                                showCancelButton: false
-                            });
-                        } else {
-                            if (data.soal_id) {
-                                idSoal = data.soal_id;
-                                $('#soal-id').val(data.soal_id);
-                                $('#method').val('edit');
-                            }
-                            showSuccessToast("Soal berhasil disimpan.");
-                            if (jenis==='1' || jenis==='2') {
-                                $('#btn-'+jenis+nomor_soal).removeClass('btn-outline-danger');
-                                $('#btn-'+jenis+nomor_soal).addClass('btn-success');
-                            } else {
-                                $('#btn-'+jenis+nomor_soal).removeClass('btn-outline-danger');
-                                $('#btn-'+jenis+nomor_soal).addClass('btn-primary');
-                            }
-                            if (saveAndAddAnother) {
-                                var $addButton = $('[data-bank="' + idBank + '"][data-nomor]:visible').first();
-                                var nextNumber = Math.max(parseInt($addButton.data('nomor'), 10) || 0, parseInt(nomor_soal, 10) + 1);
-                                $addButton.data('nomor', nextNumber + 1).attr('data-nomor', nextNumber + 1);
-                                getSoalById(idBank, nextNumber, jenis + '' + nextNumber, jenis);
-                            }
+            $.ajax({
+                url: base_url + "cbtbanksoal/saveSoal",
+                type: "POST",
+                dataType: 'json',
+                processData: false,
+                contentType: false,
+                data: formData,
+                success: function (data) {
+                    $('#loading').addClass('d-none');
+                    console.log(data);
+                    if (data.status === 'error') {
+                        swal.fire({
+                            title: "ERROR",
+                            text: data.error || "Soal gagal disimpan ke database.",
+                            icon: "warning",
+                            showCancelButton: false
+                        });
+                    } else {
+                        if (data.soal_id) {
+                            idSoal = data.soal_id;
+                            $('#soal-id').val(data.soal_id);
+                            $('#method').val('edit');
                         }
-                    }, error: function (xhr, status, error) {
-                        $('#loading').addClass('d-none');
-                        console.log("error", xhr.responseText);
-                        var response = xhr.responseJSON || {};
-                        showDangerToast(response.error || 'Soal gagal disimpan ke database.');
+                        showSuccessToast("Soal berhasil disimpan.");
+                        if (jenis==='1' || jenis==='2') {
+                            $('#btn-'+jenis+nomor_soal).removeClass('btn-outline-danger');
+                            $('#btn-'+jenis+nomor_soal).addClass('btn-success');
+                        } else {
+                            $('#btn-'+jenis+nomor_soal).removeClass('btn-outline-danger');
+                            $('#btn-'+jenis+nomor_soal).addClass('btn-primary');
+                        }
+                        if (saveAndAddAnother) {
+                            questionSaving = false;
+                            var $addButton = $('[data-bank="' + idBank + '"][data-nomor]:visible').first();
+                            var nextNumber = Math.max(parseInt($addButton.data('nomor'), 10) || 0, parseInt(nomor_soal, 10) + 1);
+                            $addButton.data('nomor', nextNumber + 1).attr('data-nomor', nextNumber + 1);
+                            getSoalById(idBank, nextNumber, jenis + '' + nextNumber, jenis);
+                        }
                     }
-                });
-            }, 500);
+                }, error: function (xhr, status, error) {
+                    $('#loading').addClass('d-none');
+                    console.log("error", xhr.responseText);
+                    var response = xhr.responseJSON || {};
+                    showDangerToast(response.error || 'Soal gagal disimpan ke database.');
+                }, complete: function () {
+                    questionSaving = false;
+                    updateSaveButtons();
+                }
+            });
         }
     });
 
-    $('#tambah-jawaban-pg2').on('click', function (e) {
-        var opsi2 = $('#opsi-pg2');
-        var count = opsi2.find('.pg-kompleks').length + 65;
-        console.log(String.fromCharCode(count));
-
-        var alphaCaps = String.fromCharCode(count);
-        var lower = alphaCaps.toLowerCase();
-
-        $('#opsi-pg2').append('<div class="pg-kompleks mb-4 ml-3">' +
-            '    <div class="row mb-2">' +
-            '       <div class="col-6">' +
-            '          <button type="button" class="btn btn-sm btn-default mr-4" onclick="deleteOpsiPg2(this)">' +
-            '<i class="fa fa-trash"></i></button>' +
-            '<span class="abjad-pg2"><b>Jawaban ' + alphaCaps + '</b></span></div>' +
-            '       <div class="col-6 text-right d-flex justify-content-end">' +
-            '          <b>Jawaban banar</b>' +
-            '          <input class="check-pg2" type="checkbox" style="width: 24px; height: 24px; margin-left: 8px;" name="jawaban_benar_pg2[]" value="'+lower+'">' +
-            '       </div>' +
-            '    </div>' +
-            '    <textarea class="textjawaban2" id="textjawaban2_'+lower+'" name="jawaban2_'+lower+'" placeholder="Buat jawaban" style="width:100%;"></textarea>' +
-            '</div>' );
-
-        initTextArea();
+    $('#tambah-jawaban-pg2').on('click', function () {
+        const $options = $('#opsi-pg2');
+        const keys = $options.find('.check-pg2').map(function () { return this.value; }).get();
+        const key = Array.from('abcdefghijklmnopqrst').find(function (letter) {
+            return !keys.includes(letter);
+        });
+        if (!key) {
+            showDangerToast('Pilihan ganda kompleks maksimal 20 opsi.');
+            return;
+        }
+        appendComplexOption($options, key, '', false);
     });
 
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
@@ -309,119 +304,100 @@ $(document).ready(function() {
     getSoalById(idBank, nomor_soal, jenis+''+nomor_soal, jenis);
 });
 
-function initTextArea() {
-    $('.textjawaban2').summernote({
+function appendComplexOption($options, key, html, checked) {
+    const $option = $('<div class="pg-kompleks mb-4 ml-3">' +
+        '<div class="row mb-2"><div class="col-6">' +
+        '<button type="button" class="btn btn-sm btn-default mr-4" onclick="deleteOpsiPg2(this)" aria-label="Hapus opsi">' +
+        '<i class="fa fa-trash"></i></button>' +
+        '<span class="abjad-pg2"><b></b></span></div>' +
+        '<div class="col-6 text-right d-flex justify-content-end"><b>Jawaban benar</b>' +
+        '<input class="check-pg2 ml-2" type="checkbox" style="width:24px;height:24px" name="jawaban_benar_pg2[]"></div></div>' +
+        '<textarea class="textjawaban2" placeholder="Tulis jawaban" style="width:100%"></textarea></div>');
+    $option.find('.abjad-pg2 b').text('Jawaban ' + key.toUpperCase());
+    $option.find('.check-pg2').val(key).prop('checked', checked);
+    const $editor = $option.find('.textjawaban2').attr({id: 'textjawaban2_' + key, name: 'jawaban2_' + key});
+    $options.append($option);
+    $editor.summernote({
         placeholder: 'Tulis Jawaban disini',
         tabsize: 2,
         minHeight: 50,
         toolbar: [
             ['font', ['bold', 'italic', 'underline', 'clear']],
             ['fontsize', ['fontsize']],
-            //['color', ['color']],
             ['para', ['ul', 'ol', 'paragraph']],
             ['table', ['table']],
             ['insert', ['picture']],
         ],
         callbacks: {
-            onImageUpload: function(images) {
-                myOwnCallBack(images[0], $(this));
-            },
-            onMediaDelete: function(target) {
-                deleteEditorImage(target[0].src);
+            onImageUpload: function (files) {
+                uploadEditorImages(files, $(this));
             }
-        },
+        }
     });
+    $editor.summernote('code', questionEditorHtml(html));
 }
 
-function resetComplexOptions() {
-    var html = '';
-    ['a', 'b'].forEach(function (key) {
-        html += '<div class="pg-kompleks mb-4 ml-3">' +
-            '<div class="row mb-2"><div class="col-6"><span class="abjad-pg2"><b>Jawaban ' + key.toUpperCase() + '</b></span></div>' +
-            '<div class="col-6 text-right d-flex justify-content-end"><b>Jawaban benar</b>' +
-            '<input class="check-pg2" type="checkbox" style="width:24px;height:24px;margin-left:8px" name="jawaban_benar_pg2[]" value="' + key + '"></div></div>' +
-            '<textarea class="textjawaban2" id="textjawaban2_' + key + '" name="jawaban2_' + key + '" placeholder="Tulis jawaban" style="width:100%;"></textarea></div>';
-    });
-    $('#opsi-pg2').html(html);
-    initTextArea();
+function updateSaveButtons() {
+    $('#save-question, #save-add-another').prop('disabled', questionLoading || questionSaving || uploadsPending > 0);
 }
 
-function myOwnCallBack(file, idtextarea) {
-    var allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (allowedTypes.indexOf(file.type) === -1) {
-        showDangerToast('Format gambar harus JPG, PNG, GIF, atau WebP');
-        return;
-    }
-    if (file.size > 4 * 1024 * 1024) {
-        showDangerToast('Ukuran gambar maksimal 4 MB');
-        return;
-    }
-    var name = $('#textsoal').attr('data-name');
-    var hash = $('#textsoal').attr('data-id');
-    let data = new FormData();
-    data.append("file", file);
-    data.append("bank_id", $('#bank-id').val());
-    data.append(name, hash);
+async function uploadEditorImages(files, $editor) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const $question = $('#textsoal');
+    uploadsPending++;
+    updateSaveButtons();
+    try {
+        for (const file of Array.from(files)) {
+            if (file.type && !allowedTypes.includes(file.type)) {
+                showDangerToast('Format gambar harus JPG, PNG, GIF, atau WebP');
+                continue;
+            }
+            if (file.size > 4 * 1024 * 1024) {
+                showDangerToast('Ukuran gambar maksimal 4 MB');
+                continue;
+            }
+            const data = new FormData();
+            data.append('file', file);
+            data.append('bank_id', $('#bank-id').val());
+            data.append($question.attr('data-name'), $question.attr('data-id'));
 
-    $.ajax({
-        data: data,
-        type: "POST",
-        url: base_url + "soalmedia/upload",
-        //url: "file-uploader.php", //Your own back-end uploader
-        cache: false,
-        contentType: false,
-        processData: false,
-        xhr: function() { //Handle progress upload
-            let myXhr = $.ajaxSettings.xhr();
-            if (myXhr.upload) myXhr.upload.addEventListener('progress', progressHandlingFunction, false);
-            return myXhr;
-        },
-        success: function(reponse) {
-            if (reponse.status === true) {
-                $(idtextarea).summernote('editor.insertImage', base_url + reponse.filename, function($image) {
-                    $image.attr('alt', file.name.replace(/\.[^.]+$/, ''));
-                    $image.css('max-width', '100%');
+            try {
+                const response = await $.ajax({
+                    url: base_url + 'soalmedia/upload',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: data,
+                    contentType: false,
+                    processData: false
                 });
+                if (!response.status) {
+                    showDangerToast(response.message || 'Gambar gagal diunggah');
+                    continue;
+                }
+                if ($editor[0].isConnected) {
+                    const image = new Image();
+                    image.src = base_url + response.filename;
+                    image.alt = file.name.replace(/\.[^.]+$/, '');
+                    image.style.maxWidth = '100%';
+                    image.style.height = 'auto';
+                    $editor.summernote('editor.insertNode', image);
+                }
+            } catch (xhr) {
+                showDangerToast((xhr.responseJSON || {}).message || 'Gambar gagal diunggah');
             }
-        },
-        error: function(xhr) {
-            var response = xhr.responseJSON || {};
-            showDangerToast(response.message || 'Gambar gagal diunggah');
         }
-    });
-}
-
-function progressHandlingFunction(e) {
-    if (e.lengthComputable) {
-        //Log current progress
-        console.log((e.loaded / e.total * 100) + '%');
-
-        //Reset progress on complete
-        if (e.loaded === e.total) {
-            console.log("Upload finished.");
-        }
+    } finally {
+        uploadsPending--;
+        updateSaveButtons();
     }
 }
 
-function deleteEditorImage(src) {
-    var name = $('#textsoal').attr('data-name');
-    var hash = $('#textsoal').attr('data-id');
-    var data = new FormData();
-    data.append("src", src);
-    data.append("bank_id", $('#bank-id').val());
-    data.append(name, hash);
-
-    $.ajax({
-        data: data,
-        type: "POST",
-        url: base_url + "soalmedia/delete",
-        processData: false,
-        contentType: false,
-        cache: false,
-        error: function(xhr) {
-            if (xhr.status !== 409) console.warn('Gambar tidak dapat dihapus');
-        }
-    });
+function questionEditorHtml(html) {
+    const fragment = document.createElement('template');
+    fragment.innerHTML = html || '';
+    for (const script of fragment.content.querySelectorAll('script')) script.remove();
+    resolveQuestionMedia(fragment.content, base_url);
+    return fragment.innerHTML;
 }
 
 function inputKosong() {
@@ -441,15 +417,11 @@ function inputKosong() {
             kosong = $('#textjawaban_' + jawabanBenar).summernote('isEmpty');
         }
     } else if (jenis === '2') {
-        $('.textjawaban2').each(function () {
-            if ($(this).summernote('isEmpty')) {
-                kosong = true;
-                return false;
-            } else {
-                kosong = false;
-            }
+        const $choices = $('.textjawaban2');
+        const $checked = $('.check-pg2:checked');
+        kosong = $choices.length < 2 || !$checked.length || $choices.toArray().some(function (choice) {
+            return $(choice).summernote('isEmpty');
         });
-        if (!$('.check-pg2:checked').length) kosong = true;
     } else if (jenis === '3') {
         kosong = false;
     } else if (jenis === '4') {
@@ -469,6 +441,8 @@ function inArray(val, array) {
 
 var old_id = 11;
 function getSoalById(id_bank, number, id, jenis_soal) {
+    if (questionSaving || uploadsPending) return;
+    if (questionRequest) questionRequest.abort();
     jenisSoal = jenis_soal;
     $('#empty-soal').addClass('d-none');
     $('#not-empty-soal').addClass('d-none');
@@ -678,237 +652,84 @@ function getSoalById(id_bank, number, id, jenis_soal) {
 	}
 
 	$('#loading').removeClass('d-none');
-	setTimeout(function() {
-		old_id = id;
-		nomor_soal = number;
-		jenis = jenis_soal;
-		//console.log("data", bank_soal);
-		$.ajax({
-			type: "GET",
-			url: base_url + "cbtbanksoal/getSoalByNomor",
-			dataType: "JSON",
-			data: {bank_id: id_bank, nomor: number, jenis: jenis_soal},
-            //responseType: "blob",
-			success: function (data) {
-				$('#loading').addClass('d-none');
-				console.log('soal', data);
-				if (data == null) {
-                    $('#empty-soal').addClass('d-none');
-                    $('#not-empty-soal').removeClass('d-none');
-					$('#soal-id').val('0');
-					$('#method').val('add');
-					$('#textsoal').summernote('code', '');
-					$('#textstimulus').summernote('code', '');
-					$(".textjawaban").each(function(){
-						$(this).summernote('code', '');
-					});
-                    $('[name="jawaban_pg"]').prop('checked', false);
-					if (jenis_soal === '2') resetComplexOptions();
-					$('#jawaban-essai').summernote('code', '');
-					$('#jawaban-bs').prop('selectedIndex', 0).change();
-				} else {
-                    $('#empty-soal').addClass('d-none');
-                    $('#not-empty-soal').removeClass('d-none');
-					$('#soal-id').val(data.id_soal);
-					$('#method').val('edit');
+    questionLoading = true;
+    updateSaveButtons();
+    old_id = id;
+    nomor_soal = number;
+    jenis = jenis_soal;
+    questionRequest = $.ajax({
+        type: 'GET',
+        url: base_url + 'cbtbanksoal/getSoalByNomor',
+        dataType: 'json',
+        data: {bank_id: id_bank, nomor: number, jenis: jenis_soal},
+        success: function (data) {
+            const question = data || {};
+            idSoal = question.id_soal || 0;
+            dataFiles = Array.isArray(question.file) ? question.file : [];
+            $('#soal-id').val(idSoal);
+            $('#method').val(idSoal ? 'edit' : 'add');
+            $('#textsoal').summernote('code', questionEditorHtml(question.soal));
+            $('#textstimulus').summernote('code', questionEditorHtml(question.deskripsi));
 
-					var checkSoal = data.soal == null ? '' : data.soal;
-                    var sSoal = $($.parseHTML(checkSoal));
-                    sSoal.find(`img`).each(function () {
-                        var curSrc = $(this).attr('src');
-                        if (curSrc.indexOf("base64") > 0 || !curSrc.includes("uploads")) {
-                        } else {
-                            var pathUpload = 'uploads';
-                            var forReplace = curSrc.split(pathUpload);
-                            $(this).attr('src', base_url + pathUpload + forReplace[1]);
-                        }
-						$(this).removeAttr('alt');
-                    });
-
-                    sSoal.find(`video`).each(function () {
-                        var curSrc = $(this).attr('src');
-                        if (curSrc.indexOf("base64") > 0) {
-                        } else {
-                            var pathUpload = 'uploads';
-                            var forReplace = curSrc.split(pathUpload);
-                            $(this).attr('src', base_url + pathUpload + forReplace[1]);
-                        }
-                    });
-
-                    sSoal.find(`audio`).each(function () {
-                        var curSrc = $(this).attr('src');
-                        if (curSrc.indexOf("base64") > 0) {
-                        } else {
-                            var pathUpload = 'uploads';
-                            var forReplace = curSrc.split(pathUpload);
-                            $(this).attr('src', base_url + pathUpload + forReplace[1]);
-                        }
-                    });
-
-					$('#textsoal').summernote('code', sSoal);
-
-					var stimulus = data.deskripsi == null ? '' : data.deskripsi;
-					$('#textstimulus').summernote('code', stimulus);
-
-					if (jenis_soal === '1') {
-                        let arrJawaban = [data.opsi_a, data.opsi_b, data.opsi_c, data.opsi_d, data.opsi_e];
-                        let arrAbjad = ['a', 'b', 'c', 'd', 'e'];
-
-                        $.each(arrJawaban, function (i, item) {
-                            var chekJawaban = arrJawaban[i] == null ? '' : arrJawaban[i];
-                            var sJawabPg = $($.parseHTML(chekJawaban));
-                            sJawabPg.find(`img`).each(function () {
-								$(this).removeAttr('alt');
-                                var curSrc = $(this).attr('src');
-                                if (curSrc.indexOf("base64") > 0 || !curSrc.includes("uploads")) {
-                                } else {
-                                    var pathUpload = 'uploads';
-                                    var forReplace = curSrc.split(pathUpload);
-                                    $(this).attr('src', base_url + pathUpload + forReplace[1]);
-                                }
-                            });
-
-                            $('#textjawaban_' + arrAbjad[i]).summernote('code', sJawabPg);
-                        });
-
-                        var jwb = data.jawaban == null ? '' : $.trim((data.jawaban).toLowerCase());
-                        console.log(jwb);
-                        $('[name="jawaban_pg"][value="' + jwb + '"]').prop('checked', true);
-                    } else if (jenis_soal === '2') {
-                        var jwb2 = '';
-                        if (data.opsi_a) {
-                            $.each(data.opsi_a, function (k, v) {
-                                var checked = '';
-                                if (inArray(k, data.jawaban)) {
-                                    checked = 'checked="checked"';
-                                }
-                                var pv = $($.parseHTML(v));
-                                pv.find(`img`).each(function () {
-                                    var curSrc = $(this).attr('src');
-                                    if (curSrc.indexOf("base64") > 0 || !curSrc.includes("uploads")) {
-                                    } else {
-                                        var pathUpload = 'uploads';
-                                        var forReplace = curSrc.split(pathUpload);
-                                        $(this).attr('src', base_url + pathUpload + forReplace[1]);
-                                    }
-                                })
-
-                                jwb2 += '<div class="pg-kompleks mb-4 ml-3">' +
-                                    '    <div class="row mb-2">' +
-                                    '       <div class="col-6">' +
-                                    '          <button type="button" class="btn btn-sm btn-default mr-4" onclick="deleteOpsiPg2(this)">' +
-                                    '<i class="fa fa-trash"></i></button>' +
-                                    '<span class="abjad-pg2"><b>Jawaban ' + k.toUpperCase() + '</b></span></div>' +
-                                    '       <div class="col-6 text-right d-flex justify-content-end">' +
-                                    '          <b>Jawaban banar</b>' +
-                                    '          <input class="check-pg2" type="checkbox" style="width: 24px; height: 24px; margin-left: 8px;" name="jawaban_benar_pg2[]" value="' + k + '" ' + checked + '>' +
-                                    '       </div>' +
-                                    '    </div>' +
-                                    '    <textarea class="textjawaban2" id="textjawaban2_' + k + '" name="jawaban2_' + k + '" placeholder="Buat jawaban" style="width:100%;">' + $('<div>').append(pv.clone()).html() + '</textarea>\n' +
-                                    '</div>';
-                            });
-                        } else {
-                            jwb2 += '<div class="pg-kompleks mb-4 ml-3">' +
-                                '    <div class="row mb-2">' +
-                                '       <div class="col-6">' +
-                                '          <button type="button" class="btn btn-sm btn-default mr-4" onclick="deleteOpsiPg2(this)">' +
-                                '<i class="fa fa-trash"></i></button>' +
-                                '<span class="abjad-pg2"><b>Jawaban A</b></span></div>' +
-                                '       <div class="col-6 text-right d-flex justify-content-end">' +
-                                '          <b>Jawaban banar</b>' +
-                                '          <input class="check-pg2" type="checkbox" style="width: 24px; height: 24px; margin-left: 8px;" name="jawaban_benar_pg2[]" value="a">' +
-                                '       </div>' +
-                                '    </div>' +
-                                '    <textarea class="textjawaban2" id="textjawaban2_a" name="jawaban2_a" placeholder="Buat jawaban" style="width:100%;"></textarea>\n' +
-                                '</div>';
-                        }
-                        $('#opsi-pg2').html(jwb2);
-                        initTextArea();
-                    } else if (jenis_soal === '3') {
-                        let konten = $('#jawaban-jodohkan')
-                        konten.html('')
-                        if (!data.jawaban) {
-                            data.jawaban = {
-                                jawaban: [],
-                                model: '1',
-                                type: '2'
-                            }
-                        }
-                        dataJodohkan = data.jawaban;
-                        konten.linkerList({
-                            data: data.jawaban,
-                            id: nomor_soal,
-                            viewMode: '3',
-                            callback: function (id, data, hasLinks) {
-                                //console.log('data:'+id, data, hasLinks)
-                                dataJodohkan = data
-                                adaJawaban = hasLinks
-                            }
-                        });
-                    } else if (jenis_soal === '4') {
-                        $('#jawaban-isian').val($.trim(data.jawaban));
-                    } else if (jenis_soal === '6') {
-                        var jwbBs = data.jawaban ? $.trim((data.jawaban + '').toLowerCase()) : '';
-                        $('#jawaban-bs').val(jwbBs).change();
-                    } else {
-                        var sJawabEssai = $($.parseHTML(`<div>${data.jawaban}</div>`));
-						$('#jawaban-essai').summernote('code', sJawabEssai);
-					}
-
-                    let listMimeAudio = ['audio/mpeg', 'audio/ogg'];
-                    let listMimeVideo = ['video/mpeg', 'video/mp4', 'video/webm'];
-
-                    var audioPendukung = '';
-
-                    var videoPendukung = '';
-
-                    $.each(data.file, function (i, v) {
-                        if (listMimeAudio.indexOf(v.type) > -1) {
-                        	audioPendukung += '<audio id="audio-att">' +
-                                '    <source src="'+base_url + v.src+'" type="'+v.type+'" />' +
-                                '  </audio>' +
-                            '        <span>'+v.src+'</span>';
-                        } else {
-                            videoPendukung += '    <span>' +v.file_name+
-								'</span><br><video id="video-att" width="100" height="auto" src="'+base_url + v.src+'" controls></video>' +
-                                '        <span>3 x</span>';
-						}
-                    });
-
-                    $('#audios').html(audioPendukung);
-                    $('#videos').html(videoPendukung);
-
-                    $('#audio-att, #video-att').stylise({
-						//enableSeeking: false,
-						enableRestart: false
-					});
-				}
-                $('[data-toggle="tooltip"]').tooltip();
-
-				/*
-                $('.note-editable').find('p').each(function () {
-                    if(HasArabicCharacters($(this))){
-                        $(this).removeAttr('style');
-                        $(this).attr('style', '"font-family: "uthmanic"; font-size: 22pt;"');
-                    }
-
-                    $(this).find('span').each(function () {
-                        console.log(HasArabicCharacters($(this)));
-                        if(HasArabicCharacters($(this))){
-                            $(this).removeAttr('style');
-                            $(this).attr('style', '"font-family: "uthmanic"; font-size: 22pt;"');
-                        }
-                    });
+            if (jenis_soal === '1') {
+                $('.textjawaban').each(function () {
+                    const key = this.name.slice(-1);
+                    $(this).summernote('code', questionEditorHtml(question['opsi_' + key]));
                 });
-                */
-            },
-			error: function (e) {
-				$('#loading').addClass('d-none');
-				console.log("error", e.responseText);
-				showDangerToast(e.responseText);
-			}
-		});
-		}, 500);
+                const answer = String(question.jawaban || '').trim().toLowerCase();
+                $('[name="jawaban_pg"]').each(function () {
+                    this.checked = this.value === answer;
+                });
+            } else if (jenis_soal === '2') {
+                const $options = $('#opsi-pg2').empty();
+                const answers = Array.isArray(question.jawaban) ? question.jawaban : [];
+                $.each(question.opsi_a || {a: '', b: ''}, function (key, html) {
+                    appendComplexOption($options, key, html, answers.includes(key));
+                });
+            } else if (jenis_soal === '3') {
+                adaJawaban = false;
+                dataJodohkan = question.jawaban || {jawaban: [], model: '1', type: '2'};
+                $('#jawaban-jodohkan').empty().linkerList({
+                    data: dataJodohkan,
+                    id: number,
+                    viewMode: '3',
+                    callback: function (id, data, hasLinks) {
+                        dataJodohkan = data;
+                        adaJawaban = hasLinks;
+                    }
+                });
+            } else if (jenis_soal === '4') {
+                $('#jawaban-isian').val($.trim(question.jawaban));
+            } else if (jenis_soal === '6') {
+                $('#jawaban-bs').val(String(question.jawaban || '').trim().toLowerCase()).change();
+            } else {
+                $('#jawaban-essai').summernote('code', questionEditorHtml(question.jawaban));
+            }
+
+            $('#audios, #videos').empty();
+            for (const file of dataFiles) {
+                const isAudio = ['audio/mpeg', 'audio/ogg'].includes(file.type);
+                const $media = isAudio ? $('<audio id="audio-att">') : $('<video id="video-att" width="100" controls>');
+                $media.append($('<source>').attr({src: base_url + file.src, type: file.type}));
+                (isAudio ? $('#audios') : $('#videos')).append($media, $('<span>').text(file.file_name || file.src));
+                $media.stylise({enableRestart: false});
+            }
+
+            $('#loading').addClass('d-none');
+            $('#not-empty-soal').removeClass('d-none');
+            $('[data-toggle="tooltip"]').tooltip();
+        },
+        error: function (xhr, status) {
+            if (status !== 'abort') {
+                $('#loading').addClass('d-none');
+                showDangerToast((xhr.responseJSON || {}).message || 'Soal gagal dimuat.');
+            }
+        },
+        complete: function () {
+            questionLoading = false;
+            updateSaveButtons();
+        }
+    });
 }
 
 function tambahSoalPg(e) {
@@ -1111,7 +932,9 @@ function HasArabicCharacters(text){
 }
 
 function deleteOpsiPg2(e) {
-    $(e).closest('.pg-kompleks').remove();
+    const $option = $(e).closest('.pg-kompleks');
+    $option.find('.textjawaban2').summernote('destroy');
+    $option.remove();
 
     var opsi2 = $('#opsi-pg2');
     const $abjads = opsi2.find('.abjad-pg2')
@@ -1123,7 +946,8 @@ function deleteOpsiPg2(e) {
     const $teks = opsi2.find('.textjawaban2');
     $teks.each(function (index, area) {
         const abc = (index + 10).toString(36).toLowerCase();
-        $(area).prop('id', 'textjawaban2_'+abc).prop('name', 'jawaban2_'+abc)
+        $(area).prop('id', 'textjawaban2_' + abc).prop('name', 'jawaban2_' + abc);
+        $(area).closest('.pg-kompleks').find('.check-pg2').val(abc);
     })
 }
 
@@ -1141,22 +965,7 @@ function simpanValue() {
     $('#noteModal').modal('hide');
 }
 
-function deleteOpsiPg2(e) {
-    $(e).closest('.pg-kompleks').remove();
 
-    var opsi2 = $('#opsi-pg2');
-    const $abjads = opsi2.find('.abjad-pg2')
-
-    $abjads.each(function (index, sp) {
-        $(sp).html('<b>Jawaban '+(index + 10).toString(36).toUpperCase()+'</b>')
-    })
-
-    const $teks = opsi2.find('.textjawaban2');
-    $teks.each(function (index, area) {
-        const abc = (index + 10).toString(36).toLowerCase();
-        $(area).prop('id', 'textjawaban2_'+abc).prop('name', 'jawaban2_'+abc)
-    })
-}
 
 function encode(str) {
     var decoded = decodeURIComponent(str)
