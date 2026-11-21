@@ -88,7 +88,8 @@ $sebGlobal = dirname(__DIR__) . '/application/config/.seb_global.php';
 if (is_file($sebGlobal)) {
     $sebConfig = require $sebGlobal;
     if (!empty($sebConfig['config_key'])) {
-        $sebKey = (string) $sebConfig['config_key'];
+        $keys = preg_split('/[\s,;]+/', strtolower(trim($sebConfig['config_key'])), -1, PREG_SPLIT_NO_EMPTY);
+        $sebKey = $keys[0] ?? $sebKey;
     }
 }
 
@@ -444,7 +445,7 @@ try {
                 $saveOk++;
             }
         }
-        step('simpan jawaban nomor ' . $nomor . ' serentak', $saveOk === count($jobs), "berhasil=$saveOk/" . count($jobs));
+        step('simpan jawaban nomor ' . $nomor . ' serentak', $saveOk === $jumlah, "berhasil=$saveOk/$jumlah");
     }
 
     /* 5c. Randomisasi: setiap peserta tetap menerima seluruh soal dari bank yang
