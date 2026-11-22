@@ -175,7 +175,7 @@ $(document).ready(function () {
 
         var arrSel = [];
         if (mapel != null) {
-            arrSel = mapel.split(',');
+            arrSel = String(mapel).split(',');
         }
         console.log(arrSel);
 
@@ -200,7 +200,7 @@ $(document).ready(function () {
 
         var arrSel = [];
         if (mapel != null) {
-            arrSel = mapel.split(',');
+            arrSel = String(mapel).split(',');
         }
         console.log(arrSel);
 
@@ -271,6 +271,10 @@ $(document).ready(function () {
             success: function (data) {
                 console.log("result", data);
                 btn.removeAttr('disabled').text('Simpan');
+                if (!data.status) {
+                    showDangerToast(data.message || 'Gagal menyimpan jurusan.');
+                    return;
+                }
                 $('#editJurusanModal').modal('hide').data('bs.modal', null);
                 $('#editJurusanModal').on('hidden', function () {
                     $(this).data('modal', null);  // destroys modal
@@ -279,7 +283,8 @@ $(document).ready(function () {
                 //showSuccessToast('Data berhasil diupdate.');
                 //table.ajax.reload();
             },
-            error: function (xhr, status, error) {
+            error: function () {
+                btn.removeAttr('disabled').text('Simpan');
                 $('#editJurusanModal').modal('hide').data('bs.modal', null);
                 $('#editJurusanModal').on('hidden', function () {
                     $(this).data('modal', null);  // destroys modal

@@ -23,7 +23,11 @@ class Student_specialization_service
         if (!ctype_digit($nis) || !ctype_digit($nisn)) {
             throw new InvalidArgumentException('NIS dan NISN hanya boleh berisi angka.');
         }
-        list($majorId, $program) = $this->specialization($this->ci->input->post('kelas_awal', TRUE));
+        list($majorId, $program) = $this->specialization(
+            $this->ci->input->post('kelas_awal', TRUE),
+            $this->ci->input->post('peminatan_id', TRUE),
+            $this->ci->input->post('program_mak', TRUE)
+        );
         $username = trim((string) $this->ci->input->post('username', TRUE));
         $duplicate = $this->ci->db->group_start()->where('nis', $nis)->or_where('nisn', $nisn)
             ->or_where('username', $username)->group_end()->count_all_results('master_siswa');
@@ -60,7 +64,11 @@ class Student_specialization_service
             ->join('master_smt smt', 'smt.id_smt = ks.id_smt AND smt.active = 1')
             ->where('ks.id_siswa', (int) $studentId)->get()->row();
         $student = $this->ci->db->select('kelas_awal')->get_where('master_siswa', array('id_siswa' => (int) $studentId))->row();
-        list($majorId, $program) = $this->specialization($placement ? $placement->level_id : ($student ? $student->kelas_awal : NULL));
+        list($majorId, $program) = $this->specialization(
+            $placement ? $placement->level_id : ($student ? $student->kelas_awal : NULL),
+            $this->ci->input->post('peminatan_id', TRUE),
+            $this->ci->input->post('program_mak', TRUE)
+        );
         return array('peminatan_id' => $majorId, 'program_mak' => $program);
     }
 
@@ -72,61 +80,79 @@ class Student_specialization_service
         }
         $allowed = array_flip($this->ci->db->list_fields('master_siswa'));
         unset($allowed['id_siswa'], $allowed['uid'], $allowed['peminatan_id'], $allowed['program_mak']);
-        $this->ci->db->trans_begin();
         $period = $this->activePeriod();
+        $defaultMajor = $this->ci->input->post('peminatan_id', TRUE);
+        $defaultProgram = $this->ci->input->post('program_mak', TRUE);
         $withoutClass = 0;
-        foreach ($rows as $index => $row) {
-            $data = is_array($row) ? array_intersect_key($row, $allowed) : array();
-            foreach (array('nis', 'nisn', 'nama', 'username', 'password') as $field) {
-                if (trim((string) ($data[$field] ?? '')) === '') {
-                    $this->rollback('Baris impor ke-' . ($index + 1) . ': ' . strtoupper($field) . ' wajib diisi.');
+        $this->ci->db->trans_begin();
+        try {
+            foreach (array_values($rows) as $index => $row) {
+                $data = is_array($row) ? array_intersect_key($row, $allowed) : array();
+                foreach (array('nis', 'nisn', 'nama', 'username', 'password', 'kelas_awal') as $field) {
+                    if (trim((string) ($data[$field] ?? '')) === '') {
+                        throw new InvalidArgumentException('Baris impor ke-' . ($index + 1) . ': ' . strtoupper($field) . ' wajib diisi.');
+                    }
                 }
-            }
-            $_POST['peminatan_id'] = !empty($row['peminatan_id']) ? $row['peminatan_id'] : $this->ci->input->post('peminatan_id', TRUE);
-            $_POST['program_mak'] = !empty($row['program_mak']) ? $row['program_mak'] : $this->ci->input->post('program_mak', TRUE);
-            list($majorId, $program) = $this->specialization($data['kelas_awal'] ?? NULL);
-            $data['uid'] = $this->uuid();
-            $data['peminatan_id'] = $majorId;
-            $data['program_mak'] = $program;
-            $data['nik'] = isset($data['nik']) ? $data['nik'] : '';
-            $data['warga_negara'] = isset($data['warga_negara']) ? $data['warga_negara'] : '';
-            $this->ci->db->insert('master_siswa', $data);
-            $studentId = (int) $this->ci->db->insert_id();
-            if (!$studentId) {
-                $this->rollback('Baris impor ke-' . ($index + 1) . ' gagal disimpan; periksa data ganda.');
-            }
-            $this->ci->db->insert('buku_induk', array('id_siswa' => $studentId, 'uid' => $this->uuid()));
-            $classId = (int) ($row['id_kelas'] ?? 0);
-            if ($classId) {
+                foreach (array('anak_ke', 'kode_pos') as $field) {
+                    if (($data[$field] ?? NULL) === '') {
+                        $data[$field] = NULL;
+                    }
+                }
+                list($majorId, $program) = $this->specialization(
+                    $data['kelas_awal'],
+                    trim((string) ($row['peminatan_id'] ?? '')) ?: $defaultMajor,
+                    trim((string) ($row['program_mak'] ?? '')) ?: $defaultProgram
+                );
+                $data['uid'] = $this->uuid();
+                $data['peminatan_id'] = $majorId;
+                $data['program_mak'] = $program;
+                $data['nik'] = $data['nik'] ?? '';
+                $data['warga_negara'] = $data['warga_negara'] ?? '';
+                $duplicate = $this->ci->db->group_start()->where('nis', $data['nis'])->or_where('nisn', $data['nisn'])
+                    ->or_where('username', $data['username'])->group_end()->count_all_results('master_siswa');
+                if ($duplicate || !$this->ci->db->insert('master_siswa', $data)) {
+                    throw new RuntimeException('Baris impor ke-' . ($index + 1) . ' gagal disimpan; periksa data ganda.');
+                }
+                $studentId = (int) $this->ci->db->insert_id();
+                if (!$this->ci->db->insert('buku_induk', array('id_siswa' => $studentId, 'uid' => $this->uuid()))) {
+                    throw new RuntimeException('Gagal menyimpan buku induk siswa.');
+                }
+                $classId = (int) ($row['id_kelas'] ?? 0);
+                if (!$classId) {
+                    $withoutClass++;
+                    continue;
+                }
                 if (!$this->ci->db->where($period)->where('id_kelas', $classId)->count_all_results('master_kelas')) {
-                    $this->rollback('Baris impor ke-' . ($index + 1) . ': rombel tidak valid untuk periode aktif.');
+                    throw new RuntimeException('Baris impor ke-' . ($index + 1) . ': rombel tidak valid untuk periode aktif.');
                 }
-                $this->ci->db->insert('kelas_siswa', $period + array('id_siswa' => $studentId, 'id_kelas' => $classId));
-            } else {
-                $withoutClass++;
+                if (!$this->ci->db->insert('kelas_siswa', $period + array('id_siswa' => $studentId, 'id_kelas' => $classId))) {
+                    throw new RuntimeException('Gagal menyimpan penempatan siswa.');
+                }
             }
+            if (!$this->ci->db->trans_status() || !$this->ci->db->trans_commit()) {
+                throw new RuntimeException('Impor dibatalkan karena ada data yang gagal disimpan.');
+            }
+        } catch (Throwable $error) {
+            $this->ci->db->trans_rollback();
+            throw $error;
         }
-        if ($this->ci->db->trans_status() === FALSE) {
-            $this->rollback('Impor dibatalkan karena ada data yang gagal disimpan.');
-        }
-        $this->ci->db->trans_commit();
         return array('total' => count($rows), 'without_class' => $withoutClass);
     }
 
-    private function specialization($levelId)
+    private function specialization($levelId, $majorId, $program)
     {
         if ((int) $levelId === 10) {
             $um = $this->ci->db->select('id_jurusan')->where_in('kode_jurusan', array('UM', 'NON'))
                 ->get('master_jurusan')->row();
             return array($um ? (int) $um->id_jurusan : NULL, NULL);
         }
-        $majorId = (int) $this->ci->input->post('peminatan_id', TRUE);
+        $majorId = (int) $majorId;
         $major = $majorId ? $this->ci->db->select('id_jurusan, kode_jurusan')
             ->get_where('master_jurusan', array('id_jurusan' => $majorId, 'status' => 1))->row() : NULL;
         if (!$major) {
             throw new InvalidArgumentException('Peminatan siswa harus dipilih.');
         }
-        $program = strtoupper(trim((string) $this->ci->input->post('program_mak', TRUE)));
+        $program = strtoupper(trim((string) $program));
         if (strtoupper((string) $major->kode_jurusan) !== 'MAK') {
             $program = NULL;
         } elseif (!in_array($program, array('TAHFIDZ', 'KITAB'), TRUE)) {

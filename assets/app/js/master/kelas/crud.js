@@ -11,7 +11,7 @@ $(document).ready(function () {
 
         swal.fire({
             title: "Hapus Data Kelas?",
-            text: "Kelas beserta jumlah siswa akan dihapus",
+            text: "Rombel kosong ini akan dihapus.",
             icon: "warning",
             showCancelButton: true,
             confirmButtonColor: "#3085d6",
@@ -21,7 +21,7 @@ $(document).ready(function () {
             if (result.value) {
                 $.ajax({
                     url: base_url + 'datakelas/hapus/'+kelas,
-                    method:"GET",
+                    method: "POST",
                     success: function (respon) {
                         console.log(respon);
                         if (respon.kelas) {
@@ -29,7 +29,7 @@ $(document).ready(function () {
                         } else {
                             swal.fire({
                                 title: "Gagal",
-                                text: "Tidak bisa menghapus kelas",
+                                text: respon.message || "Tidak bisa menghapus kelas",
                                 icon: "error"
                             });
                         }

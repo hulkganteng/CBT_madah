@@ -1,8 +1,9 @@
 <?php
-$fotoSiswa = $siswa->foto;
-if (!file_exists(FCPATH . $siswa->foto)) {
-    $fotoSiswa = str_replace('profiles', 'foto_siswa', $siswa->foto);
+$fotoSiswa = (string) $siswa->foto;
+if ($fotoSiswa !== '' && !is_file(FCPATH . $fotoSiswa)) {
+    $fotoSiswa = str_replace('profiles', 'foto_siswa', $fotoSiswa);
 }
+$defaultPhoto = base_url($siswa->jenis_kelamin === 'L' ? 'assets/img/siswa-l.png' : 'assets/img/siswa-p.png');
 ?>
 <?php $peminatanSiswa = $this->db->where('status', 1)->order_by('nama_jurusan')->get('master_jurusan')->result(); ?>
 <div class="content-wrapper bg-white pt-4">
@@ -58,7 +59,7 @@ if (!file_exists(FCPATH . $siswa->foto)) {
                                             </div>
                                             <div class="col-6">
                                                 <button type="button" class="btn btn-danger btn-sm btn-block"
-                                                        onclick="deleteImage(true)"><i
+                                                        id="hapus-foto"><i
                                                             class="fa fa-trash"></i> Hapus Foto
                                                 </button>
                                             </div>
@@ -425,7 +426,7 @@ if (!file_exists(FCPATH . $siswa->foto)) {
                     <input type="file" id="foto-profile" name="foto" class="dropify"
                            data-max-file-size-preview="2M"
                            data-allowed-file-extensions="jpg jpeg png"
-                           data-default-file="<?= base_url() . $fotoSiswa ?>"/>
+                           data-default-file="<?= $fotoSiswa !== '' && is_file(FCPATH . $fotoSiswa) ? html_escape(base_url($fotoSiswa)) : '' ?>"/>
                 </div>
                 <?= form_close() ?>
             </div>
@@ -452,27 +453,20 @@ if (!file_exists(FCPATH . $siswa->foto)) {
                     <div class="input-group-prepend w-40">
                         <span class="input-group-text">Username</span>
                     </div>
-                    <input type="text" class="form-control" name="username" value="<?= $siswa->username ?>"
+                    <input type="text" class="form-control" name="username" value="<?= html_escape($siswa->username) ?>"
                            placeholder="Username">
-                </div>
-                <div class="input-group mb-3">
-                    <div class="input-group-prepend w-40">
-                        <span class="input-group-text">Password Lama</span>
-                    </div>
-                    <input class="form-control" name="old" value="<?= $siswa->password ?>" placeholder="Username"
-                           readonly>
                 </div>
                 <div class="input-group mb-3">
                     <div class="input-group-prepend w-40">
                         <span class="input-group-text">Password Baru</span>
                     </div>
-                    <input type="text" name="new" class="form-control" placeholder="Password Baru">
+                    <input type="password" name="new" class="form-control" placeholder="Password Baru" autocomplete="new-password" required>
                 </div>
                 <div class="input-group mb-3">
                     <div class="input-group-prepend w-40">
                         <span class="input-group-text">Konfirmasi Password</span>
                     </div>
-                    <input type="text" name="new_confirm" class="form-control" placeholder="Konfirmasi Password Baru"
+                    <input type="password" name="new_confirm" class="form-control" placeholder="Konfirmasi Password Baru" autocomplete="new-password"
                            required>
                 </div>
             </div>
@@ -486,9 +480,8 @@ if (!file_exists(FCPATH . $siswa->foto)) {
 <?= form_close() ?>
 
 <script>
-    var fotoProfile = '';
-    var idSiswa = '<?=$siswa->id_siswa?>';
-    var src = '<?=$fotoSiswa?>';
+    const idSiswa = <?= (int) $siswa->id_siswa ?>;
+    const defaultPhoto = <?= json_encode($defaultPhoto) ?>;
     $(document).ready(function () {
         ajaxcsrf();
 
@@ -526,16 +519,6 @@ if (!file_exists(FCPATH . $siswa->foto)) {
             }
         });
 
-
-        drEvent.on('dropify.beforeClear', function (event, element) {
-            //return confirm("Hapus logo \"" + element.file.name + "\" ?");
-        });
-
-        drEvent.on('dropify.afterClear', function (event, element) {
-            src = $(event.currentTarget).data('default-file');
-            deleteImage(false);
-            fotoProfile = '';
-        });
 
         drEvent.on('dropify.errors', function (event, element) {
             console.log('Has Errors');
@@ -612,12 +595,6 @@ if (!file_exists(FCPATH . $siswa->foto)) {
             e.preventDefault();
             e.stopImmediatePropagation();
             var dataPost = $(this).serialize();
-            console.log("data:", dataPost);
-
-            $('#editLoginModal').modal('hide').data('bs.modal', null);
-            $('#editLoginModal').on('hidden', function () {
-                $(this).data('modal', null);
-            });
 
             swal.fire({
                 text: "Silahkan tunggu....",
@@ -638,9 +615,10 @@ if (!file_exists(FCPATH . $siswa->foto)) {
                 success: function (data) {
                     console.log(data);
                     if (data.status) {
+                        $('#editLoginModal').modal('hide');
                         swal.fire({
                             title: "Sukses",
-                            html: data.text,
+                            text: data.text,
                             icon: "success",
                             showCancelButton: false,
                         }).then(result => {
@@ -649,23 +627,24 @@ if (!file_exists(FCPATH . $siswa->foto)) {
                             }
                         })
                     } else {
+                        const errors = data.errors || {};
                         var html = '<ul>';
-                        if (data.errors.username != null && data.errors.username !== "") {
-                            html += '<li>' + data.errors.username + '</li>';
+                        if (errors.username != null && errors.username !== "") {
+                            html += '<li>' + errors.username + '</li>';
                         }
-                        if (data.errors.old != null && data.errors.old !== "") {
-                            html += '<li>' + data.errors.old + '</li>';
+                        if (errors.old != null && errors.old !== "") {
+                            html += '<li>' + errors.old + '</li>';
                         }
-                        if (data.errors.new != null && data.errors.new !== "") {
-                            html += '<li>' + data.errors.new + '</li>';
+                        if (errors.new != null && errors.new !== "") {
+                            html += '<li>' + errors.new + '</li>';
                         }
-                        if (data.errors.new_confirm != null && data.errors.new_confirm !== "") {
-                            html += '<li>' + data.errors.new_confirm + '</li>';
+                        if (errors.new_confirm != null && errors.new_confirm !== "") {
+                            html += '<li>' + errors.new_confirm + '</li>';
                         }
                         html += '</ul>';
                         swal.fire({
                             title: "ERROR",
-                            html: html,
+                            html: data.text || html,
                             icon: "error",
                             showCancelButton: false,
                         });
@@ -682,64 +661,50 @@ if (!file_exists(FCPATH . $siswa->foto)) {
             });
         });
 
-        function uploadAttach(action, data) {
-            console.log(data);
-            $.ajax({
-                type: "POST",
-                enctype: 'multipart/form-data',
-                url: action,
-                data: data,
-                processData: false,
-                contentType: false,
-                cache: false,
-                timeout: 600000,
-                success: function (data) {
-                    fotoProfile = data.src;
-                },
-                error: function (e) {
-                    console.log("error", e.responseText);
-                    $.toast({
-                        heading: "ERROR!!",
-                        text: "file tidak terbaca",
-                        icon: 'error',
-                        showHideTransition: 'fade',
-                        allowToastClose: true,
-                        hideAfter: 5000,
-                        position: 'top-right'
-                    });
+        let photoRequest = false;
+        const photoInput = $('#foto-profile');
+        const deleteButton = $('#hapus-foto');
+
+        function savePhoto(action, data) {
+            photoRequest = true;
+            photoInput.add(deleteButton).prop('disabled', true);
+            const request = {
+                type: 'POST',
+                url: base_url + 'datasiswa/' + action + '/' + idSiswa,
+                dataType: 'json'
+            };
+            if (data) {
+                Object.assign(request, {data: data, processData: false, contentType: false});
+            }
+            $.ajax(request).done(function (result) {
+                if (!result.status) {
+                    showDangerToast(result.message || 'Gagal menyimpan perubahan foto siswa.');
+                    return;
                 }
+                $('.profile-avatar').attr('src', result.src || defaultPhoto);
+                if (!result.src) {
+                    photoInput.data('dropify').resetPreview();
+                    photoInput.data('dropify').clearElement();
+                }
+                $('#editFotoModal').modal('hide');
+            }).fail(function () {
+                showDangerToast('Gagal menyimpan perubahan foto siswa.');
+            }).always(function () {
+                photoRequest = false;
+                photoInput.add(deleteButton).prop('disabled', false);
             });
         }
 
-        $("#foto-profile").change(function () {
-            var input = $(this)[0];
-            if (input.files && input.files[0]) {
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    $('#prev-logo-kanan').attr('src', e.target.result);
-                };
-                reader.readAsDataURL(input.files[0]);
-
-                var form = new FormData($('#set-foto-profile')[0]);
-                uploadAttach(base_url + 'datasiswa/uploadfile/' + idSiswa, form);
+        photoInput.on('change', function () {
+            if (!photoRequest && this.files.length) {
+                savePhoto('uploadfile', new FormData(this.form));
             }
         });
 
+        deleteButton.on('click', function () {
+            if (!photoRequest) {
+                savePhoto('deletefile');
+            }
+        });
     });
-
-    function deleteImage(fromBtn) {
-        console.log(src);
-        $.ajax({
-            data: {src: src},
-            type: "POST",
-            url: base_url + "datasiswa/deletefile/" + idSiswa,
-            cache: false,
-            success: function (response) {
-                console.log(response);
-                if (fromBtn) {
-                    window.location.reload();
-                }
-            }
-        });
-    }
 </script>

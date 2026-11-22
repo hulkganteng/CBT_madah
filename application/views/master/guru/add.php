@@ -160,5 +160,5 @@
     </section>
 </div>
 
-<script src="<?= base_url() ?>/assets/app/js/jquery.htmlparser.min.js"></script>
-<script src="<?= base_url() ?>/assets/app/js/master/guru/import.js"></script>
+<script src="<?= base_url() ?>/assets/app/js/master/import-preview.js?v=<?= filemtime(FCPATH . 'assets/app/js/master/import-preview.js') ?>"></script>
+<script src="<?= base_url() ?>/assets/app/js/master/guru/import.js?v=<?= filemtime(FCPATH . 'assets/app/js/master/guru/import.js') ?>"></script>

@@ -134,7 +134,7 @@
                             </div>
                         </div>
                         <div class="col-3 col-md-2 mb-3">
-                            <button class="btn bg-success text-white" id="btn-print">
+                            <button class="btn bg-success text-white" id="btn-print" disabled>
                                 <i class="fa fa-print"></i><span class="ml-1">Cetak</span>
                             </button>
                         </div>
@@ -154,18 +154,18 @@
     </section>
 </div>
 
-<script src="<?= base_url() ?>/assets/app/js/print-area.js"></script>
+<script src="<?= base_url('assets/app/js/print-area.js?v=2') ?>"
+        data-print-stylesheet="<?= base_url('assets/app/css/cbt-print.css') ?>"></script>
+<script src="<?= base_url('assets/app/js/cbt-print-preview.js') ?>"></script>
 <script>
-    var oldVal1 = "<?=isset($kop->header_1) ? $kop->header_1 : ""?>";
-    var oldVal2 = "<?=isset($kop->header_2) ? $kop->header_2 : ""?>";
-    var oldVal3 = "<?=isset($kop->header_3) ? $kop->header_3 : ""?>";
-    var oldVal4 = "<?=isset($kop->header_4) ? $kop->header_4 : ""?>";
-    var logoKanan = "<?=isset($kop->logo_kanan) ? base_url() . $kop->logo_kanan : ""?>";
-    var logoKiri = "<?=isset($kop->logo_kiri) ? base_url() . $kop->logo_kiri : ""?>";
-    var tandatangan = "<?= isset($kop->tanda_tangan) ? base_url() . $kop->tanda_tangan : ""?>";
-    var proktor = "<?=isset($kop->proktor) ? $kop->proktor : ""?>";
-    //var pengawas1 = "<?=isset($kop->pengawas_1) ? $kop->pengawas_1 : ""?>";
-    //var pengawas2 = "<?=isset($kop->pengawas_2) ? $kop->pengawas_2 : ""?>";
+    var oldVal1 = <?= json_encode((string) (isset($kop->header_1) ? $kop->header_1 : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var oldVal2 = <?= json_encode((string) (isset($kop->header_2) ? $kop->header_2 : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var oldVal3 = <?= json_encode((string) (isset($kop->header_3) ? $kop->header_3 : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var oldVal4 = <?= json_encode((string) (isset($kop->header_4) ? $kop->header_4 : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var logoKanan = <?= json_encode((string) (isset($kop->logo_kanan) ? base_url() . $kop->logo_kanan : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var logoKiri = <?= json_encode((string) (isset($kop->logo_kiri) ? base_url() . $kop->logo_kiri : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var tandatangan = <?= json_encode((string) (isset($kop->tanda_tangan) ? base_url() . $kop->tanda_tangan : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var proktor = <?= json_encode((string) (isset($kop->proktor) ? $kop->proktor : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
     var printBy = 1;
 
     function handleNull(value) {
@@ -238,8 +238,8 @@
             let t = a * bagi;
             let end = (a + 1) < pages ? t + bagi : data.siswa.length;
 
-            card += '<div class="border my-shadow mb-3 p-4 bg-white">' +
-                '<div style="-webkit-justify-content: center;justify-content: center;width: 200mm; height: 290mm;padding: 15px">';
+            card += '<div class="border my-shadow mb-3 p-4 bg-white cbt-print-sheet">' +
+                '<div class="cbt-print-sheet-content" style="-webkit-justify-content: center;justify-content: center;width: 200mm; height: 290mm;padding: 15px">';
 
             card += '<table style="width: 100%; border: 0;">' +
                 '<tr>' +
@@ -381,7 +381,7 @@
                     '</div>';
             }
             card += '</div></div>';
-            card += '<div style="page-break-after: always"></div>';
+            card += '<div class="cbt-print-break" style="page-break-after: always"></div>';
         }
 
         if (data.siswa.length > 0) {
@@ -389,8 +389,6 @@
         } else {
             $('#print-preview').html('<b>Tidak ada data siswa</b>');
         }
-        $('#loading').addClass('d-none');
-
         if (pages > 1) {
             $('.ts').height('23px');
         } else {
@@ -405,49 +403,33 @@
         var opsiSesi = $("#sesi");
         var opsiKelas = $("#kelas");
 
-        function loadSiswaRuang(ruang, sesi, jadwal) {
-            var notempty = ruang && sesi && jadwal;
-            console.log('ruang', ruang);
+        var preview = $('#print-preview');
+        var loadPreview = createCbtPrintPreview($('#btn-print'), $('#loading'));
 
-            if (notempty) {
-                //$('#print-preview').addClass('d-none');
-                $('#loading').removeClass('d-none');
+        function refreshPreview() {
+            var byRoom = printBy === 1;
+            var group = byRoom ? opsiRuang.val() : opsiKelas.val();
+            var sesi = opsiSesi.val();
+            var jadwal = opsiJadwal.val();
+            preview.empty();
 
-                setTimeout(function () {
-                    $.ajax({
-                        type: "GET",
-                        url: base_url + "cbtcetak/getsiswaruang?ruang=" + ruang + '&sesi=' + sesi + '&jadwal=' + jadwal,
-                        success: function (response) {
-                            createPrintPreview(response);
-                        },
-                        error: function (xhr, status, error) {
-                            $('#loading').addClass('d-none');
-                            console.log("error", xhr.responseText);
-                        }
-                    });
-                }, 500);
+            if (!group || !sesi || !jadwal) {
+                loadPreview();
+                return;
             }
-        }
 
-        function loadSiswaKelas(kelas, sesi, jadwal) {
-            //$('#print-preview').addClass('d-none');
-            var notempty = kelas && sesi && jadwal;
-            console.log('url', base_url + "cbtcetak/getsiswakelas?kelas=" + kelas + '&sesi=' + sesi + '&jadwal=' + jadwal);
-            if (notempty) {
-                $('#loading').removeClass('d-none');
-                setTimeout(function () {
-                    $.ajax({
-                        type: "GET",
-                        url: base_url + "cbtcetak/getsiswakelas?kelas=" + kelas + '&sesi=' + sesi + '&jadwal=' + jadwal,
-                        success: function (response) {
-                            createPrintPreview(response);
-                        },
-                        error: function (xhr, status, error) {
-                            console.log("error", xhr.responseText);
-                        }
-                    });
-                }, 500);
-            }
+            var filters = {sesi: sesi, jadwal: jadwal};
+            filters[byRoom ? 'ruang' : 'kelas'] = group;
+            loadPreview(byRoom ? 'getsiswaruang' : 'getsiswakelas', filters, function (response) {
+                if (!response || !response.info || !response.info.jadwal ||
+                    !response.info[byRoom ? 'ruang' : 'kelas'] || !Array.isArray(response.siswa)) {
+                    preview.text('Data jadwal atau peserta tidak tersedia.');
+                    return false;
+                }
+
+                createPrintPreview(response);
+                return response.siswa.length > 0;
+            });
         }
 
         opsiJadwal.prepend("<option value='' selected='selected'>Pilih Jadwal</option>");
@@ -455,41 +437,9 @@
         opsiSesi.prepend("<option value='' selected='selected'>Pilih Sesi</option>");
         opsiKelas.prepend("<option value='' selected='selected'>Pilih Kelas</option>");
 
-        opsiKelas.change(function () {
-            loadSiswaKelas($(this).val(), opsiSesi.val(), opsiJadwal.val())
-        });
-
-        opsiRuang.change(function () {
-            loadSiswaRuang($(this).val(), opsiSesi.val(), opsiJadwal.val())
-        });
-
-        opsiSesi.change(function () {
-            if (printBy === 1) {
-                loadSiswaRuang(opsiRuang.val(), $(this).val(), opsiJadwal.val())
-            } else {
-                loadSiswaKelas(opsiKelas.val(), $(this).val(), opsiJadwal.val())
-            }
-        });
-
-        opsiJadwal.change(function () {
-            if (printBy === 1) {
-                loadSiswaRuang(opsiRuang.val(), opsiSesi.val(), $(this).val())
-            } else {
-                loadSiswaKelas(opsiKelas.val(), opsiSesi.val(), $(this).val())
-            }
-        });
-
+        opsiKelas.add(opsiRuang).add(opsiSesi).add(opsiJadwal).change(refreshPreview);
         $("#btn-print").click(function () {
-            var kosong = printBy === 2 ? ($('#kelas').val() === '' || ($('#sesi').val() === '') || ($('#jadwal').val() === '')) : ($('#ruang').val() === '' || ($('#sesi').val() === '') || ($('#jadwal').val() === ''));
-            if (kosong) {
-                Swal.fire({
-                    title: "ERROR",
-                    text: "Isi semua pilihan terlebih dulu",
-                    icon: "error"
-                })
-            } else {
-                $('#print-preview').print();
-            }
+            preview.print();
         });
 
         $("#header-1").on("change keyup paste", function () {
@@ -574,13 +524,12 @@
                 $('#by-kelas').addClass('d-none');
                 $('#by-ruang').removeClass('d-none');
                 printBy = 1;
-                loadSiswaRuang(opsiRuang.val(), opsiSesi.val(), opsiJadwal.val())
             } else {
                 $('#by-kelas').removeClass('d-none');
                 $('#by-ruang').addClass('d-none');
                 printBy = 2;
-                loadSiswaKelas(opsiKelas.val(), opsiSesi.val(), opsiJadwal.val())
             }
+            refreshPreview();
         });
 
         opsiKelas.select2({theme: 'bootstrap4'});

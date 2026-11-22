@@ -130,7 +130,7 @@
                             </div>
                         </div>
                         <div class="col-2">
-                            <button class="btn bg-success text-white" id="btn-print">
+                            <button class="btn bg-success text-white" id="btn-print" disabled>
                                 <i class="fa fa-print"></i><span class="ml-1">Cetak</span>
                             </button>
                         </div>
@@ -341,14 +341,16 @@
     </section>
 </div>
 
-<script src="<?= base_url() ?>/assets/app/js/print-area.js"></script>
+<script src="<?= base_url('assets/app/js/print-area.js?v=2') ?>"
+        data-print-stylesheet="<?= base_url('assets/app/css/cbt-print.css') ?>"></script>
+<script src="<?= base_url('assets/app/js/cbt-print-preview.js') ?>"></script>
 <script>
-    const kepsek = "<?= isset($kop->kepsek) && $kop->kepsek != "" ? $kop->kepsek : "_________________________" ?>";
-    const nip = "<?= isset($kop->nip) && $kop->nip != "" ? $kop->nip : "_________________________" ?>";
-    var oldVal1 = "<?=isset($kop->header_1) ? $kop->header_1 : ""?>";
-    var oldVal2 = "<?=isset($kop->header_2) ? $kop->header_2 : ""?>";
-    var oldVal3 = "<?=isset($kop->header_3) ? $kop->header_3 : ""?>";
-    var oldVal4 = "<?=isset($kop->header_4) ? $kop->header_4 : ""?>";
+    const kepsek = <?= json_encode((string) (isset($kop->kepsek) && $kop->kepsek != "" ? $kop->kepsek : "_________________________"), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    const nip = <?= json_encode((string) (isset($kop->nip) && $kop->nip != "" ? $kop->nip : "_________________________"), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var oldVal1 = <?= json_encode((string) (isset($kop->header_1) ? $kop->header_1 : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var oldVal2 = <?= json_encode((string) (isset($kop->header_2) ? $kop->header_2 : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var oldVal3 = <?= json_encode((string) (isset($kop->header_3) ? $kop->header_3 : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+    var oldVal4 = <?= json_encode((string) (isset($kop->header_4) ? $kop->header_4 : ""), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
     var printBy = 1;
 
     var HARI, TANGGAL, BULAN, TAHUN;
@@ -389,84 +391,50 @@
 
         $('.editable').attr('contentEditable', true);
 
-        function loadSiswaRuang(ruang, sesi, jadwal) {
-            var notempty = ruang && sesi && jadwal;
-            if (notempty) {
-                $('#loading').removeClass('d-none');
-                $.ajax({
-                    type: "GET",
-                    url: base_url + "cbtcetak/getsiswaruang?ruang=" + ruang + '&sesi=' + sesi + '&jadwal=' + jadwal,
-                    success: function (response) {
-                        $('#loading').addClass('d-none');
-                        console.log('respon', response);
-                        handleTanggal(response.info.jadwal.tgl_mulai);
-                        $('#edit-hari').html('<b>' + HARI + '</b>');
-                        $('#edit-tanggal').html('<b>' + TANGGAL + '</b>');
-                        $('#edit-bulan').html('<b>' + BULAN + '</b>');
-                        $('#edit-tahun').html('<b>' + TAHUN + '</b>');
-                        $('#edit-jml-peserta').html('<b>' + response.siswa.length + '</b>');
+        var preview = $('#print-preview');
+        var loadPreview = createCbtPrintPreview($('#btn-print'), $('#loading'));
 
-                        $('#edit-jenis-ujian').html('<b>' + response.info.jadwal.nama_jenis + '</b>');
-                        $('#edit-nama-ujian').html('<b>' + response.info.jadwal.nama_jenis + '<b>');
-                        $('#edit-waktu-mulai').html('<b>' + response.info.sesi.waktu_mulai.substring(0, 5) + '</b>');
-                        $('#edit-waktu-akhir').html('<b>' + response.info.sesi.waktu_akhir.substring(0, 5) + '</b>');
-                        $('#edit-mapel').html('<b>' + response.info.jadwal.nama_mapel + '</b>');
+        function refreshPreview() {
+            var byRoom = printBy === 1;
+            var groupSelect = byRoom ? opsiRuang : opsiKelas;
+            var group = groupSelect.val();
+            var sesi = opsiSesi.val();
+            var jadwal = opsiJadwal.val();
+            preview.addClass('invisible');
 
-                        previewTTD(response.info.pengawas);
-                        /*
-                        var p1 = response.info.pengawas.length > 0 ? response.info.pengawas[0].nama_guru : '_________________________';
-                        $('#edit-pengawas1').text(p1);
-                        var p2 = response.info.pengawas.length > 1 ? response.info.pengawas[1].nama_guru : '_________________________';
-                        $('#edit-pengawas2').text(p2);
-                         */
-                        document.title = 'Berita Acara ' + response.info.jadwal.kode + ' ' + $('#edit-ruang').text() + ' ' + $('#edit-sesi').text();
-                    },
-                    error: function (xhr, status, error) {
-                        $('#loading').addClass('d-none');
-                        console.log("error", xhr.responseText);
-                    }
-                });
+            if (!group || !sesi || !jadwal) {
+                loadPreview();
+                return;
             }
-        }
 
-        function loadSiswaKelas(kelas, sesi, jadwal) {
-            var notempty = kelas && sesi && jadwal;
-            if (notempty) {
-                $('#loading').removeClass('d-none');
-                $.ajax({
-                    type: "GET",
-                    url: base_url + "cbtcetak/getsiswakelas?kelas=" + kelas + '&sesi=' + sesi + '&jadwal=' + jadwal,
-                    success: function (response) {
-                        $('#loading').addClass('d-none');
-                        console.log('respon', response);
-                        handleTanggal(response.info.jadwal.tgl_mulai);
-                        $('#edit-hari').html('<b>' + HARI + '</b>');
-                        $('#edit-tanggal').html('<b>' + TANGGAL + '</b>');
-                        $('#edit-bulan').html('<b>' + BULAN + '</b>');
-                        $('#edit-tahun').html('<b>' + TAHUN + '</b>');
-                        $('#edit-jml-peserta').html('<b>' + response.siswa.length + '</b>');
-                        $('#edit-jml-peserta').html('<b>' + response.siswa.length + '</b>');
+            var filters = {sesi: sesi, jadwal: jadwal};
+            filters[byRoom ? 'ruang' : 'kelas'] = group;
+            loadPreview(byRoom ? 'getsiswaruang' : 'getsiswakelas', filters, function (response) {
+                var info = response && response.info;
+                if (!info || !info.jadwal || !info.sesi || !info[byRoom ? 'ruang' : 'kelas'] ||
+                    !Array.isArray(response.siswa)) {
+                    Swal.fire({text: 'Data jadwal atau sesi tidak tersedia.', icon: 'error'});
+                    return false;
+                }
 
-                        $('#edit-jenis-ujian').html('<b>' + response.info.jadwal.nama_jenis + '</b>');
-                        $('#edit-nama-ujian').text(response.info.jadwal.nama_jenis);
-                        $('#edit-waktu-mulai').html('<b>' + response.info.sesi.waktu_mulai.substring(0, 5) + '</b>');
-                        $('#edit-waktu-akhir').html('<b>' + response.info.sesi.waktu_akhir.substring(0, 5) + '</b>');
-                        $('#edit-mapel').html('<b>' + response.info.jadwal.nama_mapel + '</b>');
-                        previewTTD(response.info.pengawas);
-                        /*
-                        var p1 = response.info.pengawas.length > 0 && response.info.pengawas[0].length > 0 ? response.info.pengawas[0][0].nama_guru : '';
-                        $('#edit-pengawas1').text(p1);
-                        var p2 = response.info.pengawas.length > 0 && response.info.pengawas[0].length > 1 ? response.info.pengawas[0][1].nama_guru : '';
-                        $('#edit-pengawas2').text(p2);
-                         */
-                        document.title = 'Berita Acara ' + response.info.jadwal.kode + ' ' + $('#edit-ruang').text() + ' ' + $('#edit-sesi').text();
-                    },
-                    error: function (xhr, status, error) {
-                        $('#loading').addClass('d-none');
-                        console.log("error", xhr.responseText);
-                    }
-                });
-            }
+                handleTanggal(info.jadwal.tgl_mulai);
+                $('#edit-hari').text(HARI);
+                $('#edit-tanggal').text(TANGGAL);
+                $('#edit-bulan').text(BULAN);
+                $('#edit-tahun').text(TAHUN);
+                $('#edit-jml-peserta').text(response.siswa.length);
+                $('#edit-ruang').text(groupSelect.find(':selected').text());
+                $('#edit-sesi').text(opsiSesi.find(':selected').text());
+                $('#edit-jenis-ujian, #edit-nama-ujian').text(info.jadwal.nama_jenis || '');
+                $('#edit-waktu-mulai').text((info.sesi.waktu_mulai || '').slice(0, 5));
+                $('#edit-waktu-akhir').text((info.sesi.waktu_akhir || '').slice(0, 5));
+                $('#edit-mapel').text(info.jadwal.nama_mapel || '');
+                previewTTD(info.pengawas || []);
+
+                document.title = 'Berita Acara ' + info.jadwal.kode + ' ' + $('#edit-ruang').text() + ' ' + $('#edit-sesi').text();
+                preview.removeClass('invisible');
+                return true;
+            });
         }
 
         opsiJadwal.prepend("<option value='' selected='selected'>Pilih Jadwal</option>");
@@ -474,45 +442,9 @@
         opsiSesi.prepend("<option value='' selected='selected'>Pilih Sesi</option>");
         opsiKelas.prepend("<option value='' selected='selected'>Pilih Kelas</option>");
 
-
-        opsiKelas.change(function () {
-            $('#edit-ruang').text($("#kelas option:selected").text());
-            loadSiswaKelas($(this).val(), opsiSesi.val(), opsiJadwal.val())
-        });
-
-        opsiRuang.change(function () {
-            $('#edit-ruang').text($("#ruang option:selected").text());
-            loadSiswaRuang($(this).val(), opsiSesi.val(), opsiJadwal.val())
-        });
-
-        opsiSesi.change(function () {
-            $('#edit-sesi').text($("#sesi option:selected").text());
-            if (printBy === 1) {
-                loadSiswaRuang(opsiRuang.val(), $(this).val(), opsiJadwal.val())
-            } else {
-                loadSiswaKelas(opsiKelas.val(), $(this).val(), opsiJadwal.val())
-            }
-        });
-
-        opsiJadwal.change(function () {
-            if (printBy === 1) {
-                loadSiswaRuang(opsiRuang.val(), opsiSesi.val(), $(this).val())
-            } else {
-                loadSiswaKelas(opsiKelas.val(), opsiSesi.val(), $(this).val())
-            }
-        });
-
+        opsiKelas.add(opsiRuang).add(opsiSesi).add(opsiJadwal).change(refreshPreview);
         $("#btn-print").click(function () {
-            var kosong = printBy === 2 ? ($('#kelas').val() === '' || ($('#sesi').val() === '') || ($('#jadwal').val() === '')) : ($('#ruang').val() === '' || ($('#sesi').val() === '') || ($('#jadwal').val() === ''));
-            if (kosong) {
-                Swal.fire({
-                    title: "ERROR",
-                    text: "Isi semua pilihan terlebih dulu",
-                    icon: "error"
-                })
-            } else {
-                $('#print-preview').print();
-            }
+            preview.print();
         });
 
         $("#header-1").on("change keyup paste", function () {
@@ -594,19 +526,16 @@
 
         $('#selector button').click(function () {
             $(this).addClass('active').siblings().addClass('btn-outline-primary').removeClass('active btn-primary');
-            console.log('change')
             if (!$('#by-kelas').is(':hidden')) {
                 $('#by-kelas').addClass('d-none');
                 $('#by-ruang').removeClass('d-none');
                 printBy = 1;
                 $('#title-ruang').text('Ruang');
-                loadSiswaRuang(opsiRuang.val(), opsiSesi.val(), opsiJadwal.val())
             } else {
                 $('#by-kelas').removeClass('d-none');
                 $('#by-ruang').addClass('d-none');
                 $('#title-ruang').text('Kelas');
                 printBy = 2;
-                loadSiswaKelas(opsiKelas.val(), opsiSesi.val(), opsiJadwal.val())
             }
         });
 

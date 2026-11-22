@@ -54,15 +54,15 @@ class Peminatansiswa extends CI_Controller
     {
         $this->db->from('master_siswa s')->join('master_jurusan j', 'j.id_jurusan = s.peminatan_id', 'left')
             ->join('kelas_siswa ks', 'ks.id_siswa = s.id_siswa AND ks.id_tp = ' . $tpId . ' AND ks.id_smt = ' . $smtId, 'left')
-            ->join('master_kelas k', 'k.id_kelas = ks.id_kelas', 'left');
+            ->join('master_kelas k', 'k.id_kelas = ks.id_kelas AND k.id_tp = ks.id_tp AND k.id_smt = ks.id_smt', 'left');
         if ($filters['search'] !== '') $this->db->group_start()->like('s.nama', $filters['search'])->or_like('s.nis', $filters['search'])->or_like('s.nisn', $filters['search'])->group_end();
         if ($filters['major'] === 'none') $this->db->where('s.peminatan_id IS NULL', NULL, FALSE);
         elseif ($filters['major'] !== '') $this->db->where('s.peminatan_id', (int) $filters['major']);
         if ($filters['class'] === 'none') {
             if (!$tpId || !$smtId) $this->db->where('1 = 0', NULL, FALSE);
-            else $this->db->where('ks.id_siswa IS NULL', NULL, FALSE);
+            else $this->db->where('k.id_kelas IS NULL', NULL, FALSE);
         }
-        elseif ($filters['class'] !== '') $this->db->where('ks.id_kelas', (int) $filters['class']);
+        elseif ($filters['class'] !== '') $this->db->where('k.id_kelas', (int) $filters['class']);
         if ($filters['level'] !== '') $this->db->where('k.level_id', (int) $filters['level']);
         if ($filters['program'] !== '') $this->db->where('s.program_mak', $filters['program']);
     }

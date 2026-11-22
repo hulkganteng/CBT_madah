@@ -467,7 +467,6 @@ $peminatanSiswa = $this->db->where('status', 1)->order_by('nama_jurusan')->get('
         $('#formsiswa').on('submit', function (e) {
             e.preventDefault();
             e.stopImmediatePropagation();
-            console.log($(this).serialize());
             $.ajax({
                 url: base_url + "datasiswa/create",
                 data: $(this).serialize(),
@@ -511,7 +510,7 @@ $peminatanSiswa = $this->db->where('status', 1)->order_by('nama_jurusan')->get('
         $(".select_all").prop("checked", false);
         $('#pager-page').val(currentPage);
         $('#loading').removeClass('d-none');
-        var cari = query != null ? '&search=' + query : ''
+        var cari = query != null ? '&search=' + encodeURIComponent(query) : '';
         var filter = '&filter=' + $('#users-filter').val();
         var dataPost = $('#pager').serialize() + cari + filter + '&peminatan_id=' + $('#major-filter').val();
         console.log('post', dataPost);
@@ -537,6 +536,7 @@ $peminatanSiswa = $this->db->where('status', 1)->order_by('nama_jurusan')->get('
 
                 allowInitialFilterFallback = false;
                 $('#input-search').val(data.search);
+                currentPage = data.page || 1;
                 if (data.pages > 0) {
                     $pagination.removeClass('d-none');
                     $pagination.twbsPagination('destroy');
@@ -547,8 +547,6 @@ $peminatanSiswa = $this->db->where('status', 1)->order_by('nama_jurusan')->get('
                 } else {
                     $pagination.addClass('d-none');
                 }
-                var major = $('#major-filter').val();
-                if (major) data.lists = data.lists.filter(function (s) { return String(s.peminatan_id || '') === major; });
                 previewData(data);
             }, error: function (xhr, status, error) {
                 $('#loading').addClass('d-none')

@@ -261,7 +261,6 @@ class Exam_security_hook
             'cbtbanksoal' => array('deletefile' => 'uploads/bank_soal/'),
             'cbtcetak' => array('deletefile' => 'uploads/settings/'),
             'dataalumni' => array('deletefile' => 'uploads/foto_siswa/', 'deletefoto' => 'uploads/foto_siswa/'),
-            'datasiswa' => array('deletefile' => 'uploads/foto_siswa/'),
             'guruview' => array('deletefile' => 'uploads/profiles/'),
             'kelasmateri' => array('deletefile' => 'uploads/materi/'),
             'settings' => array('deletefile' => 'uploads/settings/'),

@@ -31,7 +31,7 @@ $allowedDates = [];
                     <div class="card-tools">
                         <div class="btn-group">
                             <button type="button" class="btn btn-sm btn-default" data-toggle="tooltip"
-                                    title="Print" onclick="print()">
+                                    title="Print" onclick="cetakJadwalPengawas()" <?= empty($jadwals_ruang) ? 'disabled' : '' ?>>
                                 <i class="fas fa-print"></i>
                                 <span class="d-none d-sm-inline-block ml-1"> Print/PDF</span></button>
                             <button type="button" class="btn btn-sm btn-default" data-toggle="tooltip"
@@ -90,7 +90,7 @@ $allowedDates = [];
                             foreach ($list_ruang as $rng) :
                                 ?>
                                 <div style="background: white; width: 210mm; min-height: 297mm; padding: 1mm;white-space: nowrap;"
-                                     class="border my-shadow m-4 p-5">
+                                     class="border my-shadow m-4 p-5 cbt-print-sheet">
                                     <table id="table-header-print" style="width: 100%; border: 0;">
                                         <tr>
                                             <td style="width:15%;">
@@ -161,7 +161,7 @@ $allowedDates = [];
                                     <br>
                                     <div id="konten-copy" class="d-none"></div>
                                 </div>
-                                <div style="page-break-after: always"></div>
+                                <div class="cbt-print-break" style="page-break-after: always"></div>
                             <?php endforeach; endif; ?>
                     </div>
                 </div>
@@ -173,7 +173,8 @@ $allowedDates = [];
 </div>
 </section>
 </div>
-<script src="<?= base_url() ?>/assets/app/js/print-area.js"></script>
+<script src="<?= base_url('assets/app/js/print-area.js?v=2') ?>"
+        data-print-stylesheet="<?= base_url('assets/app/css/cbt-print.css') ?>"></script>
 <script type="text/javascript" src="<?= base_url() ?>/assets/app/js/html-docx.js"></script>
 <script src="<?= base_url() ?>/assets/app/js/convert-area.js"></script>
 <script type="text/javascript" src="<?= base_url() ?>/assets/app/js/FileSaver.min.js"></script>
@@ -181,7 +182,7 @@ $allowedDates = [];
 <script type="text/javascript" src="<?= base_url() ?>/assets/app/js/tableToExcel.js"></script>
 <script src="<?= base_url() ?>/assets/app/js/jquery.rowspanizer.js"></script>
 <script>
-    var docTitle = "<?=$judul?>" + " <?=$jenis[$jenis_selected]?>";
+    var docTitle = <?= json_encode(trim($judul . ' ' . ($jenis[$jenis_selected] ?? '')), JSON_HEX_TAG) ?>;
 
     $(document).ready(function () {
         ajaxcsrf();
@@ -191,7 +192,7 @@ $allowedDates = [];
             vertical_align: "middle"
         });
 
-        var allowed = JSON.parse("<?=json_encode($allowedDates)?>");
+        var allowed = <?= json_encode($allowedDates) ?>;
         //console.log(allowed);
         $('.tgl').datetimepicker({
             icons:
@@ -233,7 +234,7 @@ $allowedDates = [];
             }
         });
 
-        var old = "<?=$jenis_selected?>";
+        var old = <?= json_encode((string) ($jenis_selected), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
         opsiJenis.change(function () {
             //var jj = $(this).val();
             //if (jj != "" && jj !== old) {
@@ -242,7 +243,7 @@ $allowedDates = [];
             //}
         });
 
-        var dariold = "<?=$dari_selected?>";
+        var dariold = <?= json_encode((string) ($dari_selected), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
         opsiDari.change(function () {
             var dari = $(this).val();
             if (dari != "" && dari !== dariold) {
@@ -250,7 +251,7 @@ $allowedDates = [];
             }
         });
 
-        var sampaiold = "<?=$sampai_selected?>";
+        var sampaiold = <?= json_encode((string) ($sampai_selected), JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
         opsiSampai.change(function () {
             var sampai = $(this).val();
             if (sampai != "" && sampai !== sampaiold) {
@@ -287,11 +288,8 @@ $allowedDates = [];
         });
     });
 
-    function print() {
-        var title = document.title;
-        document.title = docTitle;
+    function cetakJadwalPengawas() {
         $('#print-preview').print(docTitle);
-        document.title = title;
     }
 
     function exportWord() {

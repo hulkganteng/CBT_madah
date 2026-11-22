@@ -16,7 +16,30 @@ $(function(){ ajaxcsrf();
   var r=d.roster.map(function(s){return '<tr><td>'+esc(s.nama)+'<br><small>'+esc(s.nis)+'</small></td><td>'+esc(s.nama_jurusan||'Belum diisi')+' '+esc(s.program_mak||'')+'</td><td><button class="btn btn-xs btn-danger remove" data-id="'+s.id_siswa+'">Keluarkan</button></td></tr>';}).join(''); $('#roster').html(r||'<tr><td colspan="3">Rombel masih kosong.</td></tr>');
  },'json');}
  $('#target,#mode,#major,#program').change(load); $('#search').on('keyup',load);
- $('#placement-form').submit(function(e){e.preventDefault();var ids=$(this).serializeArray();if(!ids.length)return swal.fire('Pilih siswa','Pilih minimal satu siswa.','warning');swal.fire({title:$('#mode').val()==='move'?'Pindahkan siswa?':'Tempatkan siswa?',icon:'question',showCancelButton:true}).then(function(x){if(!x.value)return;$.post(base_url+'penempatansiswa/save',$(e.target).serialize()+'&id_kelas='+$('#target').val()+'&mode='+$('#mode').val(),function(d){swal.fire(d.status?'Berhasil':'Gagal',d.message,d.status?'success':'error');if(d.status)load();},'json');});});
+ $('#placement-form').submit(function (e) {
+    e.preventDefault();
+    var placement = {
+        id_kelas: $('#target').val(),
+        mode: $('#mode').val(),
+        siswa: $(this).serializeArray().map(function (field) { return field.value; })
+    };
+    if (!placement.id_kelas) return swal.fire('Pilih rombel', 'Pilih rombel tujuan.', 'warning');
+    if (!placement.siswa.length) return swal.fire('Pilih siswa', 'Pilih minimal satu siswa.', 'warning');
+
+    swal.fire({
+        title: placement.mode === 'move' ? 'Pindahkan siswa?' : 'Tempatkan siswa?',
+        icon: 'question',
+        showCancelButton: true
+    }).then(function (confirmation) {
+        if (!confirmation.value) return;
+        $.post(base_url + 'penempatansiswa/save', placement, function (result) {
+            swal.fire(result.status ? 'Berhasil' : 'Gagal', result.message, result.status ? 'success' : 'error');
+            if (result.status) load();
+        }, 'json').fail(function () {
+            swal.fire('Gagal', 'Simpan penempatan tidak dapat dikonfirmasi. Muat ulang halaman dan periksa isi rombel.', 'error');
+        });
+    });
+ });
  $(document).on('click','.remove',function(){var id=$(this).data('id');swal.fire({title:'Keluarkan siswa dari rombel?',icon:'warning',showCancelButton:true}).then(function(x){if(!x.value)return;$.post(base_url+'penempatansiswa/remove',{id_siswa:id},function(d){swal.fire(d.status?'Berhasil':'Gagal',d.message,d.status?'success':'error');if(d.status)load();},'json');});});
 });
 </script>

@@ -54,8 +54,10 @@
                             foreach ($jurusans as $row) :
                                 $badges = '';
                                 foreach (explode(',', $row->mapel_peminatan ?? '') as $mid) {
-                                    if ($mid != '')
-                                        $badges .= '<div class="badge badge-btn badge-success mr-1">' . $jurusan_mapels[$row->id_jurusan][$mid] . '</div>';
+                                    $name = $jurusan_mapels[$row->id_jurusan][$mid] ?? null;
+                                    if ($name !== null) {
+                                        $badges .= '<div class="badge badge-btn badge-success mr-1">' . html_escape($name) . '</div>';
+                                    }
                                 }
                                 ?>
                                 <tr>
@@ -66,17 +68,17 @@
                                         </div>
                                     </td>
                                     <td class="text-center"><?= $no ?></td>
-                                    <td><?= $row->kode_jurusan ?></td>
-                                    <td><?= $row->nama_jurusan ?></td>
+                                    <td><?= html_escape((string) $row->kode_jurusan) ?></td>
+                                    <td><?= html_escape((string) $row->nama_jurusan) ?></td>
                                     <td><?= $badges ?></td>
                                     <td>
                                         <div class="text-center">
                                             <a class="btn btn-xs btn-warning editRecord" data-toggle="modal"
                                                data-target="#editJurusanModal" data-deletable="<?= $row->deletable ?>"
-                                               data-mapel="<?= $row->mapel_peminatan ?>"
+                                               data-mapel="<?= html_escape((string) $row->mapel_peminatan) ?>"
                                                data-id='<?= $row->id_jurusan ?>'
-                                               data-nama='<?= $row->nama_jurusan ?>'
-                                               data-kode='<?= $row->kode_jurusan ?>'>
+                                               data-nama='<?= html_escape((string) $row->nama_jurusan) ?>'
+                                               data-kode='<?= html_escape((string) $row->kode_jurusan) ?>'>
                                                 <i class="fa fa-pencil-alt text-white"></i>
                                             </a>
                                             <!--
@@ -196,6 +198,6 @@
 </div>
 -->
 <script>
-    var mapels = JSON.parse('<?= json_encode($mapel_peminatan) ?>');
+    var mapels = <?= json_encode($mapel_peminatan, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?= base_url() ?>/assets/app/js/master/jurusan/crud.js"></script>
+<script src="<?= base_url() ?>/assets/app/js/master/jurusan/crud.js?v=<?= filemtime(FCPATH . 'assets/app/js/master/jurusan/crud.js') ?>"></script>

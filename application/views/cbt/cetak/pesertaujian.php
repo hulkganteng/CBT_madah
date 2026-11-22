@@ -39,7 +39,7 @@
                                 Kelas</a>
                         </div>
 
-                        <button class="btn bg-success text-white" id="btn-print">
+                        <button class="btn bg-success text-white" id="btn-print" <?= empty($siswa) ? 'disabled' : '' ?>>
                             <i class="fa fa-print"></i><span class="ml-1">Cetak</span>
                         </button>
                     </div>
@@ -94,11 +94,13 @@
                     <div class="d-flex justify-content-center bg-gray-light" style="min-height: 300mm">
                         <div id="print-preview" class="m-2">
                             <?php
-                            if ($mode == null || $mode == '1'):
+                            if (empty($siswa)): ?>
+                                <p class="text-muted">Tidak ada data peserta ujian.</p>
+                            <?php elseif ($mode == null || $mode == '1'):
                                 foreach ($siswa as $ruang => $sesi):
                                     foreach ($sesi as $ses => $sis):?>
-                                        <div class="border my-shadow mb-3 p-4 bg-white">
-                                            <div class="pt-4"
+                                        <div class="border my-shadow mb-3 p-4 bg-white cbt-print-sheet">
+                                            <div class="pt-4 cbt-print-sheet-content"
                                                  style="-webkit-justify-content: center;justify-content: center;background: white;width: 210mm; min-height: 297mm;padding: 1mm">
                                                 <div style="display: flex; justify-content: center; align-items: center;">
                                                     <table style="width: 100%; border: 0;">
@@ -193,13 +195,13 @@
                                                 </table>
                                             </div>
                                         </div>
-                                        <div style="page-break-after: always"></div>
+                                        <div class="cbt-print-break" style="page-break-after: always"></div>
                                     <?php endforeach; ?>
                                 <?php endforeach;
                             else:
                                 foreach ($siswa as $kelas => $sis): ?>
-                                    <div class="border my-shadow mb-3 p-4 bg-white">
-                                        <div class="pt-4"
+                                    <div class="border my-shadow mb-3 p-4 bg-white cbt-print-sheet">
+                                        <div class="pt-4 cbt-print-sheet-content"
                                              style="-webkit-justify-content: center;justify-content: center;background: white;width: 210mm; min-height: 297mm;padding: 1mm">
                                             <div style="display: flex; justify-content: center; align-items: center;">
                                                 <table style="width: 100%; border: 0;">
@@ -285,7 +287,7 @@
                                             </table>
                                         </div>
                                     </div>
-                                    <div style="page-break-after: always"></div>
+                                    <div class="cbt-print-break" style="page-break-after: always"></div>
                                 <?php endforeach; endif; ?>
                         </div>
                     </div>
@@ -297,33 +299,29 @@
     </section>
 </div>
 
-<script src="<?= base_url() ?>/assets/app/js/print-area.js"></script>
+<script src="<?= base_url('assets/app/js/print-area.js?v=2') ?>"
+        data-print-stylesheet="<?= base_url('assets/app/css/cbt-print.css') ?>"></script>
 <script>
-    var logoKanan = "<?= isset($kop->logo_kiri) ? base_url() . $kop->logo_kiri : "" ?>";
-    var logoKiri = "<?= isset($kop->logo_kanan) ? base_url() . $kop->logo_kanan : ""?>";
-    var sklh = "<?= isset($kop->sekolah) ? $kop->sekolah : "" ?>";
 
     $(document).ready(function () {
         ajaxcsrf();
         var opsiJenis = $("#jenis");
 
-        //opsiJenis.prepend("<option value="" selected='selected'>Pilih Jenis Ujian</option>");
-
         opsiJenis.change(function () {
             $('.jenis-ujian').text($("#jenis option:selected").text().toUpperCase());
         });
 
-        opsiJenis.select2({theme: 'bootstrap4'});
+        opsiJenis.select2({theme: 'bootstrap4'}).trigger('change');
 
         $("#btn-print").click(function () {
-            if (opsiJenis.val() === '') {
+            if (!opsiJenis.val()) {
                 Swal.fire({
                     title: "ERROR",
                     text: "Isi semua pilihan terlebih dulu",
                     icon: "error"
                 })
             } else {
-                $('#print-preview').print();
+                $('#print-preview').print(<?= json_encode($judul, JSON_HEX_TAG) ?>);
             }
         });
     })

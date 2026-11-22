@@ -14,19 +14,6 @@
             <div class="card my-shadow mb-4">
                 <div class="card-body">
                     <div class="row">
-                        <?php if ($smt_active->id_smt == '2'): ?>
-                            <div class="col-12 alert alert-default-info align-content-center" role="alert">
-                                <span class="badge badge-primary"><i class="fas fa-tools mr-1"></i> Atur Kelas Semester</span>
-                                digunakan jika ingin menyalin semua data kelas dari SMT I ke SMT II
-                            </div>
-                        <?php else: ?>
-                            <div class="col-12 alert alert-default-info align-content-center" role="alert">
-                                <span class="badge badge-primary"><i
-                                            class="fas fa-tools mr-1"></i> Kenaikan Kelas</span>
-                                digunakan untuk mengatur kenaikan kelas, siswa akan otomatis dipindahkan ke
-                                tahun pelajaran berikutnya sesuai kelasnya
-                            </div>
-                        <?php endif; ?>
                         <div>
                             <a type="button" href="<?= base_url('datakelas') ?>" class="btn btn-default mr-2 mb-3"
                                data-toggle="tooltip" title="Reload"><i class="fa fa-sync ml-1 mr-1"></i> Reload
@@ -38,22 +25,6 @@
                                 </a>
                                 <a href="<?= base_url('penempatansiswa') ?>" type="button" class="btn btn-primary mr-2 mb-3"><i class="fas fa-random mr-1"></i>Penempatan Siswa</a>
                             </span>
-                            <?php if ($smt_active->id_smt == '2') : ?>
-                                <span data-toggle="tooltip" title="Manajemen Kelas">
-                                    <a href="<?= base_url('datakelas/manage') ?>" type="button"
-                                       class="btn btn-primary mr-2 mb-3">
-                                        <i class="fas fa-tools mr-1"></i> Atur Kelas Semester
-                                    </a>
-                                </span>
-                            <?php endif; ?>
-                            <?php if ($smt_active->id_smt == '1') : ?>
-                                <span data-toggle="tooltip" title="Kenaikan Kelas">
-                                    <a href="<?= base_url('datakelas/kenaikan') ?>" type="button"
-                                       class="btn btn-primary mr-2 mb-3">
-                                        <i class="fas fa-tools mr-1"></i> Kenaikan Kelas
-                                    </a>
-                                </span>
-                            <?php endif; ?>
                             <!--
                             <div class="btn-group">
                                 <button type="button" class="btn btn-default" data-toggle="tooltip" title="Print">
@@ -208,4 +179,4 @@
     </section>
 </div>
 
-<script src="<?= base_url() ?>/assets/app/js/master/kelas/crud.js"></script>
+<script src="<?= base_url() ?>/assets/app/js/master/kelas/crud.js?v=<?= filemtime(FCPATH . 'assets/app/js/master/kelas/crud.js') ?>"></script>

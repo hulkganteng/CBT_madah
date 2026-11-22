@@ -446,4 +446,4 @@ foreach ($mapel_non_aktif as $m) :
         return jsonkelompokMapel[key];
     });
 </script>
-<script src="<?= base_url() ?>/assets/app/js/master/mapel/crud.js"></script>
+<script src="<?= base_url() ?>/assets/app/js/master/mapel/crud.js?v=<?= filemtime(FCPATH . 'assets/app/js/master/mapel/crud.js') ?>"></script>

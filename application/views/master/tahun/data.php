@@ -136,7 +136,7 @@
                             <?= form_open('', array('id' => 'hariefektif')) ?>
                             <label>Jumlah Hari Efektif Satu Semester</label>
                             <div class="input-group">
-                                <input name="jml_hari" value="<?= $jml_hari ?>" type="number" class="form-control"
+                                <input name="jml_hari" value="<?= $jml_hari ?>" type="number" min="0" class="form-control"
                                        required>
                                 <div class="input-group-append">
                                     <button class="btn btn-success" type="submit">Simpan</button>
@@ -222,10 +222,6 @@
 
         $("#tahun").on("click", ".btn-aktif", function () {
             let id = $(this).data("id");
-            var dataTahun = JSON.stringify($('#tahun').tableToJSON());
-            var replaced = dataTahun.replace(/Tahun Pelajaran/g, "tp");
-
-            //console.log($('#edittp').serialize() + "&active=" + id + "&tahun=" + replaced);
             swal.fire({
                 text: "Silahkan tunggu....",
                 button: false,
@@ -239,7 +235,7 @@
             });
             $.ajax({
                 url: base_url + "datatahun/gantitahun",
-                data: $('#edittp').serialize() + "&active=" + id + "&tahun=" + replaced,
+                data: $('#edittp').serialize() + '&active=' + encodeURIComponent(id),
                 type: "POST",
                 success: function (response) {
                     var title = response.status ? "Berhasil" : "Gagal";
@@ -336,11 +332,9 @@
 
         $("#semester").on("click", ".btn-aktif", function () {
             let id = $(this).data("id");
-            var dataSmt = JSON.stringify($('#semester').tableToJSON());
-            //console.log($('#edittp').serialize() + "&active=" + id + "&tahun=" + replaced);
             $.ajax({
                 url: base_url + "datatahun/gantisemester",
-                data: $('#edittp').serialize() + "&active=" + id + "&semester=" + dataSmt,
+                data: $('#edittp').serialize() + '&active=' + encodeURIComponent(id),
                 type: "POST",
                 success: function (response) {
                     var title = response.status ? "Berhasil" : "Gagal";
@@ -383,6 +377,10 @@
                 dataType: "JSON",
                 data: $(this).serialize(),
                 success: function (data) {
+                    if (!data.status) {
+                        showDangerToast(data.message || 'Gagal menyimpan tahun pelajaran.');
+                        return;
+                    }
                     location.href = base_url + 'datatahun';
                 }, error: function (xhr, status, error) {
                     $('#createTahunModal').modal('hide').data('bs.modal', null);
@@ -422,7 +420,7 @@
                     } else {
                         swal.fire({
                             title: "Gagal",
-                            text: 'Gagal menyimpan jumlah hari efektif',
+                            text: data.message || 'Gagal menyimpan jumlah hari efektif',
                             icon: "error",
                         });
                     }

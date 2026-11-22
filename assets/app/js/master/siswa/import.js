@@ -1,4 +1,5 @@
 var dataSiswa;
+let studentPreviewVersion = 0;
 $(document).ready(function () {
     ajaxcsrf();
 
@@ -46,7 +47,10 @@ $(document).ready(function () {
     });
 
     drEvente.on('dropify.afterClear', function (event, element) {
-        //dataUpload = '';
+        studentPreviewVersion++;
+        dataSiswa = [];
+        $('#submit-excel').prop('disabled', true);
+        $('#file-preview').text('Pilih file untuk melihat pratinjau.');
     });
 
     drEvente.on('dropify.errors', function (event, element) {
@@ -89,8 +93,7 @@ $(document).ready(function () {
             return false;
         }
 
-		var dataPost = $(this).serialize() + "&siswa=" + JSON.stringify(dataSiswa);
-		console.log("data:", dataPost);
+		var dataPost = $(this).serialize() + "&siswa=" + encodeURIComponent(JSON.stringify(dataSiswa));
 
 		var url = typeImport === "add" ? "datasiswa/do_import" : "datasiswa/updateall";
         swal.fire({
@@ -122,7 +125,7 @@ $(document).ready(function () {
                 if (data.status) {
                     swal.fire({
                         title: "Berhasil",
-                        text: "Data siswa berhasil diimpor. Tanpa Kelas: " + (data.without_class || 0),
+                        text: data.message || ("Data siswa berhasil diimpor. Tanpa Kelas: " + (data.without_class || 0)),
                         icon: "success"
                     }).then(result => {
                         if (result.value) {
@@ -178,7 +181,8 @@ $(document).ready(function () {
 });
 
 function preview(action, data, filename) {
-    console.log(filename);
+    const version = ++studentPreviewVersion;
+    const escapeText = value => $('<span>').text(value ?? '').html();
     $.ajax({
         type: "POST",
         enctype: 'multipart/form-data',
@@ -189,6 +193,9 @@ function preview(action, data, filename) {
         cache: false,
         timeout: 600000,
         success: function (data) {
+            if (version !== studentPreviewVersion) {
+                return;
+            }
             var html = '';
             var i;
             var no = 1;
@@ -212,7 +219,7 @@ function preview(action, data, filename) {
                         $('#submit-excel').attr('disabled', 'disabled');
                         $('#file-preview').html(
                             '<div class="alert alert-default-danger mb-0" role="alert">' +
-                            (dataResult.message || 'File Excel tidak dapat dibaca.') +
+                            escapeText(dataResult.message || 'File Excel tidak dapat dibaca.') +
                             '</div>'
                         );
                         return;
@@ -223,7 +230,6 @@ function preview(action, data, filename) {
                     if (!dataSiswa.length) {
                         throw new Error('Respons server tidak berisi data siswa.');
                     }
-                    console.log("data", dataResult);
 					html = '<table id="tableprev" class="table table-sm table-striped table-bordered nowrap w-100">' +
 						'        <thead>' +
 						'        <tr>' +
@@ -233,7 +239,6 @@ function preview(action, data, filename) {
 						'        <td>NISN</td>' +
 						'        <td>Jenis_Kelamin</td>' +
 						'        <td>Username</td>' +
-						'        <td>Password</td>' +
 						'        </tr>' +
 						'        </thead>' +
 						'        <tbody>';
@@ -241,26 +246,26 @@ function preview(action, data, filename) {
                         const siswa = dataSiswa[i];
                         if (dataExists.length) {
                             var siswaDup = findDuplicateStudent(dataExists, siswa);
-                            if (siswaDup) arrSiswaDup.push(siswaDup.nama);
+                            if (siswaDup) arrSiswaDup.push(escapeText(siswaDup.nama));
                         }
                         var nisn = String(siswa.nisn || '').trim();
                         var nis = String(siswa.nis || '').trim();
                         var username = String(siswa.username || '').trim();
 
 					    if (nisn && arrNisn.indexOf(nisn) !== -1) {
-                            arrNisnDup.push(siswa.nisn)
+                            arrNisnDup.push(escapeText(siswa.nisn))
                         } else if (nisn) {
                             arrNisn.push(nisn)
                         }
                         if (nis && arrNis.indexOf(nis) !== -1) {
-                            arrNisDup.push(siswa.nis)
+                            arrNisDup.push(escapeText(siswa.nis))
                         } else if (nis) {
                             arrNis.push(nis)
                         }
                         if (!username) {
-                            arrUserEmpty.push((i + 1) + '. ' + (siswa.nama || '(nama kosong)'));
+                            arrUserEmpty.push((i + 1) + '. ' + escapeText(siswa.nama || '(nama kosong)'));
                         } else if (arrUser.indexOf(username) !== -1) {
-                            arrUserDup.push(username)
+                            arrUserDup.push(escapeText(username))
                         } else {
                             arrUser.push(username)
                         }
@@ -268,12 +273,11 @@ function preview(action, data, filename) {
 						html +=
 							'<tr>' +
 							'<td class="text-center">' + no++ + '</td>' +
-							'<td>' + siswa.nama + '</td>' +
-							'<td>' + siswa.nis + '</td>' +
-							'<td>' + siswa.nisn + '</td>' +
-							'<td>' + siswa.jenis_kelamin + '</td>' +
-							'<td>' + siswa.username + '</td>' +
-							'<td>' + siswa.password + '</td>' +
+							'<td>' + escapeText(siswa.nama) + '</td>' +
+							'<td>' + escapeText(siswa.nis) + '</td>' +
+							'<td>' + escapeText(siswa.nisn) + '</td>' +
+							'<td>' + escapeText(siswa.jenis_kelamin) + '</td>' +
+							'<td>' + escapeText(siswa.username) + '</td>' +
 							'</tr>';
 					}
 					html +=  '</tbody></table>';

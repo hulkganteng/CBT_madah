@@ -345,7 +345,10 @@ $(document).ready(function () {
             dataType: "JSON",
             data: $(this).serialize(),
             success: function (data) {
-                console.log("result", data);
+                if (!data) {
+                    showDangerToast('Gagal menyimpan kelompok mata pelajaran.');
+                    return;
+                }
                 $('#editKelompokModal').modal('hide').data('bs.modal', null);
                 $('#editKelompokModal').on('hidden', function () {
                     $(this).data('modal', null);  // destroys modal
@@ -373,7 +376,10 @@ $(document).ready(function () {
             dataType: "JSON",
             data: $(this).serialize(),
             success: function (data) {
-                console.log("result", data);
+                if (!data) {
+                    showDangerToast('Gagal menyimpan subkelompok mata pelajaran.');
+                    return;
+                }
                 $('#editSubKelompokModal').modal('hide').data('bs.modal', null);
                 $('#editSubKelompokModal').on('hidden', function () {
                     $(this).data('modal', null);  // destroys modal
@@ -438,7 +444,7 @@ $(document).ready(function () {
 			data: $(this).serialize(),
 			success: function (data) {
 				console.log("result", data);
-				if (data && data.status === false) {
+				if (!data.status) {
 					showDangerToast(data.message || 'Data tidak tersimpan.');
 					return;
 				}
@@ -504,8 +510,10 @@ $(document).ready(function () {
 			method: 'POST',
 			dataType: "JSON",
 			success: function (data) {
-				console.log("result", jQuery.parseJSON(data));
-				//btn.removeAttr('disabled').text('Simpan');
+				if (!data.status) {
+					showDangerToast(data.message || 'Gagal menyimpan mata pelajaran.');
+					return;
+				}
 				$('#editMapelModal').modal('hide').data('bs.modal', null);
 				$('#editMapelModal').on('hidden', function () {
 					$(this).data('modal', null);  // destroys modal

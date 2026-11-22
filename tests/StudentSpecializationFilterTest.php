@@ -23,7 +23,7 @@ final class StudentSpecializationFilterTest extends TestCase
         $method->invoke($controller, array('search' => 'Ahmad', 'major' => '4', 'class' => '12',
             'level' => '11', 'program' => 'TAHFIDZ'), 3, 2);
         self::assertContains(array('where', array('s.peminatan_id', 4)), $db->calls);
-        self::assertContains(array('where', array('ks.id_kelas', 12)), $db->calls);
+        self::assertContains(array('where', array('k.id_kelas', 12)), $db->calls);
         self::assertContains(array('where', array('k.level_id', 11)), $db->calls);
         self::assertContains(array('where', array('s.program_mak', 'TAHFIDZ')), $db->calls);
         self::assertContains(array('like', array('s.nama', 'Ahmad')), $db->calls);
@@ -46,6 +46,6 @@ final class StudentSpecializationFilterTest extends TestCase
         $method->setAccessible(true);
         $method->invoke($controller, array('search' => '', 'major' => 'none', 'class' => 'none', 'level' => '', 'program' => ''), 3, 2);
         self::assertContains(array('where', array('s.peminatan_id IS NULL', null, false)), $db->calls);
-        self::assertContains(array('where', array('ks.id_siswa IS NULL', null, false)), $db->calls);
+        self::assertContains(array('where', array('k.id_kelas IS NULL', null, false)), $db->calls);
     }
 }

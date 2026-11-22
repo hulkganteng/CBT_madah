@@ -1,81 +1,85 @@
-// Create a jquery plugin that prints the given element.
-jQuery.fn.print = function(docTitle){
-	// NOTE: We are trimming the jQuery collection down to the
-	// first element in the collection.
-	/*
-	if (this.size() > 1){
-		this.eq( 0 ).print();
-		return;
-	} else if (!this.size()){
-		return;
-	}*/
+const printAreaStylesheet = document.currentScript.dataset.printStylesheet;
 
-	// ASSERT: At this point, we know that the current jQuery
-	// collection (as defined by THIS), contains only one
-	// printable element.
+// Print a snapshot of the selected content in an isolated document.
+jQuery.fn.print = function (docTitle) {
+    const source = this[0];
+    if (!source || (!source.children.length && !source.textContent.trim())) {
+        return this;
+    }
 
-	// Create a random name for the print frame.
-	var strFrameName = ("printer-" + (new Date()).getTime());
+    const frame = document.createElement('iframe');
+    frame.title = 'Pratinjau cetak';
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:absolute;left:-10000px;width:210mm;height:1px;border:0';
+    document.body.appendChild(frame);
 
-	// Create an iFrame with the new name.
-	var jFrame = $( "<iframe name='" + strFrameName + "'>" );
+    const printWindow = frame.contentWindow;
+    const printDocument = frame.contentDocument;
+    printDocument.open();
+    printDocument.write('<!doctype html><html><head></head><body></body></html>');
+    printDocument.close();
+    printDocument.title = docTitle || document.title;
+    printDocument.documentElement.lang = document.documentElement.lang;
 
-	// Hide the frame (sort of) and attach to the body.
-	jFrame
-		.css( "width", "1px" )
-		.css( "height", "1px" )
-		.css( "position", "absolute" )
-		.css( "left", "-9999px" )
-		.appendTo( $( "body:first" ) )
-	;
+    const base = printDocument.createElement('base');
+    base.href = document.baseURI;
+    printDocument.head.appendChild(base);
 
-	// Get a FRAMES reference to the new frame.
-	var objFrame = window.frames[ strFrameName ];
+    function resourceReady(element) {
+        return new Promise(function (resolve) {
+            element.addEventListener('load', resolve, {once: true});
+            element.addEventListener('error', resolve, {once: true});
+        });
+    }
 
-	// Get a reference to the DOM in the new frame.
-	var objDoc = objFrame.document;
+    const resources = [];
+    document.querySelectorAll('style').forEach(function (style) {
+        printDocument.head.appendChild(printDocument.importNode(style, true));
+    });
+    if (printAreaStylesheet) {
+        const stylesheet = printDocument.createElement('link');
+        stylesheet.rel = 'stylesheet';
+        stylesheet.href = printAreaStylesheet;
+        resources.push(resourceReady(stylesheet));
+        printDocument.head.appendChild(stylesheet);
+    }
 
-	// Grab all the style tags and copy to the new
-	// document so that we capture look and feel of
-	// the current document.
+    printDocument.body.className = 'print-area';
+    printDocument.body.innerHTML = source.innerHTML;
+    printDocument.querySelectorAll('img').forEach(function (img) {
+        img.loading = 'eager';
+        if (!img.complete) {
+            resources.push(resourceReady(img));
+        }
+    });
+    printDocument.querySelectorAll('[style*="background"]').forEach(function (element) {
+        const url = element.style.backgroundImage.match(/^url\("(.*)"\)$/);
+        if (url && url[1]) {
+            const image = new printWindow.Image();
+            resources.push(resourceReady(image));
+            image.src = url[1];
+        }
+    });
 
-	// Create a temp document DIV to hold the style tags.
-	// This is the only way I could find to get the style
-	// tags into IE.
-	var jStyleDiv = $( "<div>" ).append(
-		$( "style" ).clone()
-	);
+    const ready = Promise.all(resources).then(function () {
+        return printDocument.fonts && printDocument.fonts.ready;
+    });
+    let resourceTimeout;
+    const deadline = new Promise(function (resolve) {
+        resourceTimeout = setTimeout(resolve, 10000);
+    });
 
-	// Write the HTML for the document. In this, we will
-	// write out the HTML of the current element.
-	objDoc.open();
-	objDoc.write( "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">" );
-	objDoc.write( "<html>" );
-	objDoc.write( "<head>" );
-	objDoc.write( "<title>" );
-	//objDoc.write( document.title );
-    objDoc.write( docTitle );
-    objDoc.write( "</title>" );
-	objDoc.write( "</head>" );
-    objDoc.write( "<body>" );
-    objDoc.write( jStyleDiv.html() );
-	objDoc.write( this.html() );
-	objDoc.write( "</body>" );
-	objDoc.write( "</html>" );
-	objDoc.close();
+    Promise.race([ready, deadline]).then(function () {
+        clearTimeout(resourceTimeout);
+        printWindow.addEventListener('afterprint', function () {
+            setTimeout(function () { frame.remove(); }, 0);
+        }, {once: true});
+        printWindow.focus();
+        printWindow.print();
+    }).catch(function (error) {
+        frame.remove();
+        console.error('Gagal membuka dialog cetak', error);
+    });
 
-	// Print the document.
-    setTimeout(function() {
-        objFrame.focus();
-        objFrame.print();
-    }, 250);
-
-	// Have the frame remove itself in about a minute so that
-	// we don't build up too many of these frames.
-	setTimeout(
-		function(){
-			jFrame.remove();
-		},
-		(60 * 1000)
-	);
-}
+    return this;
+};
