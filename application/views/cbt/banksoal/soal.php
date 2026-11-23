@@ -414,4 +414,5 @@ foreach ($soal_ada as $key => $value) {
     });
 </script>
 <script src="<?= base_url('assets/app/js/cbt/question-content.js') ?>"></script>
+<?php $this->load->view('cbt/banksoal/_question_math'); ?>
 <script src="<?= base_url() ?>/assets/app/js/cbt/banksoal/soal.js"></script>

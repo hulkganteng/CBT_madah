@@ -22,6 +22,7 @@
             </div>
         </div>
         <?= form_close() ?>
+        <p class="small text-muted">Untuk rumus LaTeX di pertanyaan, opsi, atau pembahasan, tulis <code>\(\frac{1}{2}\)</code> di dalam baris atau <code>\[\frac{1}{2}\]</code> pada baris tersendiri. Periksa hasilnya di draf.</p>
 
         <div id="import-draft" class="d-none">
             <hr>
@@ -101,4 +102,5 @@
         </div>
     </div>
 </div>
+<?php $this->load->view('cbt/banksoal/_question_math'); ?>
 <script src="<?= base_url('assets/app/js/cbt/banksoal/excel-import-draft.js') ?>"></script>

@@ -97,6 +97,11 @@
             dataType: 'json',
             data: {jadwal: state.scheduleId}
         }).done(function (result) {
+            if (result && result.submitted === true) {
+                window.clearInterval(state.heartbeatTimer);
+                state.heartbeatTimer = null;
+                state.active = false;
+            }
             $(document).trigger('examguard:heartbeat-ok', [result]);
         }).fail(function (xhr) {
             var result = xhr.responseJSON || {};

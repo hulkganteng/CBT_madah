@@ -31,7 +31,7 @@ $jadwal_selesai = [];
                 <div class="col-12">
                     <div class="card my-shadow">
                         <div class="card-header">
-                            <div class="text-center">INFO ULANGAN/UJIAN</div>
+                            <h2 class="h5 text-center mb-0">Informasi ujian</h2>
                         </div>
                         <div class="card-header border-bottom-0">
                             <div class="text-center">
@@ -78,7 +78,7 @@ $jadwal_selesai = [];
                                 </div>
                                 <div class="col-md-8">
                                     <div class="alert alert-default-danger">
-                                        <div class="text-center"><b>** INFORMASI PENTING **</b></div>
+                                        <div class="text-center"><b>Peraturan ujian</b></div>
                                         Selama melaksanakan ULANGAN/UJIAN <b>Siswa DILARANG:</b>
                                         <ul>
                                             <li>
@@ -108,7 +108,7 @@ $jadwal_selesai = [];
                     <div class="card my-shadow">
                         <div class="card-header">
                             <h5 class="text-center">
-                                JADWAL PENILAIAN HARI INI<br/><?= buat_tanggal(date('D, d M Y')) ?>
+                                Jadwal ujian hari ini<br/><?= buat_tanggal(date('D, d M Y')) ?>
                             </h5>
                         </div>
                         <div class="card-body">
@@ -116,8 +116,7 @@ $jadwal_selesai = [];
                                 <?php
                                 if ($cbt_info == null || count($cbt_setting) > 0) : ?>
                                     <div class="col-12 alert alert-default-warning">
-                                        <div class="text-center">Tidak ada jadwal penilaian.<b>Tidak bisa mengerjakan
-                                                ulangan/ujian.<br>Hubungi Proktor/Admin</div>
+                                        <p class="text-center mb-0">Jadwal atau data peserta belum tersedia. Minta pengawas memeriksa ruang, sesi, dan nomor peserta Anda.</p>
                                     </div>
                                 <?php else:
                                     $jamSesi = $cbt_info == null ? '0' : (isset($cbt_info->sesi_id) ? $cbt_info->sesi_id : $cbt_info->id_sesi);
@@ -143,7 +142,8 @@ $jadwal_selesai = [];
                                             $sesiSampai = new DateTime($sesi[$jamSesi]['akhir']);
                                             $now = strtotime(date('H:i'));
 
-                                            $durasi = $elapsed[$jadwal->id_jadwal];
+                                            $durasi = $elapsed[$jadwal->id_jadwal] ?? null;
+                                            $mapelPerJam[$jadwal->tgl_mulai][$jadwal->jam_ke] = $jadwal->nama_mapel;
                                             $jadwal_selesai[$jadwal->tgl_mulai][$jadwal->jam_ke] = $durasi != null
                                                 ? $durasi->status == '2'
                                                 : false;
@@ -209,8 +209,8 @@ $jadwal_selesai = [];
                                                                              class="status small-box-footer p-2"
                                                                              data-tgl="<?= $jadwal->tgl_mulai ?>"
                                                                              data-jamke="<?= $jadwal->jam_ke ?>">
-                                                                            <b><?= strtoupper($cbt_info->nama_sesi) ?>
-                                                                                BELUM DIMULAI</b>
+                                                                            <b>Sesi belum dimulai</b>
+                                                                            <div>Mulai pukul <?= $sesiMulai->format('H:i') ?></div>
                                                                         </div>
                                                                     <?php elseif ($now > strtotime($sesiSampai->format('H:i'))) : ?>
                                                                         <div id="<?= $jadwal->id_jadwal ?>"
@@ -222,11 +222,10 @@ $jadwal_selesai = [];
                                                                         </div>
                                                                     <?php else : ?>
                                                                         <?php if (isset($jadwal_selesai[$jadwal->tgl_mulai][$jadwal->jam_ke - 1]) && $jadwal_selesai[$jadwal->tgl_mulai][$jadwal->jam_ke - 1] == false) : ?>
-                                                                            <button id="<?= $jadwal->id_jadwal ?>"
-                                                                                    class="btn-block btn status text-white small-box-footer p-2 btn-disabled"
-                                                                                    disabled>
-                                                                                <b>MENUNGGU</b>
-                                                                            </button>
+                                                                            <div class="small-box-footer p-2">
+                                                                                <b>Menunggu ujian sebelumnya</b>
+                                                                                <div>Selesaikan <?= html_escape($mapelPerJam[$jadwal->tgl_mulai][$jadwal->jam_ke - 1]) ?> terlebih dahulu.</div>
+                                                                            </div>
                                                                         <?php else : ?>
                                                                             <button id="<?= $jadwal->id_jadwal ?>"
                                                                                     onclick="location.href='<?= base_url('siswa/konfirmasi/' . $jadwal->id_jadwal) ?>'"
@@ -319,7 +318,8 @@ $jadwal_selesai = [];
                                                 $sesiSampai = new DateTime($sesi[$jamSesi]['akhir']);
                                                 $now = strtotime(date('H:i'));
 
-                                                $durasi = $elapsed[$jadwal->id_jadwal];
+                                                $durasi = $elapsed[$jadwal->id_jadwal] ?? null;
+                                                $mapelPerJam[$jadwal->tgl_mulai][$jadwal->jam_ke] = $jadwal->nama_mapel;
                                                 $jadwal_selesai[$jadwal->tgl_mulai][$jadwal->jam_ke] = $durasi != null
                                                     ? $durasi->status == '2'
                                                     : false;
@@ -354,16 +354,15 @@ $jadwal_selesai = [];
                                                         if ($now < strtotime($sesiMulai->format('H:i'))) {
                                                             $status = '<button id="' . $jadwal->id_jadwal . '" class="status-table btn btn-disabled ' . $bg . '"'
                                                                 . ' data-tgl="' . $jadwal->tgl_mulai . '" data-jamke="' . $jadwal->jam_ke . '">'
-                                                                . ' <b>' . strtoupper($cbt_info->nama_sesi) . ' BELUM DIMULAI</b></button>';
+                                                                . ' <b>Sesi mulai pukul ' . $sesiMulai->format('H:i') . '</b></button>';
                                                         } elseif ($now > strtotime($sesiSampai->format('H:i'))) {
                                                             $status = '<button id="' . $jadwal->id_jadwal . '" class="status-table btn btn-disabled ' . $bg . '"'
                                                                 . ' data-tgl="' . $jadwal->tgl_mulai . '" data-jamke="' . $jadwal->jam_ke . '">'
                                                                 . '<b>' . strtoupper($cbt_info->nama_sesi) . ' SUDAH BERAKHIR</b></button>';
                                                         } else {
                                                             if (isset($jadwal_selesai[$jadwal->tgl_mulai][$jadwal->jam_ke - 1]) && $jadwal_selesai[$jadwal->tgl_mulai][$jadwal->jam_ke - 1] == false) {
-                                                                $status = '<button id="' . $jadwal->id_jadwal . '"'
-                                                                    . ' class="status-table btn btn-disabled ' . $bg . '" disabled>'
-                                                                    . ' <b>MENUNGGU</b></button>';
+                                                                $previous = $mapelPerJam[$jadwal->tgl_mulai][$jadwal->jam_ke - 1];
+                                                                $status = '<span>Selesaikan ' . html_escape($previous) . ' terlebih dahulu.</span>';
                                                             } else {
                                                                 $status = '<button id="' . $jadwal->id_jadwal . '"'
                                                                     . ' onclick="location.href=\'' . base_url() . 'siswa/konfirmasi/' . $jadwal->id_jadwal . '\'"'

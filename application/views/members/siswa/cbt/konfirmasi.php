@@ -25,7 +25,7 @@
                                 <?php
                                 //var_dump($pengawas);
                                 if ($support && $valid) : ?>
-                                    <h3 class="text-center">KONFIRMASI</h3>
+                                    <h3 class="text-center">Sebelum mulai ujian</h3>
                                     <h5 class="text-center">
                                         <b><?= $bank->kode_jenis . ' | ' . $bank->tahun . ' | ' . $bank->smt ?></b>
                                     </h5>
@@ -61,39 +61,28 @@
                                         <li class="list-group-item p-1"> Mata Pelajaran
                                             <span class="float-right"><b><?= $bank->nama_mapel ?></b></span>
                                         </li>
-                                        <!--
-                                        <li class="list-group-item p-1"> Guru
-                                            <span class="float-right"><b><?= $bank->nama_guru ?></b></span>
-                                        </li>
-                                        -->
                                         <li class="list-group-item p-1"> Kelas
                                             <span class="float-right"><b><?= $kelasbank ?></b></span>
                                         </li>
                                         <li class="list-group-item p-1"> Durasi Waktu
                                             <span class="float-right"><b><?= $bank->durasi_ujian ?> Menit</b></span>
                                         </li>
-                                        <!--
-									<li class="list-group-item p-1"> Status
-										<span class="float-right">
-											<b><?= ($bank->status === '0') ? 'Non Aktif' : 'Aktif' ?></b>
-										</span>
-									</li>
-									-->
                                         <li class="list-group-item p-1"> Jumlah Soal
                                             <span class="float-right">
 											<b><?= $bank->tampil_pg + $bank->tampil_kompleks + (int) ($bank->tampil_bs ?? 0) ?></b>
 										</span>
                                         </li>
-                                        <?php if ($bank->token === '1') : ?>
-                                            <li class="list-group-item p-1"><span
-                                                        class="text-danger"><b>Token</b></span>
-                                                <div class="float-right" style="width: 100px">
-                                                    <input type='text' id="input-token" class="form-control form-control-sm text-center" name='token'
-                                                           placeholder="Token"/>
-                                                </div>
-                                            </li>
-                                        <?php endif; ?>
                                     </ul>
+                                    <?php if ($bank->token === '1') : ?>
+                                        <div class="form-group mt-3">
+                                            <label for="input-token">Token ujian</label>
+                                            <input type="text" id="input-token" class="form-control" name="token"
+                                                   autocomplete="off" autocapitalize="none" spellcheck="false"
+                                                   aria-describedby="token-help token-error" required>
+                                            <small id="token-help" class="form-text text-muted">Masukkan token yang diberikan pengawas.</small>
+                                            <div id="token-error" class="invalid-feedback" role="alert"></div>
+                                        </div>
+                                    <?php endif; ?>
 
                                     <div class="alert alert-default-info">
                                         <h5>Pengawas Ujian:</h5>
@@ -108,14 +97,12 @@
                                     <div id="seb-status" class="alert alert-light py-2" role="status">
                                         Memeriksa keamanan browser ujian...
                                     </div>
-                                    <span class="float-right" data-toggle="tooltip" title="MULAI">
-                                        <button id="load-soal" type="submit" class="btn btn-success" disabled>MULAI</button>
-                                    </span>
+                                    <button id="load-soal" type="submit" class="btn btn-success btn-block" aria-describedby="seb-status" disabled>Mulai ujian</button>
                                     <?= form_close(); ?>
 
                                 <?php elseif (!$valid) : ?>
                                     <div class="alert alert-default-danger text-center p-2">
-                                        <h3><i class="icon fas fa-ban"></i> WARNING..!!</h3>
+                                        <h3><i class="icon fas fa-ban"></i> Ujian belum dapat dibuka</h3>
                                         <div class="text-lg">
                                             Ujian tidak bisa dilanjutkan
                                             <br>
@@ -125,7 +112,7 @@
                                 <small>Refresh halaman ini jika sudah diizinkan</small>
                                 <?php elseif (!$support): ?>
                                     <div class="alert alert-default-danger text-center p-2">
-                                        <h3><i class="icon fas fa-ban"></i> WARNING..!!</h3>
+                                        <h3><i class="icon fas fa-ban"></i> Browser belum didukung</h3>
                                         <div class="text-lg">
                                             Browser yang digunakan tidak mendukung
                                             <br>
@@ -147,23 +134,37 @@
 <script>
     var examGuardReady = false;
     var confirmationSubmitting = false;
-    ExamGuard.init({scheduleId: <?= (int) $bank->id_jadwal ?>, active: false, startButton: '#load-soal'});
     $(document).on('examguard:status', function (event, result) {
         var box = $('#seb-status');
         examGuardReady = !!result.status;
+        $('#load-soal').prop('disabled', !examGuardReady || confirmationSubmitting);
+        box.removeClass('alert-light alert-danger alert-warning alert-success');
         if (result.status) {
             var label = result.seb_verified ? 'Safe Exam Browser terverifikasi.' :
                 (result.seb_mode === 'OPTIONAL' ? 'SEB opsional; browser belum terverifikasi.' : 'Pemeriksaan browser selesai.');
-            box.removeClass('alert-light alert-danger').addClass(result.seb_verified ? 'alert-success' : 'alert-warning').text(label);
+            box.addClass('alert-success').text(label);
         } else {
-            box.removeClass('alert-light alert-success').addClass('alert-danger').text(result.message || 'Gunakan Safe Exam Browser yang dikonfigurasi untuk ujian ini.');
+            const needsSeb = result.seb_mode === 'REQUIRED' && !result.seb_verified;
+            const reason = result.message || 'Pemeriksaan browser belum berhasil. Muat ulang halaman atau hubungi pengawas.';
+            box.addClass('alert-danger').text(needsSeb
+                ? 'Buka ujian melalui Safe Exam Browser dengan konfigurasi dari pengawas. ' + reason
+                : reason);
         }
     });
 
+    ExamGuard.init({scheduleId: <?= (int) $bank->id_jadwal ?>, active: false});
+
+    function clearTokenError() {
+        $('#input-token').removeClass('is-invalid').removeAttr('aria-invalid');
+        $('#token-error').text('');
+    }
+
+    $('#input-token').on('input', clearTokenError);
     $('#konfir').submit(function (e) {
         e.stopPropagation();
         e.preventDefault();
         if (confirmationSubmitting || !examGuardReady) return;
+        clearTokenError();
         confirmationSubmitting = true;
         $('#load-soal').prop('disabled', true).attr('aria-busy', 'true');
 
@@ -179,14 +180,12 @@
                 swal.showLoading();
             }
         });
-        console.log($(this).serialize());
         var jadwal = $(this).find('input[name="jadwal"]').val();
         $.ajax({
             type: 'POST',
             url: base_url + 'siswa/validasisiswa',
             data: $(this).serialize(),
             success: function (data) {
-                console.log(data);
                 // jika menggunakan token, cek token
                 if (data.token === true) {
                     // token ok
@@ -241,12 +240,19 @@
                         }
                     }
                 } else {
-                    // token salah, atau token tidak dibuat oleh admin
-                    swal.fire({
-                        "title": "Error",
-                        "html": "TOKEN salah!<br>Hubungi proktor<br>001",
-                        "icon": "error"
-                    });
+                    const field = $('#input-token');
+                    if (field.length) {
+                        swal.close();
+                        $('#token-error').text('Periksa kembali token yang diberikan pengawas.');
+                        field.addClass('is-invalid').attr('aria-invalid', 'true');
+                        window.setTimeout(function () { field.trigger('focus').select(); }, 0);
+                    } else {
+                        swal.fire({
+                            title: 'Ujian belum dapat dibuka',
+                            text: 'Minta pengawas memeriksa pengaturan token ujian.',
+                            icon: 'error'
+                        });
+                    }
                 }
             }, error: function (xhr, error, status) {
                 swal.fire({
@@ -254,7 +260,6 @@
                     "html": "Coba kembali ke beranda, lalu ulangi lagi<br>006",
                     "icon": "error"
                 });
-                console.log(xhr.responseText);
             }, complete: function () {
                 confirmationSubmitting = false;
                 $('#load-soal').prop('disabled', !examGuardReady).attr('aria-busy', 'false');

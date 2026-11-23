@@ -41,6 +41,9 @@ class Examguard extends CI_Controller
         if (!$schedule || !$attempt) {
             $this->respond(array('status' => FALSE, 'message' => 'Sesi ujian tidak ditemukan.'), 404);
         }
+        if ($attempt->status === 'SUBMITTED') {
+            return $this->respond(array('status' => TRUE, 'submitted' => TRUE));
+        }
         /* Auto-submit mendapat grace yang sama agar heartbeat paralel tidak
            mengusir browser ketika pengumpulan sedang berjalan. */
         list($active, $reason) = $this->exam_attempt_service->validateActiveAttempt($attempt, 120);

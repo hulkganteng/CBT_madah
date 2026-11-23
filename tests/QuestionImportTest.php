@@ -64,6 +64,26 @@ final class QuestionImportTest extends TestCase
         self::assertSame('0', $this->import->toDatabaseRow($question, 2, false)['tampilkan']);
     }
 
+    public function testLatexSurvivesImportInQuestionStimulusAndOptions(): void
+    {
+        $formula = '\[' . "\n" . '\frac{1}{2} < 1' . "\n" . '\]';
+        $question = $this->import->normalizeQuestion(array(
+            'jenis' => 'PG Kompleks',
+            'pertanyaan' => "Hitung:\n" . $formula,
+            'pembahasan' => '\(\sqrt{4}\)',
+            'opsi_a' => '\(\frac{1}{2}\)',
+            'opsi_b' => '$$x^2$$',
+            'kunci' => 'A',
+        ));
+
+        self::assertSame(array(), $this->import->validateQuestion($question));
+        $row = $this->import->toDatabaseRow($question, 1);
+
+        self::assertSame("Hitung:<br />\n" . str_replace('<', '&lt;', $formula), $row['soal']);
+        self::assertSame('\(\sqrt{4}\)', $row['deskripsi']);
+        self::assertSame(array('a' => '\(\frac{1}{2}\)', 'b' => '$$x^2$$'), unserialize($row['opsi_a']));
+    }
+
     public function testUnavailableAnswerIsInvalid(): void
     {
         $errors = $this->import->validateQuestion($this->question('PG', 'E'));

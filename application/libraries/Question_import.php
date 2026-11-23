@@ -181,7 +181,19 @@ class Question_import
 
     private function html($value)
     {
-        $html = nl2br(htmlspecialchars(trim((string) $value), ENT_QUOTES, 'UTF-8'));
+        // Keep line breaks within LaTeX in one text node for the renderer.
+        $pattern = <<<'REGEX'
+~(\\\(.*?\\\)|\\\[.*?\\\]|\$\$.*?\$\$)~s
+REGEX;
+        $parts = preg_split($pattern, trim((string) $value), -1, PREG_SPLIT_DELIM_CAPTURE);
+        foreach ($parts as $index => &$part) {
+            $part = htmlspecialchars($part, ENT_QUOTES, 'UTF-8');
+            if ($index % 2 === 0) {
+                $part = nl2br($part);
+            }
+        }
+        unset($part);
+        $html = implode('', $parts);
         // Skema lama memakai charset utf8 MySQL (maksimal 3 byte). Ubah
         // karakter 4-byte menjadi numeric entity; tampilannya tetap sama di
         // browser dan query tidak gagal dengan "Incorrect string value".

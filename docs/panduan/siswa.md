@@ -23,17 +23,17 @@ Halaman konfirmasi memeriksa jadwal, token, browser, dan kebijakan keamanan.
 3. Periksa mata pelajaran, kelas, jumlah soal, dan durasi.
 4. Masukkan token jika kolom token tampil.
 5. Tunggu sampai status keamanan browser selesai diperiksa.
-6. Klik **MULAI**.
+6. Klik **Mulai ujian**.
 
-Jika tombol **MULAI** tetap nonaktif pada jadwal SEB wajib, jangan pindah ke browser biasa. Hubungi proktor untuk memeriksa konfigurasi SEB.
+Jika tombol **Mulai ujian** tetap nonaktif pada jadwal SEB wajib, minta proktor memeriksa konfigurasi SEB.
 
 ## Kerjakan soal
 
 Jawaban tersimpan ke server selama sesi ujian masih aktif.
 
 1. Baca stimulus (wacana, gambar, atau tabel) lalu soal, kemudian pilih jawaban.
-2. Tunggu respons penyimpanan sebelum berpindah cepat ke soal berikutnya.
-3. Gunakan navigasi nomor untuk meninjau soal yang belum dijawab, dan tombol **Ragu-ragu** untuk menandai soal yang ingin ditinjau ulang.
+2. Periksa status **Tersimpan** di dekat tombol navigasi. Jika muncul **Jawaban belum tersimpan**, tetap di halaman ujian dan gunakan **Coba simpan lagi** saat koneksi pulih.
+3. Gunakan filter **Belum dijawab** dan **Ragu-ragu** di **Daftar Soal**. Tekan **Ragu-ragu** pada soal yang ingin ditinjau ulang.
 4. Perhatikan sisa waktu pada layar.
 5. Tetap berada di halaman ujian dan dalam mode fullscreen jika diminta.
 
@@ -43,11 +43,11 @@ Aplikasi mencatat perpindahan tab, keluar fullscreen, status offline, dan ganggu
 
 Pastikan semua jawaban yang ingin dikirim sudah terisi sebelum menyelesaikan ujian.
 
-1. Buka nomor terakhir atau tombol selesai.
-2. Tinjau pemberitahuan soal yang belum dijawab.
-3. Klik konfirmasi selesai jika Anda yakin.
-4. Tunggu sampai aplikasi kembali ke daftar ujian atau menampilkan status selesai.
-5. Jangan menutup perangkat sebelum proktor mengizinkan.
+1. Klik **Tinjau jawaban** dari soal mana pun.
+2. Jika ada soal kosong, pilih **Ke soal yang belum dijawab**.
+3. Klik **Kumpulkan ujian** setelah semua soal terjawab dan waktu minimum tercapai.
+4. Tunggu pesan **Ujian berhasil dikumpulkan**, lalu klik **Kembali ke daftar ujian**.
+5. Tutup perangkat setelah mendapat izin dari proktor.
 
 Status selesai bersifat final untuk percobaan tersebut kecuali proktor melakukan tindakan pemulihan sesuai kebijakan sekolah.
 

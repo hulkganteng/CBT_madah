@@ -174,15 +174,18 @@
                 .append($('<strong>').text('Soal dari baris ' + item.row_number + ' · ' + typeLabel(q.type)))
                 .append($('<span class="badge p-2">').addClass(statusClass).text(statusText))
                 .appendTo($body);
-            $('<div class="mb-3">').text(plain(q.question)).appendTo($body);
+            if (q.explanation) {
+                $('<div class="mb-2 text-muted" style="white-space: pre-line">').text(q.explanation).appendTo($body);
+            }
+            $('<div class="mb-3" style="white-space: pre-line">').text(q.question).appendTo($body);
             if (q.type !== 'true_false') {
                 var $options = $('<div class="mb-3">').appendTo($body);
                 Object.keys(q.options || {}).forEach(function (key) {
-                    $('<div>').text(key + '. ' + plain(q.options[key])).appendTo($options);
+                    $('<div style="white-space: pre-line">').text(key + '. ' + q.options[key]).appendTo($options);
                 });
             }
             var answers = (q.correct_answers || []).map(function (key) {
-                return q.type === 'true_false' ? (key === 'B' ? 'Benar' : 'Salah') : key + '. ' + plain((q.options || {})[key] || '');
+                return q.type === 'true_false' ? (key === 'B' ? 'Benar' : 'Salah') : key + '. ' + ((q.options || {})[key] || '');
             });
             $('<div class="mb-2">').append($('<strong>').text('Jawaban benar: ')).append(document.createTextNode(answers.join(', ') || 'Belum dipilih')).appendTo($body);
             renderMessages($body, item.errors, 'danger');
@@ -193,6 +196,7 @@
             }
             $root.append($card);
         });
+        renderQuestionMath($root[0]);
     }
 
     function renderMessages($root, messages, type) {
@@ -255,7 +259,4 @@
         return {pg: 'Pilihan Ganda', pg_complex: 'Pilihan Ganda Kompleks', true_false: 'Benar/Salah'}[type] || 'Jenis belum dikenali';
     }
 
-    function plain(value) {
-        return $('<div>').html(value || '').text().replace(/\s+/g, ' ').trim();
-    }
 })(jQuery);

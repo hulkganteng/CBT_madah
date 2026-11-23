@@ -775,6 +775,7 @@
 
 <script type="text/javascript" src="<?= base_url() ?>/assets/app/js/html-docx.js"></script>
 <script src="<?= base_url() ?>/assets/app/js/convert-area.js"></script>
+<?php $this->load->view('cbt/banksoal/_question_math'); ?>
 <script src="<?= base_url('assets/app/js/cbt/question-content.js') ?>"></script>
 
 <script src="<?= base_url() ?>/assets/plugins/element-queries/ElementQueries.js"></script>
@@ -790,6 +791,10 @@
     $(document).ready(function () {
         $('.question-preview, #for-export').each(function () {
             resolveQuestionMedia(this, base_url);
+        });
+
+        $('.question-preview').each(function () {
+            renderQuestionMath(this);
         });
 
         var pgCount = $('#table-pg .check-pg').length;

@@ -23,10 +23,11 @@ $(document).ready(function() {
             ['color', ['color']],
             ['para', ['ul', 'ol', 'paragraph']],
             ['table', ['table']],
-            ['insert', ['link', 'picture']],
+            ['insert', ['link', 'picture', 'formula']],
             ['view', ['fullscreen', 'codeview', 'help']],
             ['cleaner',['cleaner']],
         ],
+        buttons: {formula: questionFormulaButton},
         callbacks: {
             onImageUpload: function (images) {
                 uploadEditorImages(images, $(this));
@@ -43,9 +44,10 @@ $(document).ready(function() {
             ['font', ['bold', 'underline', 'clear']],
             ['para', ['ul', 'ol', 'paragraph']],
             ['table', ['table']],
-            ['insert', ['link', 'picture']],
+            ['insert', ['link', 'picture', 'formula']],
             ['view', ['codeview']],
         ],
+        buttons: {formula: questionFormulaButton},
         callbacks: {
             onImageUpload: function (images) {
                 uploadEditorImages(images, $(this));
@@ -64,8 +66,9 @@ $(document).ready(function() {
             ['para', ['ul', 'ol', 'paragraph']],
             ['table', ['table']],
             ['view', ['fullscreen', 'codeview', 'help']],
-            ['insert', ['picture']],
+            ['insert', ['picture', 'formula']],
         ],
+        buttons: {formula: questionFormulaButton},
         callbacks: {
             onImageUpload: function (images) {
                 uploadEditorImages(images, $(this));
@@ -84,10 +87,11 @@ $(document).ready(function() {
             //['color', ['color']],
             ['para', ['ul', 'ol', 'paragraph']],
             ['table', ['table']],
-            ['insert', ['picture']],
+            ['insert', ['picture', 'formula']],
             //['view', ['fullscreen', 'codeview', 'help']],
             //['cleaner',['cleaner']],
         ],
+        buttons: {formula: questionFormulaButton},
         callbacks: {
             onImageUpload: function (images) {
                 uploadEditorImages(images, $(this));
@@ -326,8 +330,9 @@ function appendComplexOption($options, key, html, checked) {
             ['fontsize', ['fontsize']],
             ['para', ['ul', 'ol', 'paragraph']],
             ['table', ['table']],
-            ['insert', ['picture']],
+            ['insert', ['picture', 'formula']],
         ],
+        buttons: {formula: questionFormulaButton},
         callbacks: {
             onImageUpload: function (files) {
                 uploadEditorImages(files, $(this));

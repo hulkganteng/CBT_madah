@@ -176,4 +176,5 @@
     let soal_ada = '<?=is_null($soal) ? 'n' : 'y'?>';
     let bank_soal = '<?=$bank?>';
 </script>
+<?php $this->load->view('cbt/banksoal/_question_math'); ?>
 <script src="<?= base_url() ?>/assets/app/js/cbt/banksoal/soal.js"></script>
