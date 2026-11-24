@@ -16,6 +16,8 @@ Pastikan mata pelajaran dan kelas tujuan sudah ditetapkan oleh administrator.
 
 Tipe soal baku hanya tiga: **Pilihan Ganda**, **Pilihan Ganda Kompleks**, dan **Benar / Salah**. Tipe lain (menjodohkan, isian singkat, uraian) tidak dipakai dan disembunyikan pada form. Stimulus berupa teks bacaan, gambar, atau tabel diisi pada kolom **Stimulus** dan tampil di atas soal peserta. Lakukan pratinjau setelah mengimpor soal dengan gambar atau rumus.
 
+Pada bank Matematika, CBT otomatis merender bentuk seperti `x^2`, `p^-3`, `P_A`, `\frac{1}{2}`, dan `$x+y$`. Editor menampilkan pratinjau sambil menyimpan teks sumber. Gunakan `\(...\)` atau `\[...\]` untuk menandai satu rumus lengkap, termasuk pada mata pelajaran lain.
+
 Pada template Excel, kolom **JENIS** hanya menerima `1` (Pilihan Ganda), `2` (Pilihan Ganda Kompleks), dan `6` (Benar / Salah). Untuk Benar / Salah, kolom OPSI dibiarkan kosong dan **KUNCI** diisi `B` atau `S`. Baris dengan jenis lain ditolak saat pratinjau, bukan diimpor diam-diam.
 
 ## Impor soal sendiri
@@ -23,11 +25,12 @@ Pada template Excel, kolom **JENIS** hanya menerima `1` (Pilihan Ganda), `2` (Pi
 Guru dapat mengimpor soal sendiri tanpa bantuan administrator:
 
 1. Buka **Bank Soal**, lalu klik **Import Soal** pada kartu bank yang Anda buat.
-2. Unduh **Template Excel**, isi satu baris per soal, lalu unggah.
+2. Unduh **Template Excel** dari bank tujuan, isi satu baris per soal, lalu unggah ke bank tersebut. Template khusus bank terikat ke kode bank. Template global dapat dipakai untuk bank mana pun.
 3. Klik **Preview** untuk memeriksa hasil baca. Baris yang salah jenis atau kurang kolom akan dilaporkan di sini.
-4. Pilih mode **Tambah ke soal yang ada** atau **Ganti seluruh soal**, lalu klik **Import Soal**.
+4. Periksa nama file dan bank tujuan. Pilih **Tambah soal ke bank** untuk mengisi kuota kosong dan menyimpan sisanya sebagai cadangan. Pilih **Ganti paket soal aktif** untuk mengaktifkan satu draf lengkap yang memenuhi kuota setiap jenis dan memindahkan paket lama ke cadangan. Penggantian tersedia jika bank bebas dari jadwal aktif dan jawaban peserta.
+5. Konfirmasi impor. Soal identik tidak dibuat ulang. Mode tambah juga memeriksa riwayat paket agar file lama tidak menumpuk di atas soal yang sudah diedit.
 
-Berkas dibatasi 5 MB dan 2.000 soal. Cara lama lewat dokumen Word (`Template Soal`) dan panel **Upload Soal** di halaman yang sama juga tetap tersedia.
+Berkas Excel dibatasi 5 MB dan 2.000 soal.
 
 Bank soal adalah milik guru pembuatnya. Akun guru hanya dapat membuka, mengubah, menghapus, dan mengimpor soal ke bank miliknya sendiri; permintaan ke `id_bank` milik guru lain ditolak server dengan `403`. Administrator tetap dapat mengelola semua bank dari menu administrator.
 

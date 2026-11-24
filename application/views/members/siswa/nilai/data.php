@@ -46,14 +46,14 @@
                                     if (count($jadwal) > 0) :
                                         $no = 1;
                                         foreach ($jadwal as $j) :
-                                            $hanya_pg = $j->tampil_pg > 0 && $j->tampil_kompleks == 0 && $j->tampil_jodohkan == 0 && $j->tampil_isian == 0 && $j->tampil_esai == 0;
-                                            $skorJadwal = isset($skor[$j->id_jadwal]) ? $skor[$j->id_jadwal] : null;
-                                            if ($skorJadwal == null) {
+                                            $skorJadwal = $skor[$j->id_jadwal] ?? null;
+                                            $selesai = (int) ($durasi[$j->id_jadwal][0]->status ?? 0) === 2;
+                                            if (!$selesai) {
                                                 $total = '-';
-                                            } elseif (!$hanya_pg && isset($skorJadwal->dikoreksi) && $skorJadwal->dikoreksi == 0) {
-                                                $total = '*';
-                                            } elseif ($j->hasil_tampil == '0') {
+                                            } elseif ((int) $j->hasil_tampil !== 1) {
                                                 $total = '**';
+                                            } elseif (!$skorJadwal) {
+                                                $total = '*';
                                             } else {
                                                 $total = $skorJadwal->skor_total;
                                             }
@@ -69,7 +69,7 @@
                                                 <td class="text-center">
                                                     <button type="button"
                                                             data-koreksi="<?= isset($skor[$j->id_jadwal]->dikoreksi) ? $skor[$j->id_jadwal]->dikoreksi : '0' ?>"
-                                                            data-tampil="<?= $j->hasil_tampil ?>"
+                                                            data-tampil="<?= (int) ($skorJadwal !== null) ?>"
                                                             data-id="<?= $j->id_jadwal ?>"
                                                             data-toggle="modal"
                                                             data-target="#detail-nilai"
@@ -194,7 +194,7 @@
     var arrbulan = ['', 'Januari', 'Februari', 'Maret', 'April',
         'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     var arrhari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jum\'at', 'Sabtu'];
-    var skores = JSON.parse('<?= json_encode($skor)?>');
+    var skores = <?= json_encode($skor, JSON_HEX_TAG) ?>;
     var durasies = JSON.parse('<?= json_encode($durasi)?>');
     var jadwals = JSON.parse('<?= json_encode($jadwal)?>');
 
@@ -209,7 +209,7 @@
             var dikoreksi = $(e.relatedTarget).data('koreksi') == '1';
 
             var jadwal = jadwals[id];
-            var dur = durasies[id].length > 0 ? durasies[id][0] : null;
+            var dur = durasies[id] && durasies[id][0] ? durasies[id][0] : null;
             var skor = skores[id];
 
             $('#alert').toggleClass('d-none', tampilNilai == '1');
@@ -240,7 +240,7 @@
                 }
             }
 
-            if (tampilNilai == '1') {
+            if (tampilNilai == '1' && skor) {
                 $('#table-detail-soal').removeClass('d-none');
                 $('#tpg').toggleClass('d-none', parseInt(jadwal.tampil_pg) == 0);
                 $('#jpg').text(jadwal.tampil_pg);

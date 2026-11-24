@@ -132,6 +132,11 @@
 <script src="<?= base_url() ?>/assets/app/js/redirect.js"></script>
 <script src="<?= base_url() ?>/assets/app/js/exam-guard.js"></script>
 <script>
+    window.CBT_CSRF = {
+        name: <?= json_encode($this->security->get_csrf_token_name()) ?>,
+        hash: <?= json_encode($this->security->get_csrf_hash()) ?>
+    };
+
     var examGuardReady = false;
     var confirmationSubmitting = false;
     $(document).on('examguard:status', function (event, result) {

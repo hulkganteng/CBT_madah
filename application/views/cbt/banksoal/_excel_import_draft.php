@@ -1,4 +1,5 @@
-<div class="card my-shadow mb-4" id="excel-import-card" data-bank-id="<?= (int) $bank->id_bank ?>">
+<div class="card my-shadow mb-4" id="excel-import-card" data-bank-id="<?= (int) $bank->id_bank ?>"
+     data-question-subject="<?= html_escape($bank->nama_mapel ?? '') ?>">
     <div class="card-header">
         <h6 class="card-title mb-0"><b>Import dari Excel</b></h6>
         <a href="<?= base_url('excelsoal/template?bank_id=' . (int) $bank->id_bank) ?>" class="btn btn-sm btn-success card-tools">
@@ -6,6 +7,8 @@
         </a>
     </div>
     <div class="card-body">
+        <p class="mb-2">Bank tujuan <strong id="excel-bank-target"><?= html_escape($bank->nama_mapel) ?>,
+            Kelas <?= html_escape($bank->bank_level) ?> (<?= html_escape($bank->bank_kode) ?>)</strong></p>
         <?= form_open_multipart('excelsoal/create', array('id' => 'excel-question-form')) ?>
         <input type="hidden" name="bank_id" value="<?= (int) $bank->id_bank ?>">
         <div class="row align-items-end">
@@ -22,7 +25,7 @@
             </div>
         </div>
         <?= form_close() ?>
-        <p class="small text-muted">Untuk rumus LaTeX di pertanyaan, opsi, atau pembahasan, tulis <code>\(\frac{1}{2}\)</code> di dalam baris atau <code>\[\frac{1}{2}\]</code> pada baris tersendiri. Periksa hasilnya di draf.</p>
+        <p class="small text-muted">Rumus LaTeX bisa ditulis sebagai <code>\(\frac{1}{2}\)</code> di dalam baris atau <code>\[\frac{1}{2}\]</code> pada baris tersendiri. Pada mapel Matematika, contoh seperti <code>x^2</code>, <code>P_A</code>, dan <code>\frac{1}{2}</code> juga terdeteksi otomatis. Periksa hasilnya di draf.</p>
 
         <div id="import-draft" class="d-none">
             <hr>
@@ -46,7 +49,16 @@
                 <span id="page-info" class="text-muted"></span>
                 <button type="button" id="page-next" class="btn btn-sm btn-outline-secondary">Berikutnya</button>
             </div>
-            <div class="d-flex justify-content-between border-top pt-3">
+            <div class="form-group border-top pt-3">
+                <label for="excel-import-mode">Cara impor</label>
+                <select id="excel-import-mode" class="form-control" aria-describedby="excel-import-mode-help">
+                    <option value="">Pilih cara impor</option>
+                    <option value="append">Tambah soal ke bank</option>
+                    <option value="activate_package">Ganti paket soal aktif</option>
+                </select>
+                <small id="excel-import-mode-help" class="form-text text-muted">Paket pengganti harus memenuhi kuota setiap jenis soal. Paket lama pindah ke cadangan. Penggantian tersedia untuk bank tanpa jadwal aktif atau jawaban peserta.</small>
+            </div>
+            <div class="d-flex justify-content-between">
                 <button type="button" id="cancel-import" class="btn btn-outline-danger">Batalkan Import</button>
                 <button type="button" id="commit-import" class="btn btn-success"><i class="fas fa-file-import mr-1"></i>Import Soal Siap</button>
             </div>
@@ -103,4 +115,4 @@
     </div>
 </div>
 <?php $this->load->view('cbt/banksoal/_question_math'); ?>
-<script src="<?= base_url('assets/app/js/cbt/banksoal/excel-import-draft.js') ?>"></script>
+<script src="<?= base_url('assets/app/js/cbt/banksoal/excel-import-draft.js') ?>?v=<?= filemtime(FCPATH . 'assets/app/js/cbt/banksoal/excel-import-draft.js') ?>"></script>

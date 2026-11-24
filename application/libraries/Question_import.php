@@ -152,6 +152,36 @@ class Question_import
         return $row;
     }
 
+    public function databaseQuestionKey(array $row)
+    {
+        $type = (int) $row['jenis'];
+        $content = [$type];
+        foreach (['soal', 'deskripsi', 'opsi_a', 'opsi_b', 'opsi_c', 'opsi_d', 'opsi_e', 'jawaban',
+            'file', 'file1', 'tipe_file', 'file_a', 'file_b', 'file_c', 'file_d', 'file_e',
+            'kesulitan', 'timer', 'timer_menit'] as $column) {
+            $value = trim((string) ($row[$column] ?? ''));
+            if ($type === 2 && ($column === 'opsi_a' || $column === 'jawaban')) {
+                $parts = @unserialize($value, ['allowed_classes' => false]);
+                if (is_array($parts)) {
+                    if ($column === 'jawaban') {
+                        sort($parts, SORT_STRING);
+                    } else {
+                        ksort($parts, SORT_STRING);
+                    }
+                    $value = serialize($parts);
+                }
+            }
+            if ($column === 'file' && $value === 'a:0:{}') {
+                $value = '';
+            }
+            if ($column === 'jawaban' && ($type === 1 || $type === 6)) {
+                $value = strtolower($value);
+            }
+            $content[] = $value;
+        }
+        return hash('sha256', serialize($content));
+    }
+
     private function firstValue($data, $keys)
     {
         foreach ($keys as $key) {

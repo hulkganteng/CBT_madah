@@ -510,28 +510,17 @@ class Exam_security_hook
      */
     private function guardScheduleAccess($controller, $method)
     {
+        if (in_array($controller, array('cbtnilai', 'cbtrekap'), TRUE)) {
+            $this->guardGradeAccess($controller, $method);
+            return;
+        }
+
         $olehGuru = array(
             'cbtjadwal' => array(
                 'add' => array('uri' => 3),
             'savejadwal' => array('post' => array('id_jadwal', 'bank_id')),
                 'deletejadwal' => array('post' => array('id_jadwal')),
                 'deletealljadwal' => array('post' => array('checked')),
-            ),
-            'cbtnilai' => array(
-                'index' => array('get' => array('jadwal')),
-                'detail' => array('get' => array('jadwal')),
-                'inputessai' => array('get' => array('jadwal')),
-                'simpankoreksi' => array('post' => array('jadwal')),
-                'tandaikoreksi' => array('post' => array('jadwal')),
-                'tandaisemua' => array('post' => array('id_jadwal')),
-                'simpankoreksiessai' => array('post' => array('jadwal')),
-            ),
-            'cbtrekap' => array(
-                'olahnilai' => array('get' => array('jadwal')),
-                'backupnilai' => array('uri' => 3),
-                'generatenilaiujian' => array('uri' => 3),
-                'bulkbackup' => array('post' => array('ids')),
-                'hapusrekap' => array('post' => array('ids')),
             ),
             'cbtanalisis' => array(
                 'index' => array('get' => array('jadwal')),
@@ -622,6 +611,104 @@ class Exam_security_hook
         }
     }
 
+    private function guardGradeAccess($controller, $method)
+    {
+        if (!$this->ci->ion_auth->logged_in() || $this->ci->ion_auth->is_admin()) {
+            return;
+        }
+        $teacher = $this->ci->ion_auth->in_group('guru') ? $this->authenticatedTeacher() : NULL;
+        if (!$teacher || (int) $teacher->id_guru <= 0) {
+            $this->deny('Akses nilai memerlukan profil guru yang terhubung dengan akun ini.', 403);
+        }
+        $teacherId = (int) $teacher->id_guru;
+
+        if ($controller === 'cbtrekap') {
+            $archiveOnly = in_array($method, array('olahnilai', 'getnilaikelas', 'hapusrekap'), TRUE);
+            switch ($method) {
+                case 'olahnilai':
+                    $ids = $this->idsFromList(array($this->ci->input->get('jadwal')));
+                    break;
+                case 'getnilaikelas':
+                    // Filter bernama mapel pada formulir lama berisi ID jadwal.
+                    $selection = $this->ci->input->get('mapel');
+                    $ids = $selection === '0' ? array() : $this->idsFromList(array($selection));
+                    break;
+                case 'hapusrekap':
+                case 'bulkbackup':
+                    $ids = $this->idsFromList(array($this->ci->input->post('ids')));
+                    break;
+                case 'backupnilai':
+                case 'generatenilaiujian':
+                    $ids = $this->idsFromList(array($this->ci->uri->segment(3)));
+                    break;
+                default:
+                    return;
+            }
+            $this->ci->load->model('Cbt_model', 'guard_grades');
+            foreach ($ids as $idJadwal) {
+                if ($this->ci->guard_grades->hasForeignExamArchive($idJadwal, $teacherId)) {
+                    $this->deny('Anda tidak memiliki akses ke arsip rekap ini.', 403);
+                }
+                if (!$archiveOnly) {
+                    $this->teacherGradeSchedule($idJadwal, $teacherId);
+                }
+            }
+            return;
+        }
+
+        $readMethods = array('index', 'detail', 'inputessai');
+        if (in_array($method, $readMethods, TRUE)) {
+            $raw = $this->ci->input->get('jadwal');
+            if ($method === 'index' && ($raw === NULL || $raw === '')) {
+                return;
+            }
+        } elseif (in_array($method, array('simpankoreksi', 'tandaikoreksi', 'simpankoreksiessai', 'tandaisemua'), TRUE)) {
+            $raw = $this->ci->input->post($method === 'tandaisemua' ? 'id_jadwal' : 'jadwal');
+        } else {
+            return;
+        }
+        if (!is_scalar($raw) || !preg_match('/^[1-9][0-9]*$/D', (string) $raw)) {
+            $this->deny('ID jadwal tidak valid.', 422);
+        }
+        $idJadwal = (int) $raw;
+        $schedule = $this->teacherGradeSchedule($idJadwal, $teacherId);
+
+        if ($method === 'detail') {
+            $student = $this->ci->input->get('siswa');
+            if (!is_scalar($student) || !preg_match('/^[1-9][0-9]*$/D', (string) $student)) {
+                $this->deny('ID peserta tidak valid.', 422);
+            }
+            $scope = array('id_jadwal' => $idJadwal, 'id_siswa' => (int) $student);
+            if (!$this->ci->db->where($scope + array('id_bank' => $schedule->id_bank))->count_all_results('cbt_soal_siswa')
+                && !$this->ci->db->where($scope)->count_all_results('cbt_nilai')) {
+                $this->deny('Peserta ini tidak memiliki hasil pada jadwal tersebut.', 403);
+            }
+        } elseif ($method === 'index' || $method === 'inputessai') {
+            $class = $this->ci->input->get('kelas');
+            if ($class !== NULL && $class !== '') {
+                $classes = @unserialize((string) $schedule->bank_kelas, array('allowed_classes' => FALSE));
+                $classIds = is_array($classes) ? array_map('strval', array_column($classes, 'kelas_id')) : array();
+                if (!is_scalar($class) || !preg_match('/^[1-9][0-9]*$/D', (string) $class)
+                    || (!in_array((string) $class, $classIds, TRUE) && !in_array('Semua', $classIds, TRUE))) {
+                    $this->deny('Kelas ini tidak termasuk dalam jadwal ujian.', 403);
+                }
+            }
+        }
+    }
+
+    private function teacherGradeSchedule($idJadwal, $teacherId)
+    {
+        $schedule = $this->ci->db->select('j.id_bank, b.bank_kelas')
+            ->from('cbt_jadwal j')
+            ->join('cbt_bank_soal b', 'b.id_bank = j.id_bank')
+            ->where(array('j.id_jadwal' => $idJadwal, 'b.bank_guru_id' => $teacherId))
+            ->get()->row();
+        if (!$schedule) {
+            $this->deny('Anda tidak memiliki akses ke jadwal ujian ini.', 403);
+        }
+        return $schedule;
+    }
+
     /** id_jadwal bisa datang sebagai angka, JSON array, atau campuran. */
     private function idsFromList($nilai)
     {
@@ -689,7 +776,7 @@ class Exam_security_hook
                 return;
             }
             if ($this->ci->ion_auth->in_group('tu')) {
-                $tuUsersiswaAllowed = array('index', 'data', 'list', 'registersiswa', 'aktifkan', 'activate', 'aktifkansemua', 'nonaktifkan', 'deactivate', 'reset_login');
+                $tuUsersiswaAllowed = array('index', 'data', 'list', 'exportexcel', 'registersiswa', 'aktifkan', 'activate', 'aktifkansemua', 'nonaktifkan', 'deactivate', 'reset_login');
                 if (!in_array(strtolower($method), $tuUsersiswaAllowed, TRUE)) {
                     $this->deny('Aksi ini hanya dapat dilakukan Administrator.', 403);
                 }
@@ -771,7 +858,7 @@ class Exam_security_hook
                     $this->deny('Jadwal ujian tidak valid.', 422);
                 }
                 $this->scopeLegacyProctorAction($idJadwal);
-            } elseif (!$this->ci->ion_auth->is_admin()) {
+            } elseif (!$this->ci->ion_auth->is_admin() && $controller !== 'cbtrekap') {
                 $this->guardLegacyProctorObject($controller, $method);
             }
             return;
@@ -790,20 +877,7 @@ class Exam_security_hook
         if ($method === 'applyaction') {
             $idJadwal = (int) $this->ci->input->post('jadwal', TRUE);
         } elseif ($method === 'olahnilai') {
-            if ($controller === 'cbtrekap') {
-                /* Cbtrekap::olahNilai adalah halaman rekap guru dan memakai
-                   ?jadwal=; tanpa jadwal ia hanya menampilkan daftar. */
-                $rawJadwal = $this->ci->input->get('jadwal', TRUE);
-                if ($rawJadwal === NULL || $rawJadwal === '') {
-                    return;
-                }
-                if (!preg_match('/^[1-9][0-9]*$/D', (string) $rawJadwal)) {
-                    $this->deny('Jadwal ujian tidak valid.', 422);
-                }
-                $idJadwal = (int) $rawJadwal;
-            } else {
-                $idJadwal = (int) $this->ci->uri->segment(4);
-            }
+            $idJadwal = (int) $this->ci->uri->segment(4);
         } else {
             $idDurasi = $method === 'resettimer'
                 ? (string) $this->ci->input->post('id_durasi', TRUE)

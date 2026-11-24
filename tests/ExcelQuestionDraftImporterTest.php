@@ -41,9 +41,22 @@ final class ExcelQuestionDraftImporterTest extends TestCase
         self::assertSame(3, $parsed['items'][0]['row_number']);
     }
 
-    private function parse(array $rows): array
+    public function testBankTemplateKeepsTheDestinationCode(): void
+    {
+        $parsed = $this->parse([
+            ['NO', 'JENIS', 'PERTANYAAN', 'A', 'B', 'JAWABAN'],
+            [1, 1, 'Which is a vowel?', 'A', 'B', 'A'],
+        ], 'BIG-XI');
+        self::assertSame('BIG-XI', $parsed['bank_code']);
+        self::assertSame([], $parsed['file_errors']);
+    }
+
+    private function parse(array $rows, ?string $bankCode = null): array
     {
         $spreadsheet = new Spreadsheet();
+        if ($bankCode !== null) {
+            $spreadsheet->getProperties()->setCustomProperty(Excel_question_draft_importer::BANK_CODE_PROPERTY, $bankCode);
+        }
         $spreadsheet->getActiveSheet()->setTitle('SOAL')->fromArray($rows);
         $path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('garuda_import_', true) . '.xlsx';
         (new Xlsx($spreadsheet))->save($path);

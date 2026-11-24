@@ -11,7 +11,8 @@
     .question-preview img { max-width: 100%; height: auto; }
 </style>
 
-<div class="content-wrapper bg-white pt-4">
+<div class="content-wrapper bg-white pt-4" data-question-math-detail
+     data-question-subject="<?= html_escape($bank->nama_mapel ?? '') ?>">
     <section class="content-header">
         <div class="container-fluid">
             <div class="d-sm-flex justify-content-between mb-2">
@@ -791,10 +792,6 @@
     $(document).ready(function () {
         $('.question-preview, #for-export').each(function () {
             resolveQuestionMedia(this, base_url);
-        });
-
-        $('.question-preview').each(function () {
-            renderQuestionMath(this);
         });
 
         var pgCount = $('#table-pg .check-pg').length;

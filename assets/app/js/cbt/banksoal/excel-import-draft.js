@@ -5,13 +5,15 @@
     if (!$form.length) return;
 
     var importId = null;
+    var bankId = $('#excel-import-card').data('bank-id');
+    var uploading = false;
     var page = 1;
     var pages = 1;
     var filter = 'all';
     var items = {};
 
-    $.getJSON(base_url + 'excelsoal/latest', {bank_id: $('#excel-import-card').data('bank-id')}).done(function (response) {
-        if (response.import_id) {
+    $.getJSON(base_url + 'excelsoal/latest', {bank_id: bankId}).done(function (response) {
+        if (response.import_id && !uploading && !importId) {
             importId = response.import_id;
             loadDraft();
         }
@@ -27,6 +29,8 @@
             showAlert('Pilih file Excel terlebih dahulu.', 'danger');
             return;
         }
+        if (uploading) return;
+        uploading = true;
         busy('Membaca file', 'Soal sedang diperiksa...');
         $.ajax({
             url: base_url + 'excelsoal/create',
@@ -38,9 +42,10 @@
         }).done(function (response) {
             swal.close();
             importId = response.import_id;
+            $('#excel-import-mode').val('');
             page = 1;
             loadDraft();
-        }).fail(handleFailure);
+        }).fail(handleFailure).always(function () { uploading = false; });
     });
 
     $('#import-filters').on('click', 'button', function () {
@@ -100,22 +105,52 @@
             showAlert('Belum ada soal yang siap diimport.', 'warning');
             return;
         }
-        var text = valid + ' soal siap diimport.' + (invalid ? ' ' + invalid + ' soal bermasalah tidak akan disimpan dan tetap tersedia pada draft.' : '');
+        var mode = $('#excel-import-mode').val();
+        if (!mode) {
+            showAlert('Pilih cara impor terlebih dahulu.', 'warning');
+            $('#excel-import-mode').trigger('focus');
+            return;
+        }
+        if (mode === 'activate_package' && invalid) {
+            showAlert('Selesaikan semua soal bermasalah sebelum mengganti paket aktif.', 'warning');
+            return;
+        }
+        var draftId = importId;
+        var target = $('#excel-bank-target').text().replace(/\s+/g, ' ').trim();
+        var file = $('#import-filename').text();
+        var text = file + ' → ' + target + '. ';
+        text += mode === 'activate_package'
+            ? 'Paket lama akan dipindahkan ke cadangan.'
+            : 'Soal baru mengisi kuota kosong. Selebihnya masuk cadangan.'
+                + (invalid ? ' ' + invalid + ' soal bermasalah tetap berada di draf.' : '');
         swal.fire({
-            title: 'Import ' + valid + ' Soal?',
+            title: mode === 'activate_package' ? 'Ganti paket soal aktif?' : 'Tambah ' + valid + ' soal?',
             text: text,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'Import ' + valid + ' Soal',
             cancelButtonText: 'Batal'
         }).then(function (choice) {
-            if (!choice.value) return;
+            if (!choice.value || draftId !== importId || uploading) return;
             postAction('commit', 'Menyimpan soal', function (response) {
-                swal.fire('Berhasil', response.message, 'success').then(function () {
+                var message = response.message;
+                if (response.duplicates) {
+                    message += ' ' + response.duplicates + ' soal identik tidak dibuat ulang.';
+                }
+                if (response.package_activated) {
+                    message += ' ' + response.activated + ' soal dari paket ini sekarang aktif.';
+                } else if (response.inserted > 0 && Number.isInteger(response.activated)) {
+                    var reserve = response.inserted - response.activated;
+                    message += ' ' + response.activated + ' soal langsung aktif dan ' + reserve + ' masuk cadangan.';
+                    if (reserve > 0) {
+                        message += ' Untuk mengubah soal aktif, buka detail bank.';
+                    }
+                }
+                swal.fire('Berhasil', message, 'success').then(function () {
                     if (response.remaining) loadDraft();
                     else window.location.href = base_url + 'cbtbanksoal/detail/' + $('#excel-import-card').data('bank-id');
                 });
-            });
+            }, {mode: mode, bank_id: bankId});
         });
     });
 
@@ -139,8 +174,10 @@
 
     function loadDraft() {
         if (!importId) return;
-        $.getJSON(base_url + 'excelsoal/session', {import_id: importId, page: page, per_page: 20, filter: filter})
+        var draftId = importId;
+        $.getJSON(base_url + 'excelsoal/session', {import_id: draftId, page: page, per_page: 20, filter: filter})
             .done(function (response) {
+                if (draftId !== importId) return;
                 $('#import-draft').removeClass('d-none');
                 $('#import-filename').text(response.import.original_filename || 'Draft Import');
                 $('#count-total').text(response.import.total_items);
@@ -196,7 +233,7 @@
             }
             $root.append($card);
         });
-        renderQuestionMath($root[0]);
+        renderQuestionMath($root[0], $('#excel-import-card').attr('data-question-subject'));
     }
 
     function renderMessages($root, messages, type) {
@@ -231,10 +268,10 @@
         $('#edit-options').toggleClass('d-none', type === 'true_false');
     }
 
-    function postAction(action, title, done) {
+    function postAction(action, title, done, fields) {
         busy(title, 'Silakan tunggu...');
         var csrf = $form.find('input[type="hidden"][name!="bank_id"]').first();
-        var data = {import_id: importId};
+        var data = $.extend({import_id: importId}, fields);
         if (csrf.length) data[csrf.attr('name')] = csrf.val();
         $.post(base_url + 'excelsoal/' + action, data, null, 'json').done(done).fail(handleFailure);
     }

@@ -15,6 +15,14 @@
                 <div class="card-header with-border">
                     <h3 class="card-title">Master <?= $subjudul ?></h3>
                     <div class="card-tools">
+                        <?= form_open('usersiswa/exportexcel', ['class' => 'd-inline']) ?>
+                        <input type="hidden" name="search" id="export-search">
+                        <button type="submit" class="btn btn-outline-success btn-sm" title="Ekspor Excel"
+                                aria-label="Ekspor akun peserta ujian ke Excel">
+                            <i class="fas fa-file-excel mr-sm-1" aria-hidden="true"></i>
+                            <span class="d-none d-sm-inline">Ekspor Excel</span>
+                        </button>
+                        <?= form_close() ?>
                         <button type="button" class="btn btn-action btn-success btn-sm" data-action="aktifkan"
                                 data-toggle="tooltip" title="Aktifkan">
                             <i class="fa fa-users m-1"></i><span
@@ -330,7 +338,7 @@
     function loadSiswa() {
         $('#pager-page').val(currentPage);
         $('#loading').removeClass('d-none');
-        var cari = query != null ? '&search=' + query : ''
+        var cari = query != null ? '&' + $.param({search: query}) : '';
         var dataPost = $('#pager').serialize() + cari;
         console.log('post', dataPost);
         $.ajax({
@@ -364,8 +372,8 @@
     }
 
     function previewData(data) {
-        console.log(data);
         $('#input-search').val(data.search);
+        $('#export-search').val(data.search ?? '');
         var html = '';
         if (data.lists.length > 0) {
             $.each(data.lists, function (idx, siswa) {

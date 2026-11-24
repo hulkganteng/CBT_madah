@@ -89,7 +89,8 @@ foreach ($soal_ada as $key => $value) {
                     </div>
                 </div>
             </div>
-            <?= form_open('create', array('id' => 'create')) ?>
+            <?= form_open('create', array('id' => 'create', 'data-question-math-editor' => '1',
+                'data-question-subject' => html_escape($bank->nama_mapel ?? ''))) ?>
             <div class="card my-shadow">
                 <div class="card-header p-2">
                     <ul class="nav nav-pills">
@@ -415,4 +416,4 @@ foreach ($soal_ada as $key => $value) {
 </script>
 <script src="<?= base_url('assets/app/js/cbt/question-content.js') ?>"></script>
 <?php $this->load->view('cbt/banksoal/_question_math'); ?>
-<script src="<?= base_url() ?>/assets/app/js/cbt/banksoal/soal.js"></script>
+<script src="<?= base_url('assets/app/js/cbt/banksoal/soal.js') ?>?v=<?= filemtime(FCPATH . 'assets/app/js/cbt/banksoal/soal.js') ?>"></script>

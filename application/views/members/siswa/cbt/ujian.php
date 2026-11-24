@@ -139,7 +139,7 @@
                                      class="fa fa-plus"></i></button>
                     </div>
                     <div style="border: 1px solid; border-color: #D3D3D3">
-                        <div class="konten-soal-jawab">
+                        <div class="konten-soal-jawab" data-question-subject="<?= html_escape($jadwal->nama_mapel ?? '') ?>">
                             <div class="row p-2 mb-4 ml-1">
                                 <div id="konten-stimulus" class="col-12 mb-2 d-none">
                                     <section class="exam-stimulus" aria-labelledby="stimulus-title">
@@ -750,7 +750,7 @@
         $('.konten-soal-jawab').each(function () {
             resolveQuestionMedia(this, base_url);
             makeQuestionTablesScrollable(this);
-            renderQuestionMath(this);
+            renderQuestionMath(this, this.dataset.questionSubject);
         });
         $('.konten-soal-jawab img').each(function () {
             if (!this.getAttribute('alt')) this.setAttribute('alt', 'Gambar pendukung soal');

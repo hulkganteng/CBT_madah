@@ -8,6 +8,7 @@ class Excel_question_draft_importer
 {
     const MAX_ROWS = 2000;
     const MAX_COLUMNS = 32;
+    const BANK_CODE_PROPERTY = 'GarudaCbtBankCode';
 
     private $normalizer;
 
@@ -28,6 +29,7 @@ class Excel_question_draft_importer
         }
         $reader->setReadFilter(new Excel_question_draft_read_filter(self::MAX_ROWS + 1, self::MAX_COLUMNS));
         $spreadsheet = $reader->load($path);
+        $bankCode = trim((string) $spreadsheet->getProperties()->getCustomPropertyValue(self::BANK_CODE_PROPERTY));
         $sheet = $spreadsheet->getSheetByName('SOAL') ?: $spreadsheet->getSheet(0);
         $rows = $sheet->toArray('', true, true, false);
         $spreadsheet->disconnectWorksheets();
@@ -73,7 +75,7 @@ class Excel_question_draft_importer
         if (!$items && !$fileErrors) {
             $fileErrors[] = 'Tidak ada soal yang dapat dibaca dari file.';
         }
-        return array('items' => $items, 'file_errors' => $fileErrors);
+        return array('items' => $items, 'file_errors' => $fileErrors, 'bank_code' => $bankCode);
     }
 
     /**

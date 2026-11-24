@@ -1041,7 +1041,7 @@ $getBankClassNames = static function ($bank) use ($classNamesById) {
         if (total > 0) {
             swal.fire({
                 title: "Import Soal?",
-                html: "Soal sudah ada, mengimport soal baru akan menghapus soal terdahulu.<br>Lanjutkan import soal?",
+                text: "Pada layar impor, pilih tambah soal atau ganti paket aktif. Soal lama tetap tersimpan di bank.",
                 icon: "warning",
                 showCancelButton: true,
                 confirmButtonColor: "#3085d6",

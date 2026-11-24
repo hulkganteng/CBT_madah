@@ -457,7 +457,6 @@ $colWidth = '';
 
     var idJadwal = '<?=$jadwal_selected?>';
     var idKelas = '<?=$kelas_selected?>';
-    const arrSiswa = <?= json_encode($siswas) ?>;
     var isSelected = <?= count($siswas) > 0 ? 1 : 0?>;
     var namaMapel = '<?=isset($info) ? $info->kode : ''?>';
     var jenisUjian = '<?=isset($info) ? $info->kode_jenis : ''?>';
