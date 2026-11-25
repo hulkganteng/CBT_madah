@@ -261,9 +261,9 @@
                 }
             }, error: function (xhr, error, status) {
                 swal.fire({
-                    "title": "Error",
-                    "html": "Coba kembali ke beranda, lalu ulangi lagi<br>006",
-                    "icon": "error"
+                    title: 'Ujian belum dapat dibuka',
+                    text: (xhr.responseJSON || {}).message || 'Kembali ke beranda, lalu coba lagi.',
+                    icon: 'error'
                 });
             }, complete: function () {
                 confirmationSubmitting = false;

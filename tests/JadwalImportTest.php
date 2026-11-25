@@ -41,10 +41,8 @@ final class JadwalImportTest extends TestCase
     public function testMigrationEnforcesTheSameBankTypeInvariant(): void
     {
         $migration = file_get_contents(dirname(__DIR__) . '/application/migrations/20261118000100_unique_exam_schedule_bank_type.php');
-        $config = file_get_contents(dirname(__DIR__) . '/application/config/migration.php');
 
         self::assertStringContainsString('uq_jadwal_bank_jenis', $migration);
         self::assertStringContainsString('GROUP BY id_bank, id_jenis HAVING COUNT(*) > 1', $migration);
-        self::assertStringContainsString("migration_version'] = 20261118000100", $config);
     }
 }

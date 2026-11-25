@@ -99,6 +99,10 @@
                             </div>
                         </div>
                     </div>
+                    <?php if ($this->ion_auth->is_admin()) {
+                        $this->load->library('Exam_schedule_slots');
+                        $this->load->view('cbt/jadwal/_slots');
+                    } ?>
                     <div class='form-group'>
                         <div class='row'>
                             <div class="col-md-8">

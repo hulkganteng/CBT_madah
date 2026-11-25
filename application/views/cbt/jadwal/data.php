@@ -7,6 +7,22 @@ if (isset($jadwal_ujian)) {
 } else {
     $jmlMapelPerHari = 0;
 }
+$slotsBySchedule = [];
+if ($this->ion_auth->is_admin() && $tp_active && $smt_active) {
+    $this->load->library('Exam_schedule_slots');
+    $service = $this->exam_schedule_slots;
+    $plan = $service->periodSlots($tp_active->id_tp, $smt_active->id_smt);
+    if ($plan) {
+        $targetNames = [];
+        foreach ($service->options($tp_active->id_tp, $smt_active->id_smt) as $type => $options) {
+            $targetNames[$type] = array_column($options, 'nama', 'id');
+        }
+        foreach ($plan as $slot) {
+            $slot['target_name'] = $targetNames[$slot['jenis_sasaran']][$slot['sasaran']] ?? $slot['sasaran'];
+            $slotsBySchedule[$slot['id_jadwal']][] = $slot;
+        }
+    }
+}
 ?>
 
 <div class="content-wrapper bg-white pt-4">
@@ -262,7 +278,12 @@ if (isset($jadwal_ujian)) {
                                             <td class="align-middle"><i
                                                         class="fas fa-square mr-1 text-lg <?= $bgRandom ?>"></i><?= $jadwal->bank_kode ?>
                                             </td>
-                                            <td class="align-middle"><?= $jadwal->nama_mapel ?></td>
+                                            <td class="align-middle">
+                                                <?= $jadwal->nama_mapel ?>
+                                                <?php if (isset($slotsBySchedule[$jadwal->id_jadwal])) {
+                                                    $this->load->view('cbt/jadwal/_slot_summary', ['summarySlots' => $slotsBySchedule[$jadwal->id_jadwal]]);
+                                                } ?>
+                                            </td>
                                             <td class="align-middle"><?= $kelasbank ?></td>
                                             <td class="text-center align-middle p-0"><?= ($jadwal->status === '0') ? '<span class="badge badge-btn badge-secondary">Non Aktif</span>' : '<span class="badge badge-btn badge-success">Aktif</span>' ?></td>
                                             <td class="text-center align-middle">
@@ -412,6 +433,11 @@ if (isset($jadwal_ujian)) {
                                                             <span>Sampai</span>
                                                             <span class="float-right"><b><?= singkat_tanggal(date('D, d M Y', strtotime($jadwal->tgl_selesai))) ?></b></span>
                                                         </div>
+                                                        <?php if (isset($slotsBySchedule[$jadwal->id_jadwal])) : ?>
+                                                            <div class="mx-2">
+                                                                <?php $this->load->view('cbt/jadwal/_slot_summary', ['summarySlots' => $slotsBySchedule[$jadwal->id_jadwal]]); ?>
+                                                            </div>
+                                                        <?php endif; ?>
                                                         <div class="d-flex justify-content-between mr-2 ml-2">
                                                             <span>Durasi</span>
                                                             <span class="float-right"><b><?= $jadwal->durasi_ujian ?>

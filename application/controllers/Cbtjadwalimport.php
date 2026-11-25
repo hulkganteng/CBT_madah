@@ -1,6 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -17,7 +18,7 @@ class Cbtjadwalimport extends CI_Controller
             show_error('Hanya Administrator yang dapat mengimpor jadwal ujian.', 403, 'Akses Terlarang');
         }
         $this->load->model('Dashboard_model', 'dashboard');
-        $this->load->library('jadwal_import');
+        $this->load->library(['jadwal_import', 'Exam_schedule_slots']);
     }
 
     public function index()
@@ -44,11 +45,31 @@ class Cbtjadwalimport extends CI_Controller
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Jadwal');
-        $sheet->fromArray(Jadwal_import::HEADERS, null, 'A1');
+        $sheet->fromArray(Jadwal_import::headers(), null, 'A1');
         $sheet->fromArray(array('MTK-XII-01', 'PAS', date('Y-m-d'), date('Y-m-d'), 90, 30, 1, 1, 1, 0, 0, 1), null, 'A2');
-        $sheet->getStyle('A1:L1')->getFont()->setBold(true);
-        foreach (range('A', 'L') as $column) {
+        $sheet->getStyle('A1:T1')->getFont()->setBold(true);
+        foreach (range('A', 'T') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $references = $spreadsheet->createSheet();
+        $references->setTitle('Kode Sesi dan Sasaran');
+        $references->fromArray(['Jenis', 'Kode', 'Nama'], null, 'A1');
+        $tp = $this->dashboard->getTahunActive();
+        $smt = $this->dashboard->getSemesterActive();
+        $line = 2;
+        if ($tp && $smt) {
+            foreach ($this->exam_schedule_slots->options($tp->id_tp, $smt->id_smt) as $kind => $options) {
+                foreach ($options as $option) {
+                    $references->setCellValue('A' . $line, $kind);
+                    $references->setCellValueExplicit('B' . $line, (string) $option['kode'], DataType::TYPE_STRING);
+                    $references->setCellValueExplicit('C' . $line, (string) $option['nama'], DataType::TYPE_STRING);
+                    $line++;
+                }
+            }
+        }
+        foreach (range('A', 'C') as $column) {
+            $references->getColumnDimension($column)->setAutoSize(true);
         }
 
         $file = tempnam(sys_get_temp_dir(), 'jadwal-import-');
@@ -73,10 +94,11 @@ class Cbtjadwalimport extends CI_Controller
         try {
             $reader = IOFactory::createReaderForFile($file);
             $reader->setReadDataOnly(true);
-            $sheetRows = $reader->load($file)->getActiveSheet()->toArray();
-            $result = $this->jadwal_import->parseRows($sheetRows);
+            $spreadsheet = $reader->load($file);
+            $sheet = $spreadsheet->getSheetByName('Jadwal') ?? $spreadsheet->getActiveSheet();
+            $result = $this->jadwal_import->parseRows($sheet->toArray());
             if (!$result['errors']) {
-                $result = $this->resolveReferences($result['rows']);
+                $result = $this->prepareImport($result['rows'], $this->dashboard->getTahunActive(), $this->dashboard->getSemesterActive());
             }
             $this->json(array(
                 'status' => !$result['errors'],
@@ -97,19 +119,31 @@ class Cbtjadwalimport extends CI_Controller
             return $this->json(array('status' => false, 'message' => 'Data pratinjau tidak valid.'));
         }
 
-        $sheetRows = array(Jadwal_import::HEADERS);
+        $sheetRows = array(Jadwal_import::headers());
         foreach ($postedRows as $row) {
+            if (!is_array($row)) {
+                return $this->json(['status' => false, 'message' => 'Baris impor tidak valid.']);
+            }
             $sheetRows[] = array_map(static function ($header) use ($row) {
                 return $row[$header] ?? '';
-            }, Jadwal_import::HEADERS);
+            }, Jadwal_import::headers());
         }
         $parsed = $this->jadwal_import->parseRows($sheetRows);
         if ($parsed['errors']) {
             return $this->json(array('status' => false, 'message' => implode(' ', $parsed['errors'])));
         }
 
-        $this->db->trans_begin();
-        $resolved = $this->resolveReferences($parsed['rows']);
+        $tp = $this->dashboard->getTahunActive();
+        $smt = $this->dashboard->getSemesterActive();
+        if (!$tp || !$smt || !$this->db->trans_begin()) {
+            return $this->json(['status' => FALSE, 'message' => 'Periode aktif atau transaksi impor tidak tersedia.']);
+        }
+        $period = $this->db->query('SELECT id_tp FROM master_tp WHERE id_tp = ? AND active = 1 FOR UPDATE', [$tp->id_tp]);
+        if (!$period || !$period->num_rows()) {
+            $this->db->trans_rollback();
+            return $this->json(['status' => FALSE, 'message' => 'Periode aktif berubah. Muat ulang pratinjau.']);
+        }
+        $resolved = $this->prepareImport($parsed['rows'], $tp, $smt);
         if ($resolved['errors']) {
             $this->db->trans_rollback();
             return $this->json(array('status' => false, 'message' => implode(' ', $resolved['errors'])));
@@ -127,7 +161,7 @@ class Cbtjadwalimport extends CI_Controller
             $this->db->trans_rollback();
             return $this->json(['status' => FALSE, 'message' => 'Bank soal atau jenis ujian berubah. Muat ulang pratinjau.']);
         }
-        foreach ($resolved['rows'] as $row) {
+        foreach ($resolved['schedules'] as $row) {
             $duplicate = $this->db->query('SELECT id_jadwal FROM cbt_jadwal WHERE id_bank = ? AND id_jenis = ? FOR UPDATE',
                 [$row['id_bank'], $row['id_jenis']]);
             if (!$duplicate || $duplicate->num_rows()) {
@@ -136,10 +170,8 @@ class Cbtjadwalimport extends CI_Controller
             }
         }
 
-        $tp = $this->dashboard->getTahunActive();
-        $smt = $this->dashboard->getSemesterActive();
         $insert = array();
-        foreach ($resolved['rows'] as $row) {
+        foreach ($resolved['schedules'] as $row) {
             $insert[] = array(
                 'id_tp' => $tp->id_tp,
                 'id_smt' => $smt->id_smt,
@@ -160,6 +192,22 @@ class Cbtjadwalimport extends CI_Controller
         $dbDebug = $this->db->db_debug;
         $this->db->db_debug = false;
         $saved = $this->db->insert_batch('cbt_jadwal', $insert);
+        if ($saved && $resolved['slots']) {
+            $inserted = $this->db->select('id_jadwal, id_bank, id_jenis')
+                ->where(['id_tp' => $tp->id_tp, 'id_smt' => $smt->id_smt])
+                ->where_in('id_bank', $bankIds)->where_in('id_jenis', $typeIds)
+                ->get('cbt_jadwal');
+            $ids = [];
+            foreach ($inserted ? $inserted->result_array() : [] as $row) {
+                $ids['bank-' . $row['id_bank'] . '|' . $row['id_jenis']] = $row['id_jadwal'];
+            }
+            foreach ($resolved['slots'] as $key => $slots) {
+                if (!isset($ids[$key]) || !$this->exam_schedule_slots->replace($ids[$key], $slots)) {
+                    $saved = FALSE;
+                    break;
+                }
+            }
+        }
         $this->db->db_debug = $dbDebug;
         if (!$saved || !$this->db->trans_status() || !$this->db->trans_commit()) {
             $this->db->trans_rollback();
@@ -167,7 +215,8 @@ class Cbtjadwalimport extends CI_Controller
         }
         $this->load->model('Log_model', 'logging');
         $this->logging->saveLog(3, 'mengimpor ' . count($insert) . ' jadwal ujian');
-        return $this->json(array('status' => true, 'message' => count($insert) . ' jadwal berhasil diimpor.'));
+        $slotCount = array_sum(array_map('count', $resolved['slots']));
+        return $this->json(['status' => true, 'message' => count($insert) . ' jadwal dan ' . $slotCount . ' slot berhasil diimpor.']);
     }
 
     private function uploadFile()
@@ -187,21 +236,19 @@ class Cbtjadwalimport extends CI_Controller
         return $this->upload->data('full_path');
     }
 
-    private function resolveReferences(array $rows): array
+    private function resolveReferences(array $rows, $tp, $smt): array
     {
-        $tp = $this->dashboard->getTahunActive();
-        $smt = $this->dashboard->getSemesterActive();
         if (!$tp || !$smt) {
             return array('rows' => array(), 'errors' => array('Tahun pelajaran atau semester aktif belum ditentukan.'));
         }
 
         $banks = array();
-        $bankRows = $this->db->select('id_bank, bank_kode')
+        $bankRows = $this->db->select('id_bank, bank_kode, bank_level')
             ->where(array('id_tp' => $tp->id_tp, 'id_smt' => $smt->id_smt, 'status' => 1, 'status_soal' => 1))
             ->get('cbt_bank_soal')->result_array();
         foreach ($bankRows as $bank) {
             $key = strtoupper(trim($bank['bank_kode']));
-            $banks[$key] = array_key_exists($key, $banks) ? null : (int) $bank['id_bank'];
+            $banks[$key] = array_key_exists($key, $banks) ? null : $bank;
         }
         $types = array();
         foreach ($this->db->select('id_jenis, kode_jenis')->get('cbt_jenis')->result_array() as $type) {
@@ -226,7 +273,8 @@ class Cbtjadwalimport extends CI_Controller
                 $errors[] = 'Baris ' . $row['_row'] . ': kode jenis ' . $row['kode_jenis'] . ' tidak ditemukan.';
                 continue;
             }
-            $row['id_bank'] = $banks[$row['kode_bank']];
+            $row['id_bank'] = (int) $banks[$row['kode_bank']]['id_bank'];
+            $row['bank_level'] = $banks[$row['kode_bank']]['bank_level'];
             $row['id_jenis'] = $types[$row['kode_jenis']];
             if (isset($existing[$row['id_bank'] . '|' . $row['id_jenis']])) {
                 $errors[] = 'Baris ' . $row['_row'] . ': jadwal untuk kombinasi bank dan jenis tersebut sudah ada.';
@@ -234,6 +282,61 @@ class Cbtjadwalimport extends CI_Controller
         }
         unset($row);
         return array('rows' => $rows, 'errors' => $errors);
+    }
+
+    private function prepareImport(array $rows, $tp, $smt)
+    {
+        $resolved = $this->resolveReferences($rows, $tp, $smt);
+        if ($resolved['errors']) {
+            return $resolved;
+        }
+
+        $service = $this->exam_schedule_slots;
+        $sharedFields = array_flip(array_slice(Jadwal_import::HEADERS, 4));
+        $schedules = [];
+        $slots = [];
+        $plan = [];
+        $errors = [];
+        $options = NULL;
+        foreach ($resolved['rows'] as $row) {
+            $key = 'bank-' . $row['id_bank'] . '|' . $row['id_jenis'];
+            if (!isset($schedules[$key])) {
+                $schedules[$key] = $row;
+            } else {
+                $schedule = &$schedules[$key];
+                if (array_intersect_key($schedule, $sharedFields) !== array_intersect_key($row, $sharedFields)) {
+                    $errors[] = 'Baris ' . $row['_row'] . ': pengaturan ujian harus sama untuk bank dan jenis ujian yang sama.';
+                }
+                $schedule['tanggal_mulai'] = min($schedule['tanggal_mulai'], $row['tanggal_mulai']);
+                $schedule['tanggal_selesai'] = max($schedule['tanggal_selesai'], $row['tanggal_selesai']);
+                unset($schedule);
+            }
+
+            try {
+                $slot = $this->jadwal_import->slot($row);
+                if (!$slot) {
+                    continue;
+                }
+                if (!$service->ready()) {
+                    throw new InvalidArgumentException('Migrasi jadwal per sesi perlu dijalankan.');
+                }
+                $options = $options ?? $service->options($tp->id_tp, $smt->id_smt);
+                $slot = $service->resolve($slot, $options, TRUE);
+                $slots[$key][] = $slot;
+                $plan[] = ['id_jadwal' => $key, 'id_jenis' => $row['id_jenis'], 'bank_level' => $row['bank_level']] + $slot;
+            } catch (InvalidArgumentException $error) {
+                $errors[] = 'Baris ' . $row['_row'] . ': ' . $error->getMessage();
+            }
+        }
+
+        if ($plan && !$errors) {
+            try {
+                $service->validatePlan($service->periodSlots($tp->id_tp, $smt->id_smt), $plan);
+            } catch (InvalidArgumentException $error) {
+                $errors[] = $error->getMessage();
+            }
+        }
+        return ['rows' => $resolved['rows'], 'schedules' => $schedules, 'slots' => $slots, 'errors' => $errors];
     }
 
     private function json(array $data)

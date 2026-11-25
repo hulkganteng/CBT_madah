@@ -21,11 +21,11 @@ class Phase6ExamIndexAndQueryOptimizationTest extends TestCase
         $this->assertFileExists($configFile);
 
         $content = file_get_contents($configFile);
-        $this->assertMatchesRegularExpression(
-            "/\\\$config\\['migration_version'\\]\\s*=\\s*20261118000100;/",
-            $content,
-            'Migration version must match the latest migration'
-        );
+        $this->assertSame(1, preg_match("/migration_version'\\]\\s*=\\s*(\\d+)/", $content, $match));
+        $versions = array_map(static function ($path) {
+            return (int) basename($path);
+        }, glob(__DIR__ . '/../application/migrations/[0-9]*.php'));
+        $this->assertSame(max($versions), (int) $match[1]);
     }
 
     public function testCbtModelQuerySanitization(): void

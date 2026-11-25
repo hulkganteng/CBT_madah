@@ -21,8 +21,9 @@ final class Phase6P1OptimizationTest extends TestCase
 
     public function testMigrationVersionConfigPointsToP1(): void
     {
-        $configContent = (string) file_get_contents(dirname(__DIR__) . '/application/config/migration.php');
-        self::assertMatchesRegularExpression('/\$config\[\'migration_version\'\]\s*=\s*20261111000[2-9]00;/', $configContent);
+        $content = file_get_contents(dirname(__DIR__) . '/application/config/migration.php');
+        self::assertSame(1, preg_match("/migration_version'\\]\\s*=\\s*(\\d+)/", $content, $match));
+        self::assertGreaterThanOrEqual(20261111000200, (int) $match[1]);
     }
 
     public function testDatabaseConfigHardened(): void

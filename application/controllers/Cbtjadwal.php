@@ -11,7 +11,19 @@
         $tp = $this->dashboard->getTahunActive();
         $smt = $this->dashboard->getSemesterActive();
         $id = (int) $this->input->post('id_jadwal');
-        $result = $tp && $smt ? $this->cbt->saveJadwalUjian($tp->id_tp, $smt->id_smt) : FALSE;
+        $slots = NULL;
+        if ($this->ion_auth->is_admin() && $this->input->post('slots_json') !== NULL) {
+            $rawSlots = $this->input->post('slots_json');
+            $slots = is_string($rawSlots) ? json_decode($rawSlots, TRUE) : FALSE;
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($slots)) {
+                return $this->output_json(['success' => FALSE, 'message' => 'Format slot jadwal tidak valid.']);
+            }
+        }
+        try {
+            $result = $tp && $smt ? $this->cbt->saveJadwalUjian($tp->id_tp, $smt->id_smt, $slots) : FALSE;
+        } catch (InvalidArgumentException $error) {
+            return $this->output_json(['success' => FALSE, 'message' => $error->getMessage()]);
+        }
         if ($result) {
             $this->load->model('Log_model', 'logging');
             $this->logging->saveLog($id ? 4 : 3, $id ? 'mengedit jadwal ujian' : 'menambah jadwal ujian');

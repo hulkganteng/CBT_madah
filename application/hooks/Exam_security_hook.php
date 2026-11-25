@@ -146,7 +146,9 @@ class Exam_security_hook
         if (!$this->withinScheduleDate($schedule)) {
             $this->deny('Ujian berada di luar rentang jadwal.', 403);
         }
-        $this->withinSessionWindow($schedule, $student->id_siswa, $method);
+        if (!$this->checkScheduleSlot($schedule, $student, $method)) {
+            $this->withinSessionWindow($schedule, $student->id_siswa, $method);
+        }
 
         if ($method === 'konfirmasi') {
             return;
@@ -1519,6 +1521,43 @@ class Exam_security_hook
     {
         $today = date('Y-m-d');
         return $today >= $schedule->tgl_mulai && $today <= $schedule->tgl_selesai;
+    }
+
+    private function checkScheduleSlot($schedule, $student, $method)
+    {
+        if (!in_array($method, ['konfirmasi', 'validasisiswa', 'penilaian'], TRUE)) {
+            return FALSE;
+        }
+        $this->ci->load->library('Exam_schedule_slots');
+        $service = $this->ci->exam_schedule_slots;
+        if (!$service->forSchedule($schedule->id_jadwal)) {
+            return FALSE;
+        }
+        if ((int) $schedule->id_tp !== (int) $student->id_tp || (int) $schedule->id_smt !== (int) $student->id_smt) {
+            $this->deny('Jadwal ujian berada di luar periode aktif siswa.', 403);
+        }
+        $now = Exam_schedule_slots::now();
+        $context = $service->studentContext($student->id_siswa, $schedule->id_tp, $schedule->id_smt);
+        $date = $now->format('Y-m-d');
+        $plan = $service->periodSlots($schedule->id_tp, $schedule->id_smt, $date);
+        $today = $service->assignedSlots($plan, $context)[$date] ?? [];
+        $slot = $today[$schedule->id_jadwal] ?? NULL;
+
+        $attempt = $this->service->attempt($student->id_siswa, $schedule->id_jadwal);
+        list($canResume) = $this->service->validateActiveAttempt($attempt);
+        if ($canResume) {
+            return TRUE;
+        }
+        if (!$slot || !$service->bankAvailable($slot, $student)) {
+            $this->deny('Jadwal ini tidak tersedia untuk sesi dan kelompok Anda hari ini.', 403);
+        }
+        if ($method !== 'konfirmasi') {
+            $reason = $service->startBlock($slot, $today, $student, $now);
+            if ($reason !== NULL) {
+                $this->deny($reason, 403);
+            }
+        }
+        return TRUE;
     }
 
     /**

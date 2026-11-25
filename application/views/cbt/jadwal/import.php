@@ -7,7 +7,10 @@
     </section>
     <section class="content">
         <div class="container-fluid">
-            <div class="alert alert-info">Gunakan kode bank soal dan kode jenis ujian. Seluruh baris harus valid sebelum dapat disimpan.</div>
+            <div class="alert alert-info">Gunakan kode bank soal dan kode jenis ujian. Seluruh baris harus valid sebelum dapat disimpan.
+                Untuk jadwal per sesi, isi tanggal sesi, kode sesi, jenis sasaran (<code>rombel</code>, <code>peminatan</code>, atau <code>program_mak</code>), kode sasaran, urutan mapel, dan jam buka WIB (misalnya <code>07:45</code>).
+                Gunakan lembar <b>Kode Sesi dan Sasaran</b> di template. Isi <code>1</code> pada <code>wajib_mapel_pertama</code> untuk mensyaratkan urutan 1, atau pada <code>ubah_sesi</code> untuk memindahkan sasaran pada tanggal tersebut.
+                Ulangi bank dan jenis ujian untuk menambahkan slot lain dengan pengaturan ujian yang sama. Kosongkan kolom sesi untuk jadwal biasa.</div>
             <div class="row">
                 <div class="col-lg-4">
                     <div class="card my-shadow">
@@ -52,10 +55,13 @@ $(function () {
                     $.each(result.errors || ['File tidak valid.'], function (_, error) { preview.find('ul').append($('<li>').text(error)); });
                     return;
                 }
-                const table = $('<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Baris</th><th>Bank</th><th>Jenis</th><th>Mulai</th><th>Selesai</th><th>Durasi</th></tr></thead><tbody></tbody></table></div>');
+                const table = $('<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Baris</th><th>Bank</th><th>Jenis</th><th>Mulai</th><th>Selesai</th><th>Durasi</th><th>Tanggal sesi</th><th>Sesi</th><th>Sasaran</th><th>Urutan</th><th>Buka WIB</th><th>Wajib mapel 1</th><th>Ubah sesi</th></tr></thead><tbody></tbody></table></div>');
                 $.each(result.rows, function (_, row) {
                     const tr = $('<tr>');
-                    $.each([row._row, row.kode_bank, row.kode_jenis, row.tanggal_mulai, row.tanggal_selesai, row.durasi], function (_, value) { tr.append($('<td>').text(value)); });
+                    $.each([row._row, row.kode_bank, row.kode_jenis, row.tanggal_mulai, row.tanggal_selesai, row.durasi, row.tanggal_sesi, row.kode_sesi,
+                        [row.jenis_sasaran, row.kode_sasaran].filter(Boolean).join(' / '), row.urutan_mapel, row.jam_buka_wib,
+                        row.tanggal_sesi ? (row.wajib_mapel_pertama === '1' ? 'Ya' : 'Tidak') : '',
+                        row.tanggal_sesi ? (row.ubah_sesi === '1' ? 'Ya' : 'Tidak') : ''], function (_, value) { tr.append($('<td>').text(value)); });
                     table.find('tbody').append(tr);
                 });
                 preview.empty().append(table);

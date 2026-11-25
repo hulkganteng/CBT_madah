@@ -24,7 +24,8 @@ final class Phase7P2RetentionTest extends TestCase
     public function testMigrationVersionUpdatedToP2(): void
     {
         $content = file_get_contents(dirname(__DIR__) . '/application/config/migration.php');
-        self::assertMatchesRegularExpression('/\$config\[\'migration_version\'\]\s*=\s*20261111000[3-9]00;/', $content);
+        self::assertSame(1, preg_match("/migration_version'\\]\\s*=\\s*(\\d+)/", $content, $match));
+        self::assertGreaterThanOrEqual(20261111000300, (int) $match[1]);
     }
 
     public function testCleanupToolExistsAndHasCliHelp(): void

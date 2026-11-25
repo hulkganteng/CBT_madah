@@ -10,7 +10,39 @@ $arrGuru = [];
 foreach ($guru as $g) {
     $arrGuru[$g->id_guru] = $g->nama_guru;
 }
-$this->load->library('Student_exam_eligibility');
+$this->load->library(['Student_exam_eligibility', 'Exam_schedule_slots']);
+
+$slotService = $this->exam_schedule_slots;
+$plan = $slotService->periodSlots($tp_active->id_tp, $smt_active->id_smt);
+$studentSlots = [];
+if ($plan) {
+    $scheduled = array_fill_keys(array_column($plan, 'id_jadwal'), TRUE);
+    foreach ($cbt_jadwal as $date => $day) {
+        $cbt_jadwal[$date] = array_filter($day, static function ($schedule) use ($scheduled) {
+            return !isset($scheduled[$schedule->id_jadwal]);
+        });
+        if (!$cbt_jadwal[$date]) {
+            unset($cbt_jadwal[$date]);
+        }
+    }
+    $nowWib = Exam_schedule_slots::now();
+    $todayWib = $nowWib->format('Y-m-d');
+    $context = $slotService->studentContext($siswa->id_siswa, $tp_active->id_tp, $smt_active->id_smt);
+    foreach ($slotService->assignedSlots($plan, $context) as $date => $day) {
+        uasort($day, static function ($left, $right) {
+            return [$left['urutan'], $left['jam_buka']] <=> [$right['urutan'], $right['jam_buka']];
+        });
+        foreach ($day as $id => $slot) {
+            if (!$slotService->bankAvailable($slot, $siswa)
+                || !$this->student_exam_eligibility->isEligible($siswa->id_siswa, $id)) {
+                continue;
+            }
+            $slot['block_reason'] = $date === $todayWib
+                ? $slotService->startBlock($slot, $day, $siswa, $nowWib) : NULL;
+            $studentSlots[$date][$id] = $slot;
+        }
+    }
+}
 
 $jam_pertama = null;
 $jadwal_selesai = [];
@@ -61,7 +93,12 @@ $jadwal_selesai = [];
                                                 <ul class="list-group list-group-unbordered">
                                                     <?php
                                                     $arrTitle = ['No. Peserta', 'Ruang', 'Sesi', 'Dari', 'Sampai'];
-                                                    $arrSub = [$cbt_info->no_peserta->nomor_peserta, $cbt_info->nama_ruang, $cbt_info->nama_sesi, substr($cbt_info->waktu_mulai, 0, -3), substr($cbt_info->waktu_akhir, 0, -3)];
+                                                    $currentSlots = $studentSlots[$todayWib ?? ''] ?? [];
+                                                    $currentSlot = reset($currentSlots);
+                                                    if ($currentSlot && (int) $currentSlot['id_sesi'] !== (int) $cbt_info->id_sesi) {
+                                                        $arrTitle = ['No. Peserta', 'Ruang semester', 'Sesi semester', 'Dari (semester)', 'Sampai (semester)'];
+                                                    }
+                                                    $arrSub = [$cbt_info->no_peserta->nomor_peserta ?? NULL, $cbt_info->nama_ruang, $cbt_info->nama_sesi, substr((string) $cbt_info->waktu_mulai, 0, -3), substr((string) $cbt_info->waktu_akhir, 0, -3)];
                                                     foreach ($arrTitle as $key => $title) :
                                                         if ($arrSub[$key] == null) array_push($cbt_setting, $title)
                                                         ?>
@@ -71,6 +108,12 @@ $jadwal_selesai = [];
                                                         </li>
                                                     <?php
                                                     endforeach; ?>
+                                                    <?php if ($currentSlot && (int) $currentSlot['id_sesi'] !== (int) $cbt_info->id_sesi) : ?>
+                                                        <li class="list-group-item p-1">
+                                                            Sesi ujian hari ini
+                                                            <span class="float-right"><b><?= html_escape($currentSlot['nama_sesi']) ?></b></span>
+                                                        </li>
+                                                    <?php endif; ?>
                                                 </ul>
                                             </div>
                                         </div>
@@ -104,6 +147,10 @@ $jadwal_selesai = [];
                     </div>
                 </div>
 
+                <?php if ($studentSlots) {
+                    $this->load->view('members/siswa/cbt/_session_slots', ['studentSlots' => $studentSlots, 'todayWib' => $todayWib]);
+                } ?>
+                <?php if (!$studentSlots || isset($cbt_jadwal[date('Y-m-d')])) : ?>
                 <div class="col-12">
                     <div class="card my-shadow">
                         <div class="card-header">
@@ -272,6 +319,9 @@ $jadwal_selesai = [];
                     </div>
                 </div>
 
+                <?php endif; ?>
+
+                <?php if (!$studentSlots || array_diff(array_keys($cbt_jadwal), [date('Y-m-d')])) : ?>
                 <div class="col-12">
                     <div class="card my-shadow">
                         <div class="card-header">
@@ -401,6 +451,7 @@ $jadwal_selesai = [];
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
     </section>
