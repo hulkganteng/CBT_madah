@@ -64,8 +64,7 @@ class Examguard extends CI_Controller
         $this->respond(array(
             'status' => TRUE,
             'deadline_at' => $attempt->deadline_at,
-            'sisa_detik' => max(0, strtotime($attempt->deadline_at) - time())
-        ));
+        ) + $this->exam_attempt_service->timing($attempt));
     }
 
     public function event()

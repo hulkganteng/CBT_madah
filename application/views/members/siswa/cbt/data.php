@@ -28,7 +28,15 @@ if ($plan) {
     $nowWib = Exam_schedule_slots::now();
     $todayWib = $nowWib->format('Y-m-d');
     $context = $slotService->studentContext($siswa->id_siswa, $tp_active->id_tp, $smt_active->id_smt);
-    foreach ($slotService->assignedSlots($plan, $context) as $date => $day) {
+    $assigned = $slotService->assignedSlots($plan, $context);
+    $todayAttempts = [];
+    if (!empty($assigned[$todayWib])) {
+        $this->load->library('Exam_attempt_service');
+        $attempts = $this->db->where('id_siswa', $siswa->id_siswa)
+            ->where_in('id_jadwal', array_keys($assigned[$todayWib]))->get('cbt_exam_attempt')->result();
+        $todayAttempts = array_column($attempts, NULL, 'id_jadwal');
+    }
+    foreach ($assigned as $date => $day) {
         uasort($day, static function ($left, $right) {
             return [$left['urutan'], $left['jam_buka']] <=> [$right['urutan'], $right['jam_buka']];
         });
@@ -37,8 +45,16 @@ if ($plan) {
                 || !$this->student_exam_eligibility->isEligible($siswa->id_siswa, $id)) {
                 continue;
             }
-            $slot['block_reason'] = $date === $todayWib
-                ? $slotService->startBlock($slot, $day, $siswa, $nowWib) : NULL;
+            $slot['can_resume'] = FALSE;
+            $slot['block_reason'] = NULL;
+            if ($date === $todayWib) {
+                $attempt = $todayAttempts[$id] ?? NULL;
+                if ($attempt) {
+                    list($slot['can_resume'], $slot['block_reason']) = $this->exam_attempt_service->validateActiveAttempt($attempt);
+                } else {
+                    $slot['block_reason'] = $slotService->startBlock($slot, $day, $siswa, $nowWib);
+                }
+            }
             $studentSlots[$date][$id] = $slot;
         }
     }

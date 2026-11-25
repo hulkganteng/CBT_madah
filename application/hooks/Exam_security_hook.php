@@ -5,6 +5,7 @@ class Exam_security_hook
 {
     private $ci;
     private $service;
+    private $confirmedExam;
 
     public function beforeController()
     {
@@ -143,10 +144,12 @@ class Exam_security_hook
         if (!$eligible) {
             $this->deny($eligibilityReason, 403);
         }
-        if (!$this->withinScheduleDate($schedule)) {
+        $attempt = $this->service->attempt($student->id_siswa, $idJadwal);
+        if (!$this->withinScheduleDate($schedule) && !($method === 'selesaiujian' && $attempt)) {
             $this->deny('Ujian berada di luar rentang jadwal.', 403);
         }
-        if (!$this->checkScheduleSlot($schedule, $student, $method)) {
+        list($canResume) = $this->service->validateActiveAttempt($attempt);
+        if (!$this->checkScheduleSlot($schedule, $student, $method, $canResume) && !$canResume) {
             $this->withinSessionWindow($schedule, $student->id_siswa, $method);
         }
 
@@ -156,9 +159,7 @@ class Exam_security_hook
 
         $seb = $this->service->verifySeb($schedule);
         if (!$seb['ok'] && $method === 'penilaian') {
-            $resume = $this->service->attempt($student->id_siswa, $idJadwal);
-            list($canResume) = $this->service->validateActiveAttempt($resume);
-            if ($canResume && (int) $resume->seb_verified === 1) {
+            if ($canResume && (int) $attempt->seb_verified === 1) {
                 $seb = array('ok' => TRUE, 'mode' => 'REQUIRED', 'verified' => TRUE, 'reason' => NULL);
             }
         }
@@ -176,15 +177,21 @@ class Exam_security_hook
                 if (!$active) {
                     $this->deny($reason, 403);
                 }
-                list($bound, $reason) = $this->service->bindSession($existing);
-                if (!$bound) {
-                    $this->deny($reason, 409);
+                if (!$this->service->awaitingSessionReset($existing)) {
+                    list($bound, $reason) = $this->service->bindSession($existing);
+                    if (!$bound) {
+                        $this->deny($reason, 409);
+                    }
+                } else {
+                    $this->confirmedExam = [$student, $schedule, $seb['verified']];
                 }
                 if (!$this->ci->db->where(array('id_siswa' => $student->id_siswa,
                     'id_jadwal' => $idJadwal, 'id_bank' => $schedule->id_bank))
                     ->count_all_results('cbt_soal_siswa')) {
                     $this->deny('Mapping ujian tidak ditemukan. Hubungi pengawas.', 409);
                 }
+            } else {
+                $this->confirmedExam = [$student, $schedule, $seb['verified']];
             }
             return;
         }
@@ -198,6 +205,7 @@ class Exam_security_hook
             if (!$bound) {
                 $this->deny($bindReason, 409);
             }
+            $this->ci->load->vars('exam_timing', $this->service->timing($attempt));
             return;
         }
 
@@ -212,7 +220,6 @@ class Exam_security_hook
             }
         }
 
-        $attempt = $this->service->attempt($student->id_siswa, $idJadwal);
         if ($method === 'selesaiujian' && $attempt && $attempt->status === 'SUBMITTED') {
             $nonce = (string) $this->ci->session->userdata('exam_nonce_' . $attempt->attempt_id);
             if ($nonce !== '' && hash_equals((string) $attempt->session_nonce, $nonce)) {
@@ -1215,6 +1222,23 @@ class Exam_security_hook
             return;
         }
 
+        if ($controller === 'siswa' && $method === 'validasisiswa' && $this->confirmedExam) {
+            $payload = json_decode($this->ci->output->get_output());
+            if (!empty($payload->token) && !empty($payload->izinkan) && !empty($payload->ada_waktu)
+                && !empty($payload->support) && !empty($payload->jml_soal)) {
+                $attempt = $this->service->createOrResume(...$this->confirmedExam);
+                list($active, $reason) = $this->service->validateActiveAttempt($attempt);
+                if (!$active) {
+                    $this->deny($reason, 409);
+                }
+                list($bound, $reason) = $this->service->bindSession($attempt, TRUE);
+                if (!$bound) {
+                    $this->deny($reason, 409);
+                }
+            }
+            return;
+        }
+
         if ($controller === 'cbtjadwal' && $method === 'savejadwal') {
             $payload = json_decode($this->ci->output->get_output());
             if ($payload && !empty($payload->success)) {
@@ -1523,7 +1547,7 @@ class Exam_security_hook
         return $today >= $schedule->tgl_mulai && $today <= $schedule->tgl_selesai;
     }
 
-    private function checkScheduleSlot($schedule, $student, $method)
+    private function checkScheduleSlot($schedule, $student, $method, $canResume)
     {
         if (!in_array($method, ['konfirmasi', 'validasisiswa', 'penilaian'], TRUE)) {
             return FALSE;
@@ -1536,6 +1560,9 @@ class Exam_security_hook
         if ((int) $schedule->id_tp !== (int) $student->id_tp || (int) $schedule->id_smt !== (int) $student->id_smt) {
             $this->deny('Jadwal ujian berada di luar periode aktif siswa.', 403);
         }
+        if ($canResume) {
+            return TRUE;
+        }
         $now = Exam_schedule_slots::now();
         $context = $service->studentContext($student->id_siswa, $schedule->id_tp, $schedule->id_smt);
         $date = $now->format('Y-m-d');
@@ -1543,11 +1570,6 @@ class Exam_security_hook
         $today = $service->assignedSlots($plan, $context)[$date] ?? [];
         $slot = $today[$schedule->id_jadwal] ?? NULL;
 
-        $attempt = $this->service->attempt($student->id_siswa, $schedule->id_jadwal);
-        list($canResume) = $this->service->validateActiveAttempt($attempt);
-        if ($canResume) {
-            return TRUE;
-        }
         if (!$slot || !$service->bankAvailable($slot, $student)) {
             $this->deny('Jadwal ini tidak tersedia untuk sesi dan kelompok Anda hari ini.', 403);
         }

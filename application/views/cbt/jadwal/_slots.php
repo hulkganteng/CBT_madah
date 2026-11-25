@@ -10,7 +10,7 @@ $savedSlots = $this->exam_schedule_slots->forSchedule($jadwal->id_jadwal);
     <legend class="w-auto px-2 h6">Jadwal per Sesi dan Kelompok Peserta</legend>
     <p class="small text-muted mb-2">Tanpa slot, ujian mengikuti jadwal biasa. Tambahkan slot untuk setiap tanggal, sesi, dan sasaran yang memakai bank soal ini. Siswa dapat mulai dari jam buka slot hingga akhir sesi. Isi 07:45 WIB jika mapel kedua harus buka 15 menit sebelum pergantian pukul 08:00.</p>
     <p class="small text-muted">Syarat mapel pertama mencari urutan 1 pada tanggal, sesi, jenis ujian, dan tingkat yang sama, dengan mengutamakan sasaran yang sama. Centang <b>Ubah sesi pada tanggal ini</b> untuk memindahkan sasaran ke sesi tersebut pada hari itu. Ulangi untuk setiap rombel yang dipindah.</p>
-    <input type="hidden" name="slots_json" id="slots-json" value="[]">
+    <input type="hidden" name="slots_json" id="slots-json" disabled>
     <div id="jadwal-slots"></div>
     <button type="button" class="btn btn-sm btn-outline-primary" id="tambah-slot"><i class="fas fa-plus mr-1"></i>Tambah Slot</button>
 </fieldset>
@@ -94,6 +94,7 @@ $savedSlots = $this->exam_schedule_slots->forSchedule($jadwal->id_jadwal);
             });
             return slot;
         }));
+        payload.disabled = false;
     }, true);
 })();
 </script>

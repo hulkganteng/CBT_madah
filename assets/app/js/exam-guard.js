@@ -8,7 +8,8 @@
         configKeyHash: '',
         requestHash: '',
         sebVersion: '',
-        heartbeatTimer: null
+        heartbeatTimer: null,
+        heartbeatInFlight: false
     };
 
     function readSebKeys(done) {
@@ -91,10 +92,13 @@
     }
 
     function heartbeat() {
+        if (!state.active || state.heartbeatInFlight) return;
+        state.heartbeatInFlight = true;
         $.ajax({
             url: base_url + 'examguard/heartbeat',
             method: 'POST',
             dataType: 'json',
+            timeout: 15000,
             data: {jadwal: state.scheduleId}
         }).done(function (result) {
             if (result && result.submitted === true) {
@@ -118,6 +122,8 @@
                 window.alert(result.message || 'Sesi ujian Anda telah dihentikan.');
                 window.location.href = base_url + 'siswa/cbt';
             }
+        }).always(function () {
+            state.heartbeatInFlight = false;
         });
     }
 

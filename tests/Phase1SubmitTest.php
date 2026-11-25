@@ -75,6 +75,35 @@ final class Phase1SubmitTest extends TestCase
         self::assertSame(0, $db->progressUpdates);
     }
 
+    public function testAutomaticSubmitWaitsForTheDeadlineAfterAProctorExtendsIt(): void
+    {
+        $db = new Phase1SubmitDb();
+        $db->attempt = (object) [
+            'status' => 'IN_PROGRESS',
+            'started_at' => date('Y-m-d H:i:s', time() - 600),
+            'deadline_at' => date('Y-m-d H:i:s', time() + 300),
+            'extra_minutes' => 5,
+        ];
+        $controller = $this->controller($db, TRUE);
+        $controller->input->data['waktu_habis'] = '1';
+        require_once dirname(__DIR__) . '/application/libraries/Exam_attempt_service.php';
+        $controller->exam_attempt_service = (new ReflectionClass(Exam_attempt_service::class))->newInstanceWithoutConstructor();
+
+        $controller->selesaiUjian();
+
+        self::assertFalse($controller->response['status']);
+        self::assertGreaterThan(0, $controller->response['timing']['sisa_detik']);
+        self::assertSame(0, $controller->gradingCalls);
+        self::assertTrue($db->rolledBack);
+
+        $db->attempt->deadline_at = date('Y-m-d H:i:s', time() - 1);
+        $controller->selesaiUjian();
+
+        self::assertTrue($controller->response['status_nilai']);
+        self::assertSame(1, $controller->gradingCalls);
+        self::assertTrue($db->committed);
+    }
+
     public function testFinishedDurationWithoutGradeIsRepaired(): void
     {
         $db = new Phase1SubmitDb();
@@ -251,6 +280,8 @@ class Phase1SubmitInput
 
 class Phase1SubmitLoader
 {
+    public function library($name) {}
+
     public function model(...$args)
     {
     }
@@ -258,6 +289,7 @@ class Phase1SubmitLoader
 
 class Phase1SubmitDb
 {
+    public $attempt = NULL;
     public $status = 1;
     public $updateResult = TRUE;
     public $attemptUpdateResult = TRUE;
@@ -277,6 +309,9 @@ class Phase1SubmitDb
 
     public function query($sql, $args)
     {
+        if (strpos($sql, 'FROM cbt_exam_attempt') !== FALSE) {
+            return new Phase1SubmitResult($this->attempt);
+        }
         return new Phase1SubmitResult((object) ['id_siswa' => 1, 'status' => $this->status, 'id_nilai' => '1010']);
     }
 

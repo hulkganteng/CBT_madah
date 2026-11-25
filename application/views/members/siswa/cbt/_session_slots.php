@@ -26,12 +26,12 @@
                                     Sudah berakhir
                                 <?php elseif ($date > $todayWib) : ?>
                                     Belum dimulai
-                                <?php elseif ($reason !== NULL && !$duration) : ?>
+                                <?php elseif ($reason !== NULL) : ?>
                                     <?= html_escape($reason) ?>
                                     <a href="<?= base_url('siswa/konfirmasi/' . (int) $id) ?>" class="btn btn-outline-secondary btn-sm d-block mt-1">Buka konfirmasi</a>
                                 <?php else : ?>
                                     <a href="<?= base_url('siswa/konfirmasi/' . (int) $id) ?>" class="btn btn-primary btn-sm">
-                                        <?= $duration ? 'Lanjutkan' : 'Kerjakan' ?>
+                                        <?= $slot['can_resume'] || $duration ? 'Lanjutkan' : 'Kerjakan' ?>
                                     </a>
                                 <?php endif; ?>
                             </td>

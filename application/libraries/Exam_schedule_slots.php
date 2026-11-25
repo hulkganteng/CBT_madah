@@ -68,6 +68,17 @@ class Exam_schedule_slots
         return $this->ci->db->table_exists('cbt_jadwal_slot');
     }
 
+    public function lockActivePeriod($year, $semester)
+    {
+        $db = $this->ci->db;
+        $activeYear = $db->query('SELECT id_tp FROM master_tp WHERE id_tp = ? AND active = 1 FOR UPDATE', [$year]);
+        if (!$activeYear || !$activeYear->num_rows()) {
+            return FALSE;
+        }
+        $activeSemester = $db->query('SELECT id_smt FROM master_smt WHERE id_smt = ? AND active = 1 FOR UPDATE', [$semester]);
+        return $activeSemester && $activeSemester->num_rows() > 0;
+    }
+
     public function options($year, $semester)
     {
         $db = $this->ci->db;

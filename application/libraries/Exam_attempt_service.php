@@ -144,19 +144,42 @@ class Exam_attempt_service
         return array(TRUE, NULL);
     }
 
-    /**
-     * FR-20 + NFR "satu akun satu PC": perangkat TIDAK diikat permanen.
-     * PC pengganti boleh mengambil alih, tapi hanya bila PC lama sudah diam
-     * (heartbeat basi) — kalau PC lama masih hidup, pengambilalihan ditolak
-     * supaya akun tidak bisa dipakai dua PC sekaligus.
-     */
-    public function bindSession($attempt)
+    public function awaitingSessionReset($attempt)
+    {
+        return $attempt->last_heartbeat_at === NULL;
+    }
+
+    public function bindSession($attempt, $confirmed = FALSE)
     {
         $key = 'exam_nonce_' . $attempt->attempt_id;
         $bound = (string) $this->ci->session->userdata($key);
 
         if ($bound !== '' && hash_equals((string) $attempt->session_nonce, $bound)) {
             return array(TRUE, NULL);
+        }
+
+        if ($this->awaitingSessionReset($attempt)) {
+            if ($confirmed) {
+                $nonce = bin2hex(random_bytes(32));
+                $now = date('Y-m-d H:i:s');
+                $saved = $this->ci->db->where([
+                    'attempt_id' => $attempt->attempt_id,
+                    'session_nonce' => $attempt->session_nonce,
+                    'status' => 'IN_PROGRESS',
+                    'last_heartbeat_at' => NULL,
+                    'kicked_at' => NULL,
+                ])->update('cbt_exam_attempt', [
+                    'session_nonce' => $nonce, 'last_heartbeat_at' => $now, 'updated_at' => $now,
+                ]);
+                if ($saved && $this->ci->db->affected_rows() === 1) {
+                    $this->ci->session->set_userdata($key, $nonce);
+                    return array(TRUE, NULL);
+                }
+            }
+            return array(FALSE, 'Konfirmasi ujian kembali setelah Reset Login dari pengawas.');
+        }
+        if ($bound !== '') {
+            return array(FALSE, 'Sesi ini sudah diganti melalui Reset Login.');
         }
 
         /* Perangkat atau sesi baru tidak lagi boleh mengambil alih attempt
@@ -167,18 +190,19 @@ class Exam_attempt_service
         return array(FALSE, 'Ujian ini terkunci karena terdeteksi perangkat/sesi lain. Hubungi pengawas untuk Reset Login.');
     }
 
-    private function sessionIdle($attempt, $seconds = 60)
-    {
-        if (empty($attempt->last_heartbeat_at)) {
-            return TRUE;
-        }
-        return (time() - strtotime($attempt->last_heartbeat_at)) > $seconds;
-    }
-
     public function elapsed($attempt)
     {
-        $seconds = max(0, time() - strtotime($attempt->started_at) - ((int) ($attempt->extra_minutes ?? 0) * 60));
+        $seconds = $this->timing($attempt)['elapsed_seconds'];
         return sprintf('%02d:%02d:%02d', floor($seconds / 3600), floor(($seconds % 3600) / 60), $seconds % 60);
+    }
+
+    public function timing($attempt)
+    {
+        $now = time();
+        return [
+            'sisa_detik' => max(0, strtotime($attempt->deadline_at ?? '') - $now),
+            'elapsed_seconds' => max(0, $now - strtotime($attempt->started_at) - ((int) ($attempt->extra_minutes ?? 0) * 60)),
+        ];
     }
 
     public function ownsQuestion($idSoalSiswa, $idSiswa, $idJadwal, $idBank)
@@ -517,12 +541,17 @@ class Exam_attempt_service
             return array(FALSE, 'Koneksi heartbeat terputus lebih dari 90 detik. Ujian dikunci, hubungi pengawas.');
         }
 
-        $this->ci->db->where('attempt_id', $attempt->attempt_id)->update('cbt_exam_attempt', array(
+        $saved = $this->ci->db->where([
+            'attempt_id' => $attempt->attempt_id,
+            'session_nonce' => $attempt->session_nonce,
+            'status' => 'IN_PROGRESS',
+            'kicked_at' => NULL,
+        ])->update('cbt_exam_attempt', array(
             'last_heartbeat_at' => date('Y-m-d H:i:s', $now),
             'seb_verified' => $sebVerified ? 1 : (int) $attempt->seb_verified,
             'updated_at' => date('Y-m-d H:i:s', $now)
         ));
-        return array(TRUE, NULL);
+        return $saved ? array(TRUE, NULL) : array(FALSE, 'Status koneksi ujian gagal disimpan.');
     }
 
     /**
@@ -536,14 +565,25 @@ class Exam_attempt_service
         }
         $minutes = max(1, min(120, (int) $minutes));
 
-        /* Baca ulang attempt di dalam transaksi supaya dua proktor yang
-           menambah waktu bersamaan tidak menimpa total satu sama lain. */
-        $this->ci->db->trans_begin();
-        $locked = $this->ci->db->query(
+        if (!$this->ci->db->trans_begin()) {
+            return FALSE;
+        }
+        /* Pengumpulan ujian mengunci durasi lebih dahulu, lalu attempt. */
+        $duration = $this->ci->db->query(
+            'SELECT id_durasi, mulai FROM cbt_durasi_siswa WHERE id_durasi = ? FOR UPDATE',
+            [(int) $attempt->id_siswa . '0' . (int) $attempt->id_jadwal]
+        );
+        if (!$duration) {
+            $this->ci->db->trans_rollback();
+            return FALSE;
+        }
+        $legacy = $duration->row();
+        $result = $this->ci->db->query(
             'SELECT deadline_at, extra_minutes FROM cbt_exam_attempt
              WHERE attempt_id = ? AND status = ? FOR UPDATE',
             array($attempt->attempt_id, 'IN_PROGRESS')
-        )->row();
+        );
+        $locked = $result ? $result->row() : NULL;
         if (!$locked) {
             $this->ci->db->trans_rollback();
             return FALSE;
@@ -558,13 +598,7 @@ class Exam_attempt_service
             'updated_at' => date('Y-m-d H:i:s')
         ));
 
-        /* Timer client dihitung dari cbt_durasi_siswa.mulai (checkTimer), jadi
-           mulai digeser maju — bukan lama_ujian dikurangi, karena checkTimer
-           menghitung ulang dari mulai dan akan menimpa nilai itu. */
-        $legacy = $this->ci->db->get_where('cbt_durasi_siswa', array(
-            'id_siswa' => (int) $attempt->id_siswa,
-            'id_jadwal' => (int) $attempt->id_jadwal
-        ))->row();
+        /* Validasi legacy menghitung waktu dari cbt_durasi_siswa.mulai. */
         if ($legacy && !empty($legacy->mulai) && strtotime($legacy->mulai)) {
             $this->ci->db->where('id_durasi', $legacy->id_durasi)->update('cbt_durasi_siswa', array(
                 'mulai' => date('Y-m-d H:i:s', strtotime($legacy->mulai . ' +' . $minutes . ' minutes'))
@@ -573,11 +607,10 @@ class Exam_attempt_service
 
         $this->recordEvent($attempt, 'TIME_EXTENDED', array('minutes' => $minutes, 'reason' => (string) $reason));
 
-        if ($this->ci->db->trans_status() === FALSE) {
+        if ($this->ci->db->trans_status() === FALSE || !$this->ci->db->trans_commit()) {
             $this->ci->db->trans_rollback();
             return FALSE;
         }
-        $this->ci->db->trans_commit();
         return TRUE;
     }
 
@@ -604,11 +637,10 @@ class Exam_attempt_service
         if (!$attempt) {
             return FALSE;
         }
-        /* last_heartbeat_at dikosongkan supaya bindSession() mengizinkan
-           perangkat mana pun mengikat ulang setelah proktor membuka tendangan. */
         $this->ci->db->where('attempt_id', $attempt->attempt_id)->update('cbt_exam_attempt', array(
             'kicked_at' => NULL,
             'last_heartbeat_at' => NULL,
+            'session_nonce' => bin2hex(random_bytes(32)),
             'updated_at' => date('Y-m-d H:i:s')
         ));
         $this->recordEvent($attempt, 'PROCTOR_UNKICK');

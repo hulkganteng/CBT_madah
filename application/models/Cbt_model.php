@@ -410,8 +410,9 @@
             return FALSE;
         }
 
-        $period = $this->db->query('SELECT id_tp FROM master_tp WHERE id_tp = ? FOR UPDATE', [$id_tp]);
-        if (!$period || !$period->num_rows()) {
+        $this->load->library('Exam_schedule_slots');
+        $slotService = $this->exam_schedule_slots;
+        if (!$slotService->lockActivePeriod($id_tp, $id_smt)) {
             $this->db->trans_rollback();
             return FALSE;
         }
@@ -447,8 +448,6 @@
         foreach (['acak_soal', 'acak_opsi', 'hasil_tampil', 'token', 'status', 'reset_login'] as $field) {
             $data[$field] = (int) ((string) $this->input->post($field) === '1');
         }
-        $this->load->library('Exam_schedule_slots');
-        $slotService = $this->exam_schedule_slots;
         $oldSlots = $slotService->forSchedule($id);
         $slots = $oldSlots;
         try {
@@ -501,7 +500,7 @@
         if ($id) {
             $saved = $this->db->where('id_jadwal', $id)->update('cbt_jadwal', $data);
         } else {
-            $saved = $this->db->insert('cbt_jadwal', $data + ['id_tp' => $id_tp, 'id_smt' => $id_smt]);
+            $saved = $this->db->insert('cbt_jadwal', $data + ['id_tp' => $id_tp, 'id_smt' => $id_smt, 'ulang' => 0]);
             $id = $this->db->insert_id();
         }
         if ($saved && ($slotInput === NULL || $slotService->replace($id, $slots))

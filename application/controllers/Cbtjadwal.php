@@ -14,8 +14,8 @@
         $slots = NULL;
         if ($this->ion_auth->is_admin() && $this->input->post('slots_json') !== NULL) {
             $rawSlots = $this->input->post('slots_json');
-            $slots = is_string($rawSlots) ? json_decode($rawSlots, TRUE) : FALSE;
-            if (json_last_error() !== JSON_ERROR_NONE || !is_array($slots)) {
+            $slots = is_string($rawSlots) && preg_match('/^\s*\[/', $rawSlots) ? json_decode($rawSlots, TRUE) : NULL;
+            if (!is_array($slots)) {
                 return $this->output_json(['success' => FALSE, 'message' => 'Format slot jadwal tidak valid.']);
             }
         }

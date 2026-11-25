@@ -71,7 +71,7 @@
         $data = ['status' => FALSE, 'status_nilai' => FALSE];
         if ($student > 0 && $schedule > 0) {
             $this->load->model('Cbt_model', 'cbt');
-            $data = $this->finishExam($schedule, $student . '0' . $schedule, $student);
+            $data = $this->finishExam($schedule, $student . '0' . $schedule, $student, $this->input->post('waktu_habis') === '1');
         }
         $this->output_json($data);
     }
@@ -85,7 +85,7 @@
         return $result ? $result->row() : NULL;
     }
 
-    private function finishExam($schedule, $id, $expectedStudent = NULL)
+    private function finishExam($schedule, $id, $expectedStudent = NULL, $timedOut = FALSE)
     {
         $data = ['status' => FALSE, 'status_nilai' => FALSE];
         if (!$this->db->trans_begin()) {
@@ -101,6 +101,23 @@
 
             $student = (int) $duration->id_siswa;
             $finished = (int) $duration->status === 2;
+            if ($timedOut && !$finished) {
+                $result = $this->db->query(
+                    'SELECT status, started_at, deadline_at, extra_minutes FROM cbt_exam_attempt WHERE id_jadwal = ? AND id_siswa = ? FOR UPDATE',
+                    [$schedule, $student]
+                );
+                $attempt = $result ? $result->row() : NULL;
+                if (!$attempt || $attempt->status !== 'IN_PROGRESS') {
+                    $this->db->trans_rollback();
+                    return $data;
+                }
+                $this->load->library('Exam_attempt_service');
+                $timing = $this->exam_attempt_service->timing($attempt);
+                if ($timing['sisa_detik'] > 0) {
+                    $this->db->trans_rollback();
+                    return $data + ['timing' => $timing];
+                }
+            }
             $alreadyGraded = $finished && $this->cbt->getNilaiSiswaByJadwal($schedule, $student);
             $saved = $alreadyGraded || (bool) $this->olahNilai($student, $schedule);
             $now = date('Y-m-d H:i:s');

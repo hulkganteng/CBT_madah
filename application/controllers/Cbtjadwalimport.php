@@ -46,7 +46,7 @@ class Cbtjadwalimport extends CI_Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Jadwal');
         $sheet->fromArray(Jadwal_import::headers(), null, 'A1');
-        $sheet->fromArray(array('MTK-XII-01', 'PAS', date('Y-m-d'), date('Y-m-d'), 90, 30, 1, 1, 1, 0, 0, 1), null, 'A2');
+        $sheet->fromArray(array('MTK-XII-01', 'PAS', date('Y-m-d'), date('Y-m-d'), 90, 30, 1, 1, 1, 0, 0, 1), null, 'A2', true);
         $sheet->getStyle('A1:T1')->getFont()->setBold(true);
         foreach (range('A', 'T') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
@@ -138,8 +138,7 @@ class Cbtjadwalimport extends CI_Controller
         if (!$tp || !$smt || !$this->db->trans_begin()) {
             return $this->json(['status' => FALSE, 'message' => 'Periode aktif atau transaksi impor tidak tersedia.']);
         }
-        $period = $this->db->query('SELECT id_tp FROM master_tp WHERE id_tp = ? AND active = 1 FOR UPDATE', [$tp->id_tp]);
-        if (!$period || !$period->num_rows()) {
+        if (!$this->exam_schedule_slots->lockActivePeriod($tp->id_tp, $smt->id_smt)) {
             $this->db->trans_rollback();
             return $this->json(['status' => FALSE, 'message' => 'Periode aktif berubah. Muat ulang pratinjau.']);
         }
@@ -187,6 +186,7 @@ class Cbtjadwalimport extends CI_Controller
                 'hasil_tampil' => $row['tampilkan_hasil'],
                 'reset_login' => $row['reset_izin'],
                 'status' => $row['aktif'],
+                'ulang' => 0,
             );
         }
         $dbDebug = $this->db->db_debug;

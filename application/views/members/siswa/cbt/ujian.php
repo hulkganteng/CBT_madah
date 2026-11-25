@@ -302,7 +302,6 @@
         _minute = _second * 60,
         _hour = _minute * 60,
         _day = _hour * 24;
-    const durasiUjian = Number(infoJadwal.durasi_ujian);
     let dif;
     let fieldLinks;
     let textOffset = 0;
@@ -369,6 +368,20 @@
         $('#exam-connection').text(interrupted ? 'Koneksi ke server terganggu. Tetap di halaman ujian.' : '');
     }
 
+    function postCurrentAnswer() {
+        const formData = new FormData($('#up')[0]);
+        formData.set('data', JSON.stringify(jsonJawaban));
+        if ([4, 5].includes(Number(jsonJawaban.jenis))) formData.set('jawaban', jawabanBaru ?? '');
+        return $.ajax({
+            url: base_url + 'siswa/savejawaban',
+            method: 'POST',
+            timeout: 15000,
+            processData: false,
+            contentType: false,
+            data: formData
+        });
+    }
+
     function saveCurrentAnswer(destination, forNavigation) {
         if (examExpired || examSubmitting || examSubmitted || !jsonJawaban || !jsonJawaban.jenis) return;
         if (destination !== null && destination !== undefined) pendingNavigation = destination;
@@ -390,43 +403,29 @@
             return;
         }
 
-        var siswa = $('#up').find('input[name="siswa"]').val();
-        var bank = $('#up').find('input[name="bank"]').val();
         var savingRevision = answerRevision;
         var savedValue = JSON.parse(JSON.stringify(jawabanBaru));
-        var formData = new FormData($('#jawab')[0]);
-        formData.append('siswa', siswa);
-        formData.append('bank', bank);
-        formData.append('data', JSON.stringify(jsonJawaban));
-        if ([4, 5].includes(Number(jsonJawaban.jenis))) formData.set('jawaban', savedValue ?? '');
 
         answerSaving = true;
         $('#btn-ragu').prop('disabled', true);
         showSaveState('Menyimpan…');
-        const request = $.ajax({
-            url: base_url + 'siswa/savejawaban',
-            method: 'POST',
-            timeout: 15000,
-            processData: false,
-            contentType: false,
-            data: formData
-        });
+        const request = postCurrentAnswer();
         answerRequest = request;
         request.done(function (response) {
-            if (examExpired || examSubmitted) return;
-            showConnection(false);
             if (!response || !response.status) {
                 answerSaveFailed();
                 return;
             }
             savedAnswerRevision = Math.max(savedAnswerRevision, savingRevision);
+            answerSaving = false;
+            if (examExpired || examSubmitted) return;
+            showConnection(false);
             jawabanSiswa = savedValue;
             const status = questionStatuses.get(nomorSoal);
             if (status) {
                 status.answered = hasAnswer(savedValue);
                 updateQuestionStatus(nomorSoal);
             }
-            answerSaving = false;
             showSaveState(hasUnsavedAnswer() ? 'Belum tersimpan' : '✓ Tersimpan', hasUnsavedAnswer() ? '' : 'is-saved');
             if (hasUnsavedAnswer()) {
                 saveCurrentAnswer(pendingNavigation, saveIsForNavigation);
@@ -507,7 +506,7 @@
             $('#plus').prop('disabled', textOffset === 12);
         });
 
-        loadSoalNomor(1);
+        if (!examExpired && !examSubmitted) loadSoalNomor(1);
     });
 
     function goToQuestion(number) {
@@ -542,6 +541,7 @@
             questionRequest = $.ajax({
                 type: 'POST',
                 url: base_url + 'siswa/loadnomorsoal',
+                timeout: 15000,
                 data: dataPost
             }).done(function (data) {
                 if (requestSequence !== questionRequestSequence || examSubmitted) return;
@@ -778,37 +778,28 @@
             }
         });
 
-        $("#jawaban-essai").on('change keyup paste', function () {
+        $("#jawaban-essai").on('input', function () {
             submitJawaban(null);
         });
         if (!data.durasi) {
             window.location.href = base_url + 'siswa/cbt';
         } else {
-            setElapsed(data.durasi);
-
             $('#next').text(nomorSoal === soalTotal ? 'Tinjau jawaban' : 'Berikutnya');
         }
 
     }
 
-    function setElapsed(durasi) {
-        elapsed = durasi.lama_ujian == null || durasi.lama_ujian == '0' ? "00:00:00" : durasi.lama_ujian;
-        startExamCountdown(null);
-    }
-
-    function startExamCountdown(serverRemainingSeconds) {
-        createTimerCountdown(durasiUjian, elapsed.split(':'), function (isOver, remaining, onGoing) {
+    function startExamCountdown(timing) {
+        createTimerCountdown(Number(timing.sisa_detik), Number(timing.elapsed_seconds), function (isOver, remaining, elapsedSeconds) {
             $('#timer').html(remaining);
-            elapsed = onGoing;
-            const [hours, minutes, seconds] = onGoing.split(':').map(Number);
-            const elapsedSeconds = hours * 3600 + minutes * 60 + seconds;
+            elapsed = secondsToClock(elapsedSeconds);
             minimumRemaining = Math.max(0, Math.ceil(minimumSeconds - elapsedSeconds));
             if (isOver) {
                 examTimeEnded = true;
                 if (!examSubmitting && !examSubmitted) submitExpiredExam();
             }
             updateReviewControls();
-        }, serverRemainingSeconds);
+        });
     }
 
     function showExpiredRetry(message, retry, submitSavedAnswers) {
@@ -840,24 +831,18 @@
             questionRequest.abort();
             questionRequest = null;
         }
-        if (answerRequest && answerRequest.readyState !== 4) {
-            answerRequest.abort();
-        }
         setExamBusy(true);
+        if (answerRequest) {
+            answerRequest.always(function () { finishExpiredExam(useSavedAnswers); });
+        } else {
+            finishExpiredExam(useSavedAnswers);
+        }
+    }
 
-        var siswa = $('#up').find('input[name="siswa"]').val();
-        var bank = $('#up').find('input[name="bank"]').val();
-        var jadwal = $('#up').find('input[name="jadwal"]').val();
-        var saveData = $('#jawab').serialize() + '&jadwal=' + encodeURIComponent(jadwal) +
-            '&siswa=' + encodeURIComponent(siswa) + '&bank=' + encodeURIComponent(bank) +
-            '&data=' + encodeURIComponent(JSON.stringify(jsonJawaban || {}));
-
+    function finishExpiredExam(useSavedAnswers) {
+        if (examSubmitted) return;
         var needsSave = !useSavedAnswers && hasUnsavedAnswer() && jsonJawaban && jsonJawaban.jenis;
-        var saveRequest = needsSave ? $.ajax({
-            url: base_url + 'siswa/savejawaban',
-            method: 'POST',
-            data: saveData
-        }) : $.Deferred().resolve({status: true}).promise();
+        var saveRequest = needsSave ? postCurrentAnswer() : $.Deferred().resolve({status: true}).promise();
 
         function retry() { submitExpiredExam(useSavedAnswers); }
         function saveFailed() {
@@ -873,12 +858,23 @@
             }
             if (needsSave) savedAnswerRevision = answerRevision;
             /* Simpan jawaban terakhir lebih dahulu, lalu kumpulkan ujian. */
-            $.post(base_url + 'siswa/selesaiujian', {
-                siswa: siswa,
-                bank: bank,
-                jadwal: jadwal
-            }, null, 'json').done(function (response) {
+            $.ajax({
+                url: base_url + 'siswa/selesaiujian',
+                method: 'POST',
+                dataType: 'json',
+                timeout: 15000,
+                data: $('#up').serialize() + '&waktu_habis=1'
+            }).done(function (response) {
                 timeoutSubmissionInFlight = false;
+                if (response && response.timing && response.timing.sisa_detik > 0) {
+                    examExpired = false;
+                    examTimeEnded = false;
+                    startExamCountdown(response.timing);
+                    if (hasUnsavedAnswer()) scheduleAutosave(0);
+                    if (idSoalSiswa) recoverExamUi();
+                    else loadSoalNomor(1);
+                    return;
+                }
                 if (!response || !response.status || !response.status_nilai) {
                     showExpiredRetry((response && response.message) || 'Server belum dapat menyelesaikan ujian.', retry);
                     return;
@@ -887,7 +883,7 @@
             }).fail(function (xhr) {
                 timeoutSubmissionInFlight = false;
                 console.warn('Gagal mengumpulkan ujian:', xhr.status);
-                showExpiredRetry('Ujian belum berhasil dikumpulkan.', retry);
+                showExpiredRetry(xhr.responseJSON?.message || 'Ujian belum berhasil dikumpulkan.', retry);
             });
         }).fail(saveFailed);
     }
@@ -1353,17 +1349,9 @@
         return {h: endTime.getHours(), m: endTime.getMinutes(), s: endTime.getSeconds()}
     }
 
-    function createTimerCountdown(durasi, elapsedParts, func, serverRemainingSeconds) {
-        const durationSeconds = Number(durasi) * 60;
-        const elapsedAtStart = ((Number(elapsedParts[0]) || 0) * 3600) +
-            ((Number(elapsedParts[1]) || 0) * 60) + (Number(elapsedParts[2]) || 0);
-        const hasServerRemaining = serverRemainingSeconds !== null && serverRemainingSeconds !== undefined &&
-            serverRemainingSeconds !== '' && Number.isFinite(Number(serverRemainingSeconds));
-        const remainingAtStart = hasServerRemaining
-            ? Math.max(0, Number(serverRemainingSeconds))
-            : Math.max(0, durationSeconds - elapsedAtStart);
-        const startedAt = Date.now();
-        const deadlineAt = startedAt + (remainingAtStart * 1000);
+    function createTimerCountdown(remainingAtStart, elapsedAtStart, func) {
+        const startedAt = performance.now();
+        const deadlineAt = startedAt + remainingAtStart * 1000;
 
         tickTimer();
 
@@ -1373,18 +1361,14 @@
                 timerOut = null;
             }
 
-            const remainingSeconds = Math.max(0, Math.ceil((deadlineAt - Date.now()) / 1000));
-            const elapsedSeconds = Math.max(0, elapsedAtStart + Math.floor((Date.now() - startedAt) / 1000));
-            const elapsedFormatted = secondsToClock(elapsedSeconds);
+            const now = performance.now();
+            const remainingSeconds = Math.max(0, Math.ceil((deadlineAt - now) / 1000));
+            const elapsedSeconds = elapsedAtStart + Math.floor((now - startedAt) / 1000);
             if (remainingSeconds <= 0) {
-                if (func && (typeof func == "function")) {
-                    func(true, 'Waktu habis', elapsedFormatted);
-                }
+                func(true, 'Waktu habis', elapsedSeconds);
             } else {
-                if (func && (typeof func == "function")) {
-                    func(false, secondsToClock(remainingSeconds), elapsedFormatted);
-                }
-                timerOut = setTimeout(tickTimer, Math.min(1000, Math.max(100, deadlineAt - Date.now())));
+                func(false, secondsToClock(remainingSeconds), elapsedSeconds);
+                timerOut = setTimeout(tickTimer, Math.min(1000, Math.max(100, deadlineAt - now)));
             }
         }
     }
@@ -1433,9 +1417,9 @@
             showSubmissionReceipt(examTimeEnded);
             return;
         }
-        if (!examExpired && !examSubmitted && !examTimeEnded && idSoalSiswa &&
-            result && result.sisa_detik != null && Number.isFinite(Number(result.sisa_detik))) {
-            startExamCountdown(Number(result.sisa_detik));
+        if (!examExpired && !examSubmitted && result &&
+            Number.isFinite(result.sisa_detik) && Number.isFinite(result.elapsed_seconds)) {
+            startExamCountdown(result);
         }
     });
     window.addEventListener('offline', function () { showConnection(true); });
@@ -1444,6 +1428,8 @@
     });
     if (navigator.onLine === false) showConnection(true);
     ExamGuard.init({scheduleId: <?= (int) $jadwal->id_jadwal ?>, active: true});
+    const initialTiming = <?= json_encode($exam_timing ?? NULL) ?>;
+    if (initialTiming) startExamCountdown(initialTiming);
 
     /* PRD FR-18: penanda ragu-ragu tersimpan di server, ikut saat pindah PC. */
     $(document).on('click', '#btn-ragu', function () {

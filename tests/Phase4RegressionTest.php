@@ -141,6 +141,9 @@ class Phase4FakeDb
 
     public function query($sql, $args = NULL)
     {
+        if (strpos($sql, 'FROM cbt_durasi_siswa') !== FALSE) {
+            return new Phase4FakeResult($this->legacyRow);
+        }
         return new Phase4FakeResult($this->lockedRow
             ? (object) array('deadline_at' => '2026-01-01 10:00:00', 'extra_minutes' => 0)
             : NULL);

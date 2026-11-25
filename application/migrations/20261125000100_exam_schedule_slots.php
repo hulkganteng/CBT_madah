@@ -5,7 +5,7 @@ class Migration_Exam_schedule_slots extends CI_Migration
 {
     public function up()
     {
-        $this->db->query('CREATE TABLE IF NOT EXISTS cbt_jadwal_slot (
+        $created = $this->db->query('CREATE TABLE IF NOT EXISTS cbt_jadwal_slot (
             id_jadwal INT NOT NULL,
             tanggal DATE NOT NULL,
             id_sesi INT NOT NULL,
@@ -22,6 +22,9 @@ class Migration_Exam_schedule_slots extends CI_Migration
             CONSTRAINT fk_jadwal_slot_sesi FOREIGN KEY (id_sesi)
                 REFERENCES cbt_sesi (id_sesi)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        if (!$created) {
+            throw new RuntimeException('Tabel jadwal per sesi gagal dibuat.');
+        }
     }
 
     public function down()
