@@ -119,6 +119,9 @@ class Examactivity extends CI_Controller
         if (!$attempt) {
             $this->respond(array('status' => FALSE, 'message' => 'Peserta belum memulai ujian.'), 404);
         }
+        if (!empty($attempt->session_deadline_at)) {
+            $this->respond(array('status' => FALSE, 'message' => 'Waktu peserta mengikuti jadwal sesi.'), 409);
+        }
         if (!$this->exam_attempt_service->extend($attempt, $menit, $alasan)) {
             $this->respond(array('status' => FALSE, 'message' => 'Ujian peserta tidak sedang berjalan.'), 409);
         }

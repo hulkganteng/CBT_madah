@@ -485,11 +485,18 @@
                 }
             }
             if ($slots) {
+                $options ??= $slotService->options($id_tp, $id_smt);
+                $sessions = array_column($options['sesi'], NULL, 'id');
                 $existing = array_filter($slotService->periodSlots($id_tp, $id_smt), static function ($slot) use ($id) {
                     return (int) $slot['id_jadwal'] !== $id;
                 });
-                $slotService->validatePlan($existing, array_map(static function ($slot) use ($id, $kind, $bankRow) {
-                    return ['id_jadwal' => $id, 'id_jenis' => $kind, 'bank_level' => $bankRow->bank_level] + $slot;
+                $slotService->validatePlan($existing, array_map(static function ($slot) use ($id, $kind, $bankRow, $data, $sessions) {
+                    $session = $sessions[$slot['id_sesi']] ?? [];
+                    return [
+                        'id_jadwal' => $id, 'id_jenis' => $kind, 'bank_level' => $bankRow->bank_level,
+                        'jarak' => $data['jarak'], 'waktu_akhir' => $session['waktu_akhir'] ?? NULL,
+                        'nama_sesi' => $session['nama'] ?? NULL,
+                    ] + $slot;
                 }, $slots));
             }
         } catch (InvalidArgumentException $error) {

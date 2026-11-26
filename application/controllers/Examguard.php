@@ -44,9 +44,12 @@ class Examguard extends CI_Controller
         if ($attempt->status === 'SUBMITTED') {
             return $this->respond(array('status' => TRUE, 'submitted' => TRUE));
         }
+        if ($this->exam_attempt_service->canCollectExpiredSession($attempt)) {
+            return $this->respond(array('status' => TRUE, 'session_ended' => TRUE));
+        }
         /* Auto-submit mendapat grace yang sama agar heartbeat paralel tidak
            mengusir browser ketika pengumpulan sedang berjalan. */
-        list($active, $reason) = $this->exam_attempt_service->validateActiveAttempt($attempt, 120);
+        list($active, $reason) = $this->exam_attempt_service->validateActiveAttempt($attempt, 120, TRUE);
         $seb = $this->exam_attempt_service->verifySeb($schedule);
         if (!$active || !$seb['ok']) {
             $this->respond(array('status' => FALSE, 'message' => $reason ?: $seb['reason']), 403);

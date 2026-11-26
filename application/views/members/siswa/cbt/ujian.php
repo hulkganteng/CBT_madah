@@ -287,6 +287,7 @@
     let examSubmitting = false;
     let examSubmitted = false;
     let examTimeEnded = false;
+    let examSecondsRemaining = Infinity;
     let connectionInterrupted = false;
     let minimumRemaining = null;
     let questionFilter = 'all';
@@ -353,7 +354,7 @@
     function markAnswerDirty() {
         answerRevision++;
         showSaveState('Belum tersimpan');
-        scheduleAutosave(700);
+        scheduleAutosave(examSecondsRemaining <= 3 ? 0 : 700);
     }
 
     function showSaveState(message, state = '') {
@@ -441,6 +442,12 @@
                 $('#btn-ragu').prop('disabled', raguSaving || !idSoalSiswa);
             }
         }).fail(function (xhr, status) {
+            if (xhr.responseJSON?.session_ended) {
+                answerSaving = false;
+                examTimeEnded = true;
+                submitExpiredExam(true);
+                return;
+            }
             if (status !== 'abort' && (xhr.status === 0 || status === 'timeout')) showConnection(true);
             answerSaveFailed();
         }).always(function () {
@@ -790,7 +797,8 @@
     }
 
     function startExamCountdown(timing) {
-        createTimerCountdown(Number(timing.sisa_detik), Number(timing.elapsed_seconds), function (isOver, remaining, elapsedSeconds) {
+        createTimerCountdown(Number(timing.sisa_detik), Number(timing.elapsed_seconds), function (isOver, remaining, elapsedSeconds, remainingSeconds) {
+            examSecondsRemaining = remainingSeconds;
             $('#timer').html(remaining);
             elapsed = secondsToClock(elapsedSeconds);
             minimumRemaining = Math.max(0, Math.ceil(minimumSeconds - elapsedSeconds));
@@ -885,7 +893,13 @@
                 console.warn('Gagal mengumpulkan ujian:', xhr.status);
                 showExpiredRetry(xhr.responseJSON?.message || 'Ujian belum berhasil dikumpulkan.', retry);
             });
-        }).fail(saveFailed);
+        }).fail(function (xhr) {
+            if (xhr.responseJSON?.session_ended) {
+                finishExpiredExam(true);
+                return;
+            }
+            saveFailed();
+        });
     }
 
     function hasAnswer(value) {
@@ -1240,7 +1254,9 @@
         if (examSubmitting) note = 'Tunggu konfirmasi dari server.';
         else if (waitingForSave) note = 'Jawaban terakhir belum terkonfirmasi. Jika gagal, kembali ke soal untuk mencoba lagi.';
         else if (unanswered.length) note = 'Soal belum dijawab: ' + unanswered.join(', ') + '.';
-        else if (minimumRemaining > 0) note = minimumRemaining < 60
+        else if (minimumRemaining > 0 && minimumRemaining >= examSecondsRemaining) {
+            note = 'Jawaban tersimpan akan dikumpulkan otomatis saat waktu ujian habis.';
+        } else if (minimumRemaining > 0) note = minimumRemaining < 60
             ? 'Ujian bisa dikumpulkan dalam kurang dari satu menit.'
             : 'Ujian bisa dikumpulkan dalam sekitar ' + Math.ceil(minimumRemaining / 60) + ' menit.';
         else if (canCollect) note = 'Setelah dikumpulkan, jawaban tidak bisa diubah.';
@@ -1365,9 +1381,9 @@
             const remainingSeconds = Math.max(0, Math.ceil((deadlineAt - now) / 1000));
             const elapsedSeconds = elapsedAtStart + Math.floor((now - startedAt) / 1000);
             if (remainingSeconds <= 0) {
-                func(true, 'Waktu habis', elapsedSeconds);
+                func(true, 'Waktu habis', elapsedSeconds, remainingSeconds);
             } else {
-                func(false, secondsToClock(remainingSeconds), elapsedSeconds);
+                func(false, secondsToClock(remainingSeconds), elapsedSeconds, remainingSeconds);
                 timerOut = setTimeout(tickTimer, Math.min(1000, Math.max(100, deadlineAt - now)));
             }
         }
@@ -1415,6 +1431,11 @@
         showConnection(false);
         if (result && result.submitted === true) {
             showSubmissionReceipt(examTimeEnded);
+            return;
+        }
+        if (result && result.session_ended === true) {
+            examTimeEnded = true;
+            submitExpiredExam(true);
             return;
         }
         if (!examExpired && !examSubmitted && result &&

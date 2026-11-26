@@ -298,6 +298,7 @@ class Cbtjadwalimport extends CI_Controller
         $plan = [];
         $errors = [];
         $options = NULL;
+        $sessions = [];
         foreach ($resolved['rows'] as $row) {
             $key = 'bank-' . $row['id_bank'] . '|' . $row['id_jenis'];
             if (!isset($schedules[$key])) {
@@ -320,10 +321,18 @@ class Cbtjadwalimport extends CI_Controller
                 if (!$service->ready()) {
                     throw new InvalidArgumentException('Migrasi jadwal per sesi perlu dijalankan.');
                 }
-                $options = $options ?? $service->options($tp->id_tp, $smt->id_smt);
+                if ($options === NULL) {
+                    $options = $service->options($tp->id_tp, $smt->id_smt);
+                    $sessions = array_column($options['sesi'], NULL, 'id');
+                }
                 $slot = $service->resolve($slot, $options, TRUE);
                 $slots[$key][] = $slot;
-                $plan[] = ['id_jadwal' => $key, 'id_jenis' => $row['id_jenis'], 'bank_level' => $row['bank_level']] + $slot;
+                $session = $sessions[$slot['id_sesi']];
+                $plan[] = [
+                    'id_jadwal' => $key, 'id_jenis' => $row['id_jenis'], 'bank_level' => $row['bank_level'],
+                    'jarak' => $row['durasi_minimal'], 'waktu_akhir' => $session['waktu_akhir'],
+                    'nama_sesi' => $session['nama'],
+                ] + $slot;
             } catch (InvalidArgumentException $error) {
                 $errors[] = 'Baris ' . $row['_row'] . ': ' . $error->getMessage();
             }

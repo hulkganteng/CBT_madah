@@ -10,7 +10,8 @@ $arrGuru = [];
 foreach ($guru as $g) {
     $arrGuru[$g->id_guru] = $g->nama_guru;
 }
-$this->load->library(['Student_exam_eligibility', 'Exam_schedule_slots']);
+$this->load->library(['Student_exam_eligibility', 'Exam_schedule_slots', 'Exam_attempt_service']);
+$expiredSessions = $this->exam_attempt_service->expiredSessionAttempts($siswa->id_siswa);
 
 $slotService = $this->exam_schedule_slots;
 $plan = $slotService->periodSlots($tp_active->id_tp, $smt_active->id_smt);
@@ -31,7 +32,6 @@ if ($plan) {
     $assigned = $slotService->assignedSlots($plan, $context);
     $todayAttempts = [];
     if (!empty($assigned[$todayWib])) {
-        $this->load->library('Exam_attempt_service');
         $attempts = $this->db->where('id_siswa', $siswa->id_siswa)
             ->where_in('id_jadwal', array_keys($assigned[$todayWib]))->get('cbt_exam_attempt')->result();
         $todayAttempts = array_column($attempts, NULL, 'id_jadwal');
@@ -50,6 +50,7 @@ if ($plan) {
             if ($date === $todayWib) {
                 $attempt = $todayAttempts[$id] ?? NULL;
                 if ($attempt) {
+                    $attempt = $this->exam_attempt_service->applySessionDeadline($attempt);
                     list($slot['can_resume'], $slot['block_reason']) = $this->exam_attempt_service->validateActiveAttempt($attempt);
                 } else {
                     $slot['block_reason'] = $slotService->startBlock($slot, $day, $siswa, $nowWib);
@@ -163,6 +164,27 @@ $jadwal_selesai = [];
                     </div>
                 </div>
 
+                <?php if ($expiredSessions) : ?>
+                    <div class="col-12">
+                        <div class="card my-shadow">
+                            <div class="card-header"><h5 class="mb-0">Ujian belum terkumpul</h5></div>
+                            <ul class="list-group list-group-flush">
+                                <?php foreach ($expiredSessions as $expiredSession) : ?>
+                                    <li class="list-group-item d-flex flex-wrap align-items-center justify-content-between">
+                                        <span><?= html_escape($expiredSession->nama_mapel ?: $expiredSession->bank_kode ?: 'Ujian CBT') ?></span>
+                                        <?= form_open('siswa/selesaiujian', [], [
+                                            'jadwal' => (int) $expiredSession->id_jadwal,
+                                            'waktu_habis' => '1',
+                                            'kembali_cbt' => '1',
+                                        ]) ?>
+                                        <button type="submit" class="btn btn-primary btn-sm">Kumpulkan jawaban tersimpan</button>
+                                        <?= form_close() ?>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    </div>
+                <?php endif; ?>
                 <?php if ($studentSlots) {
                     $this->load->view('members/siswa/cbt/_session_slots', ['studentSlots' => $studentSlots, 'todayWib' => $todayWib]);
                 } ?>

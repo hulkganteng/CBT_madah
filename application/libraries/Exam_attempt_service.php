@@ -9,6 +9,7 @@ class Exam_attempt_service
     const EVENT_DUPLICATE_WINDOW = 3;
 
     private $ci;
+    private $schedules = [];
 
     public function __construct()
     {
@@ -19,6 +20,7 @@ class Exam_attempt_service
     public function schemaReady()
     {
         return $this->ci->db->table_exists('cbt_exam_attempt')
+            && $this->ci->db->field_exists('session_deadline_at', 'cbt_exam_attempt')
             && $this->ci->db->field_exists('seb_mode', 'cbt_jadwal');
     }
 
@@ -55,7 +57,8 @@ class Exam_attempt_service
 
     public function schedule($idJadwal)
     {
-        return $this->ci->db->get_where('cbt_jadwal', array('id_jadwal' => (int) $idJadwal))->row();
+        return $this->schedules[$idJadwal] ??= $this->ci->db
+            ->get_where('cbt_jadwal', array('id_jadwal' => (int) $idJadwal))->row();
     }
 
     public function attempt($idSiswa, $idJadwal)
@@ -63,13 +66,51 @@ class Exam_attempt_service
         if (!$this->schemaReady()) {
             return NULL;
         }
-        return $this->ci->db->get_where('cbt_exam_attempt', array(
+        $attempt = $this->ci->db->get_where('cbt_exam_attempt', array(
             'id_siswa' => (int) $idSiswa,
             'id_jadwal' => (int) $idJadwal
         ))->row();
+        return $this->applySessionDeadline($attempt);
     }
 
-    public function createOrResume($student, $schedule, $sebVerified)
+    public function resolveSessionDeadline($studentId, $schedule, $startedAt)
+    {
+        $this->ci->load->library('Exam_schedule_slots');
+        $end = $this->ci->exam_schedule_slots->sessionEndForAttempt(
+            $studentId, $schedule, new DateTimeImmutable($startedAt)
+        );
+        return $end ? $end->getTimestamp() : NULL;
+    }
+
+    public function applySessionDeadline($attempt)
+    {
+        if (!empty($attempt->session_deadline_at) && $attempt->session_deadline_at < $attempt->deadline_at) {
+            $attempt->deadline_at = $attempt->session_deadline_at;
+        }
+        return $attempt;
+    }
+
+    public function canCollectExpiredSession($attempt)
+    {
+        return $attempt && $attempt->status === 'IN_PROGRESS' && !empty($attempt->session_deadline_at)
+            && time() >= min(strtotime($attempt->deadline_at), strtotime($attempt->session_deadline_at));
+    }
+
+    public function expiredSessionAttempts($studentId)
+    {
+        $now = date('Y-m-d H:i:s');
+        return $this->ci->db->select('a.id_jadwal, b.bank_kode, m.nama_mapel')
+            ->from('cbt_exam_attempt a')
+            ->join('cbt_jadwal j', 'j.id_jadwal = a.id_jadwal')
+            ->join('cbt_bank_soal b', 'b.id_bank = j.id_bank', 'left')
+            ->join('master_mapel m', 'm.id_mapel = b.bank_mapel_id', 'left')
+            ->where(['a.id_siswa' => $studentId, 'a.status' => 'IN_PROGRESS', 'a.session_deadline_at IS NOT NULL' => NULL])
+            ->group_start()->where('a.deadline_at <=', $now)
+            ->or_where('a.session_deadline_at <=', $now)->group_end()
+            ->order_by('a.started_at', 'DESC')->get()->result();
+    }
+
+    public function createOrResume($student, $schedule, $sebVerified, $sessionEnd)
     {
         $existing = $this->attempt($student->id_siswa, $schedule->id_jadwal);
         if ($existing) {
@@ -104,6 +145,10 @@ class Exam_attempt_service
             }
         }
 
+        if ($sessionEnd !== NULL) {
+            $deadline = min($deadline, $sessionEnd);
+        }
+
         $now = date('Y-m-d H:i:s');
         $sessionNonce = bin2hex(random_bytes(32));
         $attemptId = $this->uuid();
@@ -114,6 +159,7 @@ class Exam_attempt_service
             'status' => 'IN_PROGRESS',
             'started_at' => $started,
             'deadline_at' => date('Y-m-d H:i:s', $deadline),
+            'session_deadline_at' => $sessionEnd === NULL ? NULL : date('Y-m-d H:i:s', $sessionEnd),
             'session_nonce' => $sessionNonce,
             'device_hash' => $this->hashValue($this->userAgent()),
             'seb_verified' => $sebVerified ? 1 : 0,
@@ -130,13 +176,16 @@ class Exam_attempt_service
         return $this->attempt($student->id_siswa, $schedule->id_jadwal);
     }
 
-    public function validateActiveAttempt($attempt, $graceSeconds = 10)
+    public function validateActiveAttempt($attempt, $graceSeconds = 10, $allowSessionClose = FALSE)
     {
         if (!$attempt || $attempt->status !== 'IN_PROGRESS') {
             return array(FALSE, 'Sesi ujian tidak aktif.');
         }
         if (!empty($attempt->kicked_at)) {
             return array(FALSE, 'Ujian Anda dihentikan oleh proktor. Hubungi pengawas.');
+        }
+        if (!$allowSessionClose && $this->canCollectExpiredSession($attempt)) {
+            return array(FALSE, 'Waktu sesi ujian sudah berakhir.');
         }
         if (strtotime($attempt->deadline_at) + (int) $graceSeconds < time()) {
             return array(FALSE, 'Waktu ujian sudah berakhir.');
@@ -560,7 +609,8 @@ class Exam_attempt_service
      */
     public function extend($attempt, $minutes, $reason)
     {
-        if (!$attempt || $attempt->status !== 'IN_PROGRESS') {
+        $attempt = $this->applySessionDeadline($attempt);
+        if (!$attempt || $attempt->status !== 'IN_PROGRESS' || !empty($attempt->session_deadline_at)) {
             return FALSE;
         }
         $minutes = max(1, min(120, (int) $minutes));
@@ -579,12 +629,12 @@ class Exam_attempt_service
         }
         $legacy = $duration->row();
         $result = $this->ci->db->query(
-            'SELECT deadline_at, extra_minutes FROM cbt_exam_attempt
+            'SELECT deadline_at, extra_minutes, session_deadline_at FROM cbt_exam_attempt
              WHERE attempt_id = ? AND status = ? FOR UPDATE',
             array($attempt->attempt_id, 'IN_PROGRESS')
         );
         $locked = $result ? $result->row() : NULL;
-        if (!$locked) {
+        if (!$locked || !empty($locked->session_deadline_at)) {
             $this->ci->db->trans_rollback();
             return FALSE;
         }
@@ -660,7 +710,7 @@ class Exam_attempt_service
      */
     public function monitorBySchedule($idJadwal)
     {
-        $rows = $this->ci->db->select('a.attempt_id, a.id_siswa, a.status, a.started_at, a.deadline_at,
+        $rows = $this->ci->db->select('a.attempt_id, a.id_siswa, a.id_jadwal, a.status, a.started_at, a.deadline_at, a.session_deadline_at,
                 a.submitted_at, a.kicked_at, a.extra_minutes, a.extra_reason, a.last_heartbeat_at,
                 a.seb_verified, s.nis, s.nama, d.lama_ujian, d.status AS status_lama')
             ->from('cbt_exam_attempt a')
@@ -694,6 +744,7 @@ class Exam_attempt_service
         $now = time();
         $out = array();
         foreach ($rows as $row) {
+            $row = $this->applySessionDeadline($row);
             $violations = isset($agg[$row->attempt_id]) ? $agg[$row->attempt_id] : array();
             $hidden = isset($violations['PAGE_HIDDEN']) ? $violations['PAGE_HIDDEN'][0] : 0;
             $fullscreen = isset($violations['FULLSCREEN_EXIT']) ? $violations['FULLSCREEN_EXIT'][0] : 0;
@@ -707,6 +758,7 @@ class Exam_attempt_service
                 'kicked' => !empty($row->kicked_at),
                 'started_at' => $row->started_at,
                 'deadline_at' => $row->deadline_at,
+                'session_deadline_at' => $row->session_deadline_at ?? NULL,
                 'submitted_at' => $row->submitted_at,
                 'extra_minutes' => (int) $row->extra_minutes,
                 'extra_reason' => $row->extra_reason,

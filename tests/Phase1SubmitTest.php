@@ -118,6 +118,29 @@ final class Phase1SubmitTest extends TestCase
         self::assertSame(0, $db->progressUpdates);
     }
 
+    public function testLateRecoveryGradesUsingStoredSessionDeadline(): void
+    {
+        $db = new Phase1SubmitDb();
+        $db->attempt = (object) [
+            'status' => 'IN_PROGRESS',
+            'started_at' => date('Y-m-d H:i:s', time() - 1800),
+            'deadline_at' => date('Y-m-d H:i:s', time() + 300),
+            'session_deadline_at' => date('Y-m-d H:i:s', time() - 300),
+        ];
+        $controller = $this->controller($db, TRUE);
+        $controller->input->data['waktu_habis'] = '1';
+        require_once dirname(__DIR__) . '/application/libraries/Exam_attempt_service.php';
+        $controller->exam_attempt_service = (new ReflectionClass(Exam_attempt_service::class))->newInstanceWithoutConstructor();
+
+        $controller->selesaiUjian();
+
+        self::assertTrue($controller->response['status_nilai']);
+        self::assertSame(1, $controller->gradingCalls);
+        self::assertTrue($db->committed);
+        self::assertSame(2, $db->durationUpdate['status']);
+        self::assertSame(1, $db->attemptUpdates);
+    }
+
     public function testForcedFinishReportsGradingFailureAndKeepsAttemptOpen(): void
     {
         $db = new Phase1SubmitDb();

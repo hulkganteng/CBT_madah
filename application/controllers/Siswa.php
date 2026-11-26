@@ -72,6 +72,10 @@
         if ($student > 0 && $schedule > 0) {
             $this->load->model('Cbt_model', 'cbt');
             $data = $this->finishExam($schedule, $student . '0' . $schedule, $student, $this->input->post('waktu_habis') === '1');
+            if ($data['status'] && $this->input->post('kembali_cbt') === '1') {
+                redirect('siswa/cbt');
+                return;
+            }
         }
         $this->output_json($data);
     }
@@ -103,7 +107,7 @@
             $finished = (int) $duration->status === 2;
             if ($timedOut && !$finished) {
                 $result = $this->db->query(
-                    'SELECT status, started_at, deadline_at, extra_minutes FROM cbt_exam_attempt WHERE id_jadwal = ? AND id_siswa = ? FOR UPDATE',
+                    'SELECT status, started_at, deadline_at, session_deadline_at, extra_minutes FROM cbt_exam_attempt WHERE id_jadwal = ? AND id_siswa = ? FOR UPDATE',
                     [$schedule, $student]
                 );
                 $attempt = $result ? $result->row() : NULL;
@@ -112,7 +116,7 @@
                     return $data;
                 }
                 $this->load->library('Exam_attempt_service');
-                $timing = $this->exam_attempt_service->timing($attempt);
+                $timing = $this->exam_attempt_service->timing($this->exam_attempt_service->applySessionDeadline($attempt));
                 if ($timing['sisa_detik'] > 0) {
                     $this->db->trans_rollback();
                     return $data + ['timing' => $timing];

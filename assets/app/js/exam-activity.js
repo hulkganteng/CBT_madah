@@ -40,8 +40,10 @@
     function barisAksi(row) {
         var html = '';
         if (row.status === 'IN_PROGRESS') {
-            html += '<button type="button" class="btn btn-xs btn-warning mr-1 btn-waktu" data-id="' + row.id_siswa +
-                '" data-nama="' + encodeURIComponent(row.nama || '') + '" title="Tambah Waktu"><i class="fa fa-clock"></i></button>';
+            if (!row.session_deadline_at) {
+                html += '<button type="button" class="btn btn-xs btn-warning mr-1 btn-waktu" data-id="' + row.id_siswa +
+                    '" data-nama="' + encodeURIComponent(row.nama || '') + '" title="Tambah Waktu"><i class="fa fa-clock"></i></button>';
+            }
             if (row.kicked) {
                 html += '<button type="button" class="btn btn-xs btn-success mr-1 btn-unkick" data-id="' + row.id_siswa + '" title="Reset Login"><i class="fa fa-unlock"></i> Reset Login</button>';
             } else {

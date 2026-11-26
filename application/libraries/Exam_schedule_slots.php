@@ -7,6 +7,9 @@ class Exam_schedule_slots
     public const PROGRAMS = ['TAHFIDZ', 'KITAB'];
 
     private $ci;
+    private $scheduleSlots = [];
+    private $dailyPlans = [];
+    private $legacyWindows = [];
 
     public function __construct()
     {
@@ -100,8 +103,8 @@ class Exam_schedule_slots
         $field = $byCode ? 'kode' : 'id';
         $session = $this->reference($options['sesi'], $field, $slot['id_sesi'], 'sesi');
         $target = $this->reference($options[$slot['jenis_sasaran']], $field, $slot['sasaran'], 'sasaran');
-        if ($slot['jam_buka'] . ':00' > $session['waktu_akhir']) {
-            throw new InvalidArgumentException('Jam buka harus berada sebelum atau pada jam akhir sesi.');
+        if ($slot['jam_buka'] . ':00' >= $session['waktu_akhir']) {
+            throw new InvalidArgumentException('Jam buka harus sebelum jam akhir sesi.');
         }
         $slot['id_sesi'] = (int) $session['id'];
         $slot['sasaran'] = (string) $target['id'];
@@ -150,7 +153,7 @@ class Exam_schedule_slots
         }
         return $db->select('sl.*, j.id_jenis, j.status, j.tgl_mulai, j.tgl_selesai, '
                 . 's.nama_sesi, s.aktif, s.waktu_akhir, b.bank_level, b.status AS bank_aktif, '
-                . 'b.status_soal, b.soal_agama, m.nama_mapel, j.durasi_ujian')
+                . 'b.status_soal, b.soal_agama, m.nama_mapel, j.durasi_ujian, j.jarak')
             ->from('cbt_jadwal_slot sl')
             ->join('cbt_jadwal j', 'j.id_jadwal = sl.id_jadwal')
             ->join('cbt_sesi s', 's.id_sesi = sl.id_sesi', 'left')
@@ -166,11 +169,14 @@ class Exam_schedule_slots
         $seen = [];
         $orders = [];
         $overrides = [];
+        $firstSlots = [];
+        $dependentSlots = [];
         foreach (array_merge($existing, $incoming) as $slot) {
             $group = $slot['tanggal'] . '|' . $slot['jenis_sasaran'] . '|' . $slot['sasaran'];
             $session = $group . '|' . $slot['id_sesi'];
             $key = $session . '|' . $slot['id_jadwal'];
-            $order = $session . '|' . $slot['id_jenis'] . '|' . $slot['bank_level'] . '|' . $slot['urutan'];
+            $sequence = $session . '|' . $slot['id_jenis'] . '|' . $slot['bank_level'];
+            $order = $sequence . '|' . (int) $slot['urutan'];
             if (isset($seen[$key])) {
                 throw new InvalidArgumentException('Ada slot duplikat untuk jadwal, tanggal, sesi, dan sasaran yang sama.');
             }
@@ -179,11 +185,38 @@ class Exam_schedule_slots
             }
             $seen[$key] = TRUE;
             $orders[$order] = TRUE;
+            if ((int) $slot['urutan'] === 1) {
+                $firstSlots[$sequence] = $slot;
+            } elseif (!empty($slot['wajib_mapel_pertama'])) {
+                $dependentSlots[$sequence][] = $slot;
+            }
             if ((int) $slot['ubah_sesi']) {
                 if (isset($overrides[$group]) && $overrides[$group] !== (int) $slot['id_sesi']) {
                     throw new InvalidArgumentException('Satu sasaran hanya dapat dipindah ke satu sesi pada tanggal yang sama.');
                 }
                 $overrides[$group] = (int) $slot['id_sesi'];
+            }
+        }
+
+        $changed = array_fill_keys(array_column($incoming, 'id_jadwal'), TRUE);
+        foreach ($dependentSlots as $sequence => $laterSlots) {
+            $first = $firstSlots[$sequence] ?? NULL;
+            if (!$first || empty($first['waktu_akhir'])) {
+                continue;
+            }
+            $open = strtotime($first['tanggal'] . ' ' . $first['jam_buka']);
+            $close = strtotime($first['tanggal'] . ' ' . $first['waktu_akhir']);
+            if ($open + (int) ($first['jarak'] ?? 0) * 60 < $close) {
+                continue;
+            }
+            foreach ($laterSlots as $later) {
+                if (isset($changed[$first['id_jadwal']]) || isset($changed[$later['id_jadwal']])) {
+                    throw new InvalidArgumentException(
+                        'Slot tanggal ' . $first['tanggal'] . ', sesi ' . ($first['nama_sesi'] ?? $first['id_sesi'])
+                        . ': durasi minimal mapel pertama tidak menyisakan waktu untuk mapel urutan '
+                        . $later['urutan'] . '. Kurangi durasi minimal atau majukan jam buka mapel pertama.'
+                    );
+                }
             }
         }
     }
@@ -266,7 +299,7 @@ class Exam_schedule_slots
         if ($time < $open . ':00') {
             return 'Ujian dibuka pukul ' . $open . ' WIB.';
         }
-        if ($time > $slot['waktu_akhir']) {
+        if ($time >= $slot['waktu_akhir']) {
             return 'Sesi ujian telah berakhir.';
         }
         if (!(int) $slot['wajib_mapel_pertama']) {
@@ -297,5 +330,63 @@ class Exam_schedule_slots
             'id_siswa' => $student->id_siswa, 'id_jadwal' => $prerequisite['id_jadwal'], 'status' => 2,
         ])->count_all_results('cbt_durasi_siswa');
         return $done ? NULL : 'Selesaikan ' . ($prerequisite['nama_mapel'] ?: 'mapel pertama') . ' terlebih dahulu.';
+    }
+
+    public function legacySessionWindows($studentId, $year, $semester)
+    {
+        $key = "$studentId|$year|$semester";
+        if (isset($this->legacyWindows[$key])) {
+            return $this->legacyWindows[$key];
+        }
+        $db = $this->ci->db;
+        if (!$db->table_exists('cbt_sesi_siswa')) {
+            return $this->legacyWindows[$key] = [];
+        }
+        $windows = $db->select('s.waktu_mulai, s.waktu_akhir, s.aktif')
+            ->from('cbt_sesi_siswa ss')->join('cbt_sesi s', 's.id_sesi = ss.sesi_id')
+            ->where(['ss.siswa_id' => $studentId, 'ss.tp_id' => $year, 'ss.smt_id' => $semester])
+            ->order_by('s.waktu_mulai, s.waktu_akhir, s.id_sesi')->get()->result_array();
+        if (!$windows) {
+            $session = $this->studentContext($studentId, $year, $semester)['session'];
+            if ($session) {
+                $windows = $db->select('waktu_mulai, waktu_akhir, aktif')
+                    ->get_where('cbt_sesi', ['id_sesi' => $session])->result_array();
+            }
+        }
+        return $this->legacyWindows[$key] = $windows;
+    }
+
+    public function sessionEndForAttempt($studentId, $schedule, DateTimeImmutable $started)
+    {
+        $started = $started->setTimezone(new DateTimeZone('Asia/Jakarta'));
+        $date = $started->format('Y-m-d');
+        $scheduleId = $schedule->id_jadwal;
+        $year = $schedule->id_tp;
+        $semester = $schedule->id_smt;
+        $this->scheduleSlots[$scheduleId] ??= (bool) $this->forSchedule($scheduleId);
+        if ($this->scheduleSlots[$scheduleId]) {
+            $key = "$year|$semester|$date";
+            $this->dailyPlans[$key] ??= $this->periodSlots($year, $semester, $date);
+            $context = $this->studentContext($studentId, $year, $semester);
+            $slot = $this->assignedSlots($this->dailyPlans[$key], $context)[$date][$scheduleId] ?? NULL;
+            if (!empty($slot['waktu_akhir'])) {
+                return $started->modify($slot['waktu_akhir']);
+            }
+        }
+
+        $time = $started->format('H:i:s');
+        $windows = $this->legacySessionWindows($studentId, $year, $semester);
+        $inactiveEnd = NULL;
+        foreach ($windows as $window) {
+            if ($time >= $window['waktu_mulai'] && $time <= $window['waktu_akhir']) {
+                $end = $started->modify($window['waktu_akhir']);
+                if ((int) $window['aktif'] === 1 && $time < $window['waktu_akhir']) {
+                    return $end;
+                }
+                $inactiveEnd ??= $end;
+            }
+        }
+        // Penonaktifan sesi tidak menghapus batas untuk attempt yang sudah dibuat.
+        return $inactiveEnd ?? (count($windows) === 1 ? $started->modify($windows[0]['waktu_akhir']) : NULL);
     }
 }

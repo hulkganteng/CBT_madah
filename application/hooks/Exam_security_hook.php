@@ -6,6 +6,7 @@ class Exam_security_hook
     private $ci;
     private $service;
     private $confirmedExam;
+    private $admittedSessionEnd;
 
     public function beforeController()
     {
@@ -134,6 +135,15 @@ class Exam_security_hook
             $this->deny('Jadwal ujian tidak valid.', 422);
         }
         $schedule = $this->service->schedule($idJadwal);
+        $attempt = $schedule ? $this->service->attempt($student->id_siswa, $idJadwal) : NULL;
+        $this->admittedSessionEnd = empty($attempt->session_deadline_at) ? NULL : strtotime($attempt->session_deadline_at);
+        if ($method === 'selesaiujian' && $this->ci->input->method() === 'post'
+            && $this->service->canCollectExpiredSession($attempt)) {
+            // Hanya menilai jawaban yang sudah tersimpan. Controller memeriksa ulang waktu
+            // dan status di dalam transaksi sebelum mengubah hasil ujian.
+            $_POST['waktu_habis'] = '1';
+            return;
+        }
         if (!$schedule || (string) $schedule->status !== '1') {
             $this->deny('Jadwal ujian tidak aktif.', 403);
         }
@@ -144,7 +154,6 @@ class Exam_security_hook
         if (!$eligible) {
             $this->deny($eligibilityReason, 403);
         }
-        $attempt = $this->service->attempt($student->id_siswa, $idJadwal);
         if (!$this->withinScheduleDate($schedule) && !($method === 'selesaiujian' && $attempt)) {
             $this->deny('Ujian berada di luar rentang jadwal.', 403);
         }
@@ -183,7 +192,7 @@ class Exam_security_hook
                         $this->deny($reason, 409);
                     }
                 } else {
-                    $this->confirmedExam = [$student, $schedule, $seb['verified']];
+                    $this->confirmedExam = [$student, $schedule, $seb['verified'], $this->admittedSessionEnd];
                 }
                 if (!$this->ci->db->where(array('id_siswa' => $student->id_siswa,
                     'id_jadwal' => $idJadwal, 'id_bank' => $schedule->id_bank))
@@ -191,12 +200,12 @@ class Exam_security_hook
                     $this->deny('Mapping ujian tidak ditemukan. Hubungi pengawas.', 409);
                 }
             } else {
-                $this->confirmedExam = [$student, $schedule, $seb['verified']];
+                $this->confirmedExam = [$student, $schedule, $seb['verified'], $this->admittedSessionEnd];
             }
             return;
         }
         if ($method === 'penilaian') {
-            $attempt = $this->service->createOrResume($student, $schedule, $seb['verified']);
+            $attempt = $this->service->createOrResume($student, $schedule, $seb['verified'], $this->admittedSessionEnd);
             list($active, $reason) = $this->service->validateActiveAttempt($attempt);
             if (!$active) {
                 $this->deny($reason, 403);
@@ -229,9 +238,9 @@ class Exam_security_hook
         /* FR-21: auto-submit terjadi tepat saat waktu habis, jadi pengumpulan
            diberi kelonggaran lebih panjang daripada endpoint biasa. */
         $grace = $method === 'selesaiujian' ? 120 : 10;
-        list($active, $reason) = $this->service->validateActiveAttempt($attempt, $grace);
+        list($active, $reason) = $this->service->validateActiveAttempt($attempt, $grace, $method === 'selesaiujian');
         if (!$active) {
-            $this->deny($reason, 403);
+            $this->deny($reason, 403, ['session_ended' => $this->service->canCollectExpiredSession($attempt)]);
         }
         list($bound, $bindReason) = $this->service->bindSession($attempt);
         if (!$bound) {
@@ -1578,6 +1587,7 @@ class Exam_security_hook
             if ($reason !== NULL) {
                 $this->deny($reason, 403);
             }
+            $this->admittedSessionEnd = $now->modify($slot['waktu_akhir'])->getTimestamp();
         }
         return TRUE;
     }
@@ -1593,26 +1603,21 @@ class Exam_security_hook
         if (!in_array($method, array('validasisiswa', 'penilaian'), TRUE)) {
             return;
         }
-        if (!$this->ci->db->table_exists('cbt_sesi_siswa')) {
-            return;
-        }
-        $sesis = $this->ci->db->select('s.waktu_mulai, s.waktu_akhir, s.aktif')
-            ->from('cbt_sesi_siswa ss')
-            ->join('cbt_sesi s', 's.id_sesi = ss.sesi_id', 'inner')
-            ->where('ss.siswa_id', (int) $idSiswa)
-            ->order_by('s.waktu_mulai', 'ASC')
-            ->get()->result();
+        $this->ci->load->library('Exam_schedule_slots');
+        $sesis = $this->ci->exam_schedule_slots->legacySessionWindows($idSiswa, $schedule->id_tp, $schedule->id_smt);
         if (!$sesis) {
             return;
         }
-        $now = date('H:i:s');
+        $now = Exam_schedule_slots::now();
+        $time = $now->format('H:i:s');
         $jendela = array();
         foreach ($sesis as $sesi) {
-            if ((string) $sesi->aktif !== '1') {
+            if ((int) $sesi['aktif'] !== 1) {
                 continue;
             }
-            $jendela[] = substr($sesi->waktu_mulai, 0, 5) . '-' . substr($sesi->waktu_akhir, 0, 5);
-            if ($now >= $sesi->waktu_mulai && $now <= $sesi->waktu_akhir) {
+            $jendela[] = substr($sesi['waktu_mulai'], 0, 5) . '-' . substr($sesi['waktu_akhir'], 0, 5);
+            if ($time >= $sesi['waktu_mulai'] && $time < $sesi['waktu_akhir']) {
+                $this->admittedSessionEnd = $now->modify($sesi['waktu_akhir'])->getTimestamp();
                 return;
             }
         }

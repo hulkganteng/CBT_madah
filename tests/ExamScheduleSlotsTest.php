@@ -3,6 +3,7 @@
 use PHPUnit\Framework\TestCase;
 
 require_once dirname(__DIR__) . '/application/libraries/Jadwal_import.php';
+require_once dirname(__DIR__) . '/application/libraries/Exam_attempt_service.php';
 
 final class ExamScheduleSlotsTest extends TestCase
 {
@@ -72,7 +73,135 @@ final class ExamScheduleSlotsTest extends TestCase
         $student = (object) ['id_siswa' => 7];
         self::assertSame('Ujian dibuka pukul 07:45 WIB.', $service->startBlock($slot, [], $student, new DateTimeImmutable('2026-12-08T00:44:59Z')));
         self::assertNull($service->startBlock($slot, [], $student, new DateTimeImmutable('2026-12-08T00:45:00Z')));
+        self::assertSame('Sesi ujian telah berakhir.', $service->startBlock($slot, [], $student, new DateTimeImmutable('2026-12-08T01:30:00Z')));
         self::assertSame('Sesi ujian telah berakhir.', $service->startBlock($slot, [], $student, new DateTimeImmutable('2026-12-08T01:30:01Z')));
+    }
+
+    public function testLateStartAndExistingAttemptUseTheEndOfTheAssignedSession(): void
+    {
+        $slot = $this->slot(['id_sesi' => '3', 'ubah_sesi' => '1', 'waktu_akhir' => '10:00:00']);
+        $slots = new class($slot) extends Exam_schedule_slots {
+            public function __construct(private array $slot) {}
+            public function forSchedule($id) { return [$this->slot]; }
+            public function periodSlots($year, $semester, $date = NULL) { return [$this->slot]; }
+            public function studentContext($studentId, $year, $semester)
+            {
+                return ['groups' => ['rombel' => '4'], 'session' => 1];
+            }
+        };
+        $schedule = (object) [
+            'id_jadwal' => 21, 'id_tp' => 1, 'id_smt' => 1, 'durasi_ujian' => 90, 'tgl_selesai' => '2026-12-08',
+        ];
+        $started = new DateTimeImmutable('2026-12-08 09:30:00', new DateTimeZone('Asia/Jakarta'));
+        $db = new class($schedule, $started->format(DATE_ATOM)) {
+            public ?object $attempt = NULL;
+            public function __construct(private object $schedule, private string $started) {}
+            public function table_exists($table) { return TRUE; }
+            public function field_exists($field, $table) { return TRUE; }
+            public function get_where($table, $where)
+            {
+                $row = match ($table) {
+                    'cbt_jadwal' => $this->schedule,
+                    'cbt_durasi_siswa' => (object) ['mulai' => $this->started],
+                    'cbt_exam_attempt' => $this->attempt ? clone $this->attempt : NULL,
+                };
+                return new class($row) {
+                    public function __construct(private ?object $row) {}
+                    public function row() { return $this->row; }
+                };
+            }
+            public function insert($table, $data)
+            {
+                $this->attempt = (object) $data;
+                return TRUE;
+            }
+        };
+        $service = (new ReflectionClass(Exam_attempt_service::class))->newInstanceWithoutConstructor();
+        (new ReflectionProperty(Exam_attempt_service::class, 'ci'))->setValue($service, (object) [
+            'db' => $db,
+            'exam_schedule_slots' => $slots,
+            'config' => new class { public function item($key) { return 'test'; } },
+            'session' => new class { public function set_userdata($key, $value) {} },
+            'load' => new class { public function library($name) {} },
+        ]);
+
+        $student = (object) ['id_siswa' => 7];
+        $end = $service->resolveSessionDeadline(7, $schedule, $started->format(DATE_ATOM));
+        self::assertSame($started->setTime(10, 0)->getTimestamp(), $end);
+        $created = $service->createOrResume($student, $schedule, FALSE, $end);
+        self::assertSame($end, strtotime($db->attempt->deadline_at));
+        self::assertSame($end, strtotime($db->attempt->session_deadline_at));
+        self::assertSame($end, strtotime($created->deadline_at));
+        self::assertFalse($service->extend($created, 30, 'uji'));
+
+        $db->attempt->deadline_at = date('Y-m-d H:i:s', $started->setTime(11, 0)->getTimestamp());
+        self::assertSame($end, strtotime($service->attempt(7, 21)->deadline_at));
+
+        $db->attempt = NULL;
+        $schedule->durasi_ujian = 15;
+        $created = $service->createOrResume($student, $schedule, FALSE, $end);
+        self::assertSame($started->setTime(9, 45)->getTimestamp(), strtotime($created->deadline_at));
+    }
+
+    public function testSessionCutoffRejectsWorkButAllowsCollectingSavedAnswers(): void
+    {
+        $service = (new ReflectionClass(Exam_attempt_service::class))->newInstanceWithoutConstructor();
+        $cutoff = date('Y-m-d H:i:s', time() - 1);
+        $attempt = (object) ['status' => 'IN_PROGRESS', 'deadline_at' => $cutoff, 'session_deadline_at' => $cutoff];
+
+        self::assertSame([FALSE, 'Waktu sesi ujian sudah berakhir.'], $service->validateActiveAttempt($attempt));
+        self::assertSame([TRUE, NULL], $service->validateActiveAttempt($attempt, 120, TRUE));
+    }
+
+    public function testStoredSessionLimitWorksWithoutAssignmentAndAllowsLateRecoveryOnlyAfterExpiration(): void
+    {
+        // Tanpa koneksi database, pembacaan batas tersimpan tidak bisa memakai penempatan terbaru.
+        $service = (new ReflectionClass(Exam_attempt_service::class))->newInstanceWithoutConstructor();
+        $cutoff = date('Y-m-d H:i:s', time() - 180);
+        $attempt = (object) [
+            'status' => 'IN_PROGRESS',
+            'deadline_at' => date('Y-m-d H:i:s', time() + 900),
+            'session_deadline_at' => $cutoff,
+        ];
+        self::assertSame($cutoff, $service->applySessionDeadline($attempt)->deadline_at);
+        self::assertFalse($service->validateActiveAttempt($attempt)[0]);
+        self::assertTrue($service->canCollectExpiredSession($attempt));
+        self::assertFalse($service->extend($attempt, 15, 'uji'));
+
+        $attempt->deadline_at = date('Y-m-d H:i:s', time() + 60);
+        $attempt->session_deadline_at = date('Y-m-d H:i:s', time() + 120);
+        self::assertFalse($service->canCollectExpiredSession($attempt));
+        $attempt->deadline_at = date('Y-m-d H:i:s', time() - 1);
+        self::assertFalse($service->validateActiveAttempt($attempt)[0]);
+        self::assertTrue($service->canCollectExpiredSession($attempt));
+        $attempt->status = 'SUBMITTED';
+        self::assertFalse($service->canCollectExpiredSession($attempt));
+    }
+
+    public function testScheduleCannotOpenAtSessionEnd(): void
+    {
+        $this->expectExceptionMessage('Jam buka harus sebelum jam akhir sesi.');
+        $this->service()->resolve($this->slot(['jam_buka' => '08:30']), [
+            'sesi' => [['id' => '1', 'waktu_akhir' => '08:30:00']],
+            'rombel' => [['id' => '4']],
+        ]);
+    }
+
+    public function testRegularSessionKeepsItsDeadlineAfterDeactivationAndPracticeHasNoSessionLimit(): void
+    {
+        $slots = new class extends Exam_schedule_slots {
+            public function __construct() {}
+            public function forSchedule($id) { return []; }
+            public function legacySessionWindows($studentId, $year, $semester)
+            {
+                return $studentId === 7 ? [['waktu_mulai' => '08:30:00', 'waktu_akhir' => '10:00:00', 'aktif' => 0]] : [];
+            }
+        };
+        $schedule = (object) ['id_jadwal' => 21, 'id_tp' => 1, 'id_smt' => 1];
+        $started = new DateTimeImmutable('2026-12-08T02:30:00Z');
+
+        self::assertSame('2026-12-08T10:00:00+07:00', $slots->sessionEndForAttempt(7, $schedule, $started)->format(DATE_ATOM));
+        self::assertNull($slots->sessionEndForAttempt(8, $schedule, $started));
     }
 
     public function testConflictingOverridesForOneGroupAreRejected(): void
@@ -83,6 +212,24 @@ final class ExamScheduleSlotsTest extends TestCase
         $service->validatePlan([$this->slot(['id_sesi' => '1', 'ubah_sesi' => '1'])], [
             $this->slot(['id_sesi' => '3', 'ubah_sesi' => '1']),
         ]);
+    }
+
+    public function testFirstMapelMinimumCannotConsumeAllTimeBeforeRequiredSecondMapel(): void
+    {
+        $first = $this->slot(['id_jadwal' => 20, 'urutan' => '1', 'jam_buka' => '08:00', 'jarak' => '30']);
+        $second = $this->slot(['jam_buka' => '08:15:00', 'wajib_mapel_pertama' => '1']);
+
+        $this->expectExceptionMessage('durasi minimal mapel pertama tidak menyisakan waktu untuk mapel urutan 2');
+        $this->service()->validatePlan([$second], [$first]);
+    }
+
+    public function testSecondMapelMayUseTheTimeLeftAfterFirstMapelMinimum(): void
+    {
+        $first = $this->slot(['id_jadwal' => 20, 'urutan' => '1', 'jam_buka' => '08:00:00', 'jarak' => '20']);
+        $second = $this->slot(['jam_buka' => '08:15', 'wajib_mapel_pertama' => '1']);
+
+        $this->service()->validatePlan([$first], [$second]);
+        $this->addToAssertionCount(1);
     }
 
     public function testPrerequisiteRequiresFinishedStatusForFirstScheduleOfThisStudent(): void
