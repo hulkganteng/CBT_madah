@@ -29,6 +29,15 @@ $logo = isset($setting) && $setting->logo_kanan != null ? base_url() . $setting-
         border: 1px solid #d5ddd8; background: #fbfdfb;
     }
     .login-siswa .form-control:focus { border-color: #0a6b4c; box-shadow: 0 0 0 3px rgba(10, 107, 76, .12); }
+    .login-siswa-password { position: relative; }
+    .login-siswa-password .form-control { padding-right: 52px; }
+    .login-siswa-password .form-control::-ms-reveal { display: none; }
+    .login-siswa-password-toggle {
+        position: absolute; top: 2px; right: 2px; width: 44px; height: 44px;
+        border: 0; border-radius: 7px; background: transparent; color: #486357; cursor: pointer;
+    }
+    .login-siswa-password-toggle:hover { background: #e6f5ee; color: #0a6b4c; }
+    .login-siswa-password-toggle:focus { outline: 2px solid #0a6b4c; outline-offset: -2px; }
     .login-siswa .btn-masuk {
         width: 100%; height: 50px; margin-top: 6px; border: 0; border-radius: 9px;
         background: #0a6b4c; color: #fff; font-size: .95rem; font-weight: 600;
@@ -64,7 +73,13 @@ $logo = isset($setting) && $setting->logo_kanan != null ? base_url() . $setting-
         </div>
         <div class="form-group">
             <label for="password">Kata sandi</label>
-            <?= form_input($password, '', 'required autocomplete="current-password"') ?>
+            <div class="login-siswa-password">
+                <?= form_input($password, '', 'required autocomplete="current-password"') ?>
+                <button type="button" id="toggle-password" class="login-siswa-password-toggle"
+                        aria-label="Tampilkan kata sandi" aria-controls="password">
+                    <span class="fas fa-eye" aria-hidden="true"></span>
+                </button>
+            </div>
             <small class="form-text text-muted">Pastikan kata sandi sudah benar sebelum masuk.</small>
         </div>
         <?= form_submit('submit', 'MASUK', array('id' => 'submit', 'class' => 'btn btn-masuk')) ?>
@@ -81,6 +96,14 @@ $logo = isset($setting) && $setting->logo_kanan != null ? base_url() . $setting-
         const base_url = '<?= base_url() ?>';
         const form = $('#login-siswa');
         const infobox = $('#infoMessage');
+        const password = $('#password');
+
+        $('#toggle-password').on('click', function () {
+            const showPassword = password.prop('type') === 'password';
+            password.prop('type', showPassword ? 'text' : 'password');
+            $(this).attr('aria-label', showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
+            $(this).find('span').toggleClass('fa-eye', !showPassword).toggleClass('fa-eye-slash', showPassword);
+        });
 
         form.on('submit', function (e) {
             e.preventDefault();
